@@ -171,15 +171,19 @@ function select_dataset(identifier::AbstractString, body::AbstractString, query)
              not identify",
         )
         if query.abscissa in ("A", "Ap", "ATKE")
-            # A bare mass number. A value of 10⁴ or more is 1000·Z + A, i.e. charge-resolved, and
-            # a value of 10 or less is not a fission fragment.
-            maximum(product) ≥ 1e4 && return Rejection(
+            # A bare mass number, so it must look like one. `ProdZA` is 1000·Z + A whenever the
+            # product is charge-resolved, which for Z ≥ 10 exceeds 10⁴ — but for a light charge-
+            # resolved product it does not: an α from ternary fission is 2004, and taken as a
+            # mass number that is a fragment four times too heavy to exist. Bounding the value
+            # from above is what separates the two codings for light products, and no bare
+            # fission-fragment mass approaches the mass of the fissioning nucleus.
+            maximum(product) > MAXIMUM_FRAGMENT_MASS && return Rejection(
                 identifier,
                 code,
                 "abscissa \"$(query.abscissa)\" expects bare mass numbers, but the products \
-                 are charge-coded",
+                 reach $(maximum(product)), which is charge-coded rather than a mass",
             )
-            minimum(product) ≤ 10 && return Rejection(
+            minimum(product) ≤ MINIMUM_FRAGMENT_MASS && return Rejection(
                 identifier,
                 code,
                 "product mass numbers reach $(minimum(product)), too light to be a fission \

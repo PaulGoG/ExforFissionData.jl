@@ -81,6 +81,23 @@ applied here cannot be undone.
 const EV_TO_MEV = 1.0e-6
 
 """
+Factors converting an energy-valued ordinate to MeV, keyed by the unit token EXFOR reports.
+
+Applied to ordinates that *are* an energy — fragment and total kinetic energies, and
+centre-of-mass neutron energies. This is an exact unit conversion with a recorded factor, not a
+normalisation: the quantity is unchanged and the factor is written into the run record. Energy
+*densities* such as a spectrum are deliberately absent, since converting one rescales a
+distribution rather than restating a value.
+"""
+const ORDINATE_ENERGY_FACTORS = Dict("EV" => 1.0e-6, "KEV" => 1.0e-3, "MEV" => 1.0)
+
+"""Largest plausible bare mass number of a fission fragment."""
+const MAXIMUM_FRAGMENT_MASS = 250
+
+"""Smallest plausible bare mass number of a fission fragment."""
+const MINIMUM_FRAGMENT_MASS = 10
+
+"""
     validate_header(header, source) -> Nothing
 
 Check a retrieved CSV header against [`EXFOR_HEADER`](@ref).

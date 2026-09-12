@@ -71,22 +71,26 @@ function rejection_reason(rule::TagRule, code::AbstractString)
     return "none of the alternative tags $(rule.require_any) present"
 end
 
-# Tags rejected for every observable.
-#
-#   RECOM     recommended/evaluated values, not a measurement
-#   TER       ternary fission
-#   RAT       a ratio rather than the quantity itself
-#   ,G        gamma-related channel
-#   -G-       ground-state-resolved product in the code's product field
-#   )/(       a ratio of two reaction codes
-#   )//(      a ratio of two reaction codes, second form
-#   DEL       delayed, rather than prompt, emission
-#   CUM       cumulative rather than independent yield
-#   RAW       uncorrected data
-#
-# "CHN" (chain yields) and "REL" (relative data) sit in this list in the original script but are
-# deliberately disabled: excluding them removes datasets that are wanted. They are kept here,
-# commented, because the decision to admit them is a real one and should stay visible.
+"""
+Tags rejected for every observable.
+
+| Tag | Excludes |
+| :--- | :--- |
+| `RECOM` | recommended or evaluated values, not a measurement |
+| `TER` | ternary fission |
+| `RAT` | a ratio rather than the quantity itself |
+| `,G` | a gamma-related channel |
+| `-G-` | a ground-state-resolved product in the code's product field |
+| `)/(`, `)//(` | a ratio of two reaction codes, in either form |
+| `DEL` | delayed rather than prompt emission |
+| `CUM` | cumulative rather than independent yield |
+| `RAW` | uncorrected data |
+
+`CHN` (chain yields) and `REL` (relative data) appear in this list commented out. Excluding them
+removes datasets that are wanted, so they are admitted deliberately; they remain visible here
+because that is a real decision rather than an oversight, and both are recorded per dataset
+through [`SCALE_QUALIFIERS`](@ref).
+"""
 const BASE_FORBID = [
     "RECOM",
     # "CHN",
@@ -197,6 +201,61 @@ const ABSCISSAE = sort!(collect(keys(ABSCISSA_RULES)))
 
 """Ordinates this package can retrieve, in configuration vocabulary."""
 const ORDINATES = sort!(collect(keys(ORDINATE_RULES)))
+
+"""
+Reaction-code qualifiers that bear on whether a value is on an absolute, directly comparable
+scale, mapped to what each means.
+
+None of these causes a dataset to be rejected — several are admitted deliberately. They are
+recorded per dataset in the run record so that a consumer renormalising a directory of files
+knows which of them are not on the same footing, rather than having to re-read the reaction
+codes to find out.
+"""
+const SCALE_QUALIFIERS = Dict(
+    "MSC" => "miscellaneous: not a standard EXFOR quantity definition",
+    "REL" => "relative: an arbitrary scale, not absolute",
+    "CHN" => "chain yield rather than an independent or mass yield",
+    "DERIV" => "derived from other data rather than measured",
+    "FCT" => "a correction factor has been applied",
+)
+
+"""
+Reaction-code qualifiers naming the neutron spectrum that induced fission.
+
+Recorded for the same reason: a thermal and a fission-spectrum-averaged measurement of the same
+quantity are different numbers.
+"""
+const SPECTRUM_QUALIFIERS = Dict(
+    "MXW" => "Maxwellian-averaged",
+    "SPA" => "fission-spectrum-averaged",
+    "FST" => "fast-neutron-induced",
+    "EPI" => "epithermal",
+    "THR" => "thermal",
+)
+
+"""
+    code_qualifiers(code) -> Vector{String}
+
+The qualifiers of [`SCALE_QUALIFIERS`](@ref) and [`SPECTRUM_QUALIFIERS`](@ref) present in a
+reaction code, each with its meaning, for the run record.
+"""
+function code_qualifiers(code::AbstractString)
+    found = String[]
+    for table in (SCALE_QUALIFIERS, SPECTRUM_QUALIFIERS)
+        for tag in sort(collect(keys(table)))
+            occursin(tag, code) && push!(found, string(tag, ": ", table[tag]))
+        end
+    end
+    return found
+end
+
+"""
+Ordinates whose value is itself an energy, and which are therefore restated in MeV.
+
+`spectrum` and `spectrumRatioMXW` are excluded: the first is a density in energy and the second
+is already dimensionless.
+"""
+const ENERGY_ORDINATES = ("KE", "KEp", "TKE", "TKEp", "epsE")
 
 """EXFOR quantity codes within the scope of this package."""
 const QUANTITIES = ("NU", "FY", "E", "MFQ")

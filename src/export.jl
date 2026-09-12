@@ -160,6 +160,16 @@ function write_metadata(
         "rejected" => length(rejected),
         "units_present" => units,
     )
+    flagged = [
+        entry.dataset.identifier for entry in accepted if
+        any(tag -> occursin(tag, entry.dataset.reaction_code), keys(SCALE_QUALIFIERS))
+    ]
+    if !isempty(flagged)
+        record["datasets"]["scale_warning"] =
+            "these datasets carry a reaction-code qualifier that bears on their scale — see \
+             `qualifiers` on each — and are not necessarily on the same footing as the rest: " *
+            join(flagged, ", ")
+    end
     if length(units) > 1
         record["datasets"]["units_warning"] = "this query returned more than one unit token; datasets in different units must \
              not be renormalised together"
@@ -173,6 +183,7 @@ function write_metadata(
                 "year" => entry.dataset.year,
                 "reaction_code" => entry.dataset.reaction_code,
                 "unit" => entry.dataset.unit,
+                "qualifiers" => code_qualifiers(entry.dataset.reaction_code),
                 "file" => entry.file,
             ),
             entry.reduced.diagnostics,

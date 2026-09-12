@@ -247,6 +247,78 @@ include("fixtures.jl")
         @test reduced.table.TKE[1] ≈ 170.0
     end
 
+    @testset "energy ordinates are restated in MeV" begin
+        query = test_query(; abscissa = "A", ordinate = "TKE", quantity = "E")
+        body = exfor_csv([
+            exfor_row(;
+                reaction_code = "98-CF-252(0,F)MASS,PRE,KE,LF+HF",
+                value_kind = "Data(EV)",
+                product_za = 108,
+                y = 1.86e8,
+                dy = 1.0e6,
+                incident_ev = 0.0253,
+            ),
+        ])
+        accepted = select_dataset("e1", body, query)
+        @test accepted isa Dataset
+        reduced = reduce_dataset(accepted, query)
+        @test reduced.table.value[1] ≈ 186.0
+        @test reduced.table.uncertainty[1] ≈ 1.0
+        @test reduced.diagnostics["unit_written"] == "MEV"
+        @test reduced.diagnostics["ordinate_factor"] ≈ 1.0e-6
+
+        # A spectrum is a density in energy: rescaling it would change the distribution rather
+        # than restate a value, so it is left exactly as the archive gives it.
+        spectral = test_query(; abscissa = "E", ordinate = "spectrum", quantity = "MFQ")
+        body = exfor_csv([
+            exfor_row(;
+                reaction_code = "98-CF-252(0,F),PR,NU/DE",
+                value_kind = "Data(1/EV)",
+                y = 3.0e-7,
+                secondary_ev = 1.0e6,
+                incident_ev = 0.0253,
+            ),
+        ])
+        reduced = reduce_dataset(select_dataset("e2", body, spectral), spectral)
+        @test reduced.table.value[1] ≈ 3.0e-7
+        @test reduced.diagnostics["ordinate_factor"] == 1.0
+    end
+
+    @testset "light charge-coded products are not mistaken for masses" begin
+        query = test_query(; abscissa = "Ap", ordinate = "KEp", quantity = "E")
+        # An alpha from ternary fission is ProdZA 2004. Below the 10^4 threshold that marks a
+        # charge-coded product, but four times too heavy to be a fragment mass.
+        rejected = select_dataset(
+            "t1",
+            exfor_csv([
+                exfor_row(;
+                    reaction_code = "98-CF-252(0,F)MASS,SEC,KE",
+                    product_za = 2004,
+                    y = 1.66e8,
+                    incident_ev = 0.0253,
+                ),
+            ]),
+            query,
+        )
+        @test rejected isa Rejection
+        @test occursin("charge-coded", rejected.reason)
+
+        # A genuine fragment mass still passes.
+        accepted = select_dataset(
+            "t2",
+            exfor_csv([
+                exfor_row(;
+                    reaction_code = "98-CF-252(0,F)MASS,SEC,KE",
+                    product_za = 140,
+                    y = 8.0e7,
+                    incident_ev = 0.0253,
+                ),
+            ]),
+            query,
+        )
+        @test accepted isa Dataset
+    end
+
     @testset "export" begin
         query = test_query()
         directory = mktempdir()

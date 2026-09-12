@@ -159,9 +159,10 @@ Isomeric states are resolved per nuclide and incident energy, then any abscissa 
 carrying several measurements is combined by [`combine_measurements`](@ref). The result has one
 row per abscissa value, which the consuming projects require.
 
-Energies are converted from the electronvolts EXFOR reports to megaelectronvolts. Ordinates are
-written as the archive gives them; the unit token is recorded instead of a normalisation being
-applied.
+Energy abscissae are converted from the electronvolts EXFOR reports to megaelectronvolts, and so
+is an ordinate that is itself an energy — see [`ENERGY_ORDINATES`](@ref). Both are exact
+conversions of a value with the factor recorded. No *normalisation* is ever applied: that
+convention differs between consumers and cannot be undone, so the unit token is recorded instead.
 """
 function reduce_dataset(dataset::Dataset, query)
     table = dataset.table
@@ -236,6 +237,21 @@ function reduce_dataset(dataset::Dataset, query)
         push!(final_uncertainties, uncertainty)
     end
 
+    # An ordinate that is itself an energy is restated in MeV, the unit the consuming projects
+    # work in. This is an exact conversion of a value, with the factor recorded — unlike a
+    # normalisation, which is deliberately never applied. A spectrum is a density in energy, so
+    # it is left alone: rescaling one would change the distribution, not restate it.
+    unit_written = dataset.unit
+    factor = 1.0
+    if query.ordinate in ENERGY_ORDINATES && haskey(ORDINATE_ENERGY_FACTORS, dataset.unit)
+        factor = ORDINATE_ENERGY_FACTORS[dataset.unit]
+        if factor != 1.0
+            final_values .*= factor
+            final_uncertainties .*= factor
+        end
+        unit_written = "MEV"
+    end
+
     result = DataFrame()
     for (position, column) in enumerate(columns)
         result[!, column] = [key[position] for key in final_keys]
@@ -254,6 +270,9 @@ function reduce_dataset(dataset::Dataset, query)
         "abscissae_combined" => combined,
         "weights_imputed" => imputed,
         "incident_energies_mev" => retained_energies .* EV_TO_MEV,
+        "unit_reported" => dataset.unit,
+        "unit_written" => unit_written,
+        "ordinate_factor" => factor,
     )
 
     return Reduced(columns, result, any(>(0), final_uncertainties), diagnostics)
