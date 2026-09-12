@@ -458,6 +458,24 @@ include("fixtures.jl")
         end
     end
 
+    @testset "shipped configurations" begin
+        # Every configuration in config/ must load and validate, so a shipped example cannot
+        # drift out of step with the validator that reads it.
+        directory = joinpath(pkgdir(ExforFissionData), "config")
+        files = filter(endswith(".toml"), readdir(directory; join = true))
+        @test !isempty(files)
+        for file in files
+            configuration = load_configuration(file)
+            @test configuration.query.target != ""
+            # The label is what names the output directory, and the consuming projects key their
+            # stored data on it, so it must stay stable.
+            @test occursin(configuration.query.ordinate, query_label(configuration.query))
+            @test occursin(configuration.query.abscissa, query_label(configuration.query))
+            @test configuration.query.quantity ==
+                  ExforFissionData.ORDINATE_QUANTITY[configuration.query.ordinate]
+        end
+    end
+
     @testset "bounded concurrency" begin
         # Results follow the input order, never completion order. The original script wrote in
         # whatever order threads finished, so no two runs agreed.

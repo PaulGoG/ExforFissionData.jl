@@ -22,7 +22,13 @@ Notable changes to ExforFissionData.jl. The format follows
 - Survey figures in `plotting/`, detached from the retrieval package and carrying their own
   environment.
 - Validation of every abscissa and ordinate combination against the live archive for
-  252-Cf(sf) and 235-U(n,f).
+  252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f).
+- A consistency check between the ordinate and the EXFOR quantity code. The quantity decides
+  which datasets the archive offers, and several ordinates impose no tags of their own, so asking
+  for `yield` under `NU` retrieved prompt multiplicities written as yields — fifteen such datasets
+  for 252-Cf — and under `E` retrieved kinetic energies. The pairing is now refused.
+- `check.jl`, applying the same formatting gate as CI and then the tests.
+- Configurations for 233-U, 235-U and 239-Pu alongside 252-Cf.
 
 ### Fixed
 

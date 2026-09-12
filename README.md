@@ -17,9 +17,16 @@ excluded, with the reason.
 ```
 ExforFissionData.jl/
 ├── activate.jl                  # silent activation of the package environment
-├── config/                      # retrieval configurations
+├── CHANGELOG.md
+├── check.jl                     # pre-commit: format with formatter/, then test
+├── config/                      # retrieval configurations, one per observable
 │   ├── Cf252_0f_nu_A.toml       #   ν(A), spontaneous fission of 252-Cf
-│   └── U233_nf_yield_A.toml     #   Y(A), thermal-neutron-induced fission of 233-U
+│   ├── Pu239_nf_nu_A.toml       #   ν(A), thermal-neutron-induced fission of 239-Pu
+│   ├── U233_nf_nu_A.toml        #   ν(A), 233-U
+│   ├── U233_nf_yield_A.toml     #   Y(A), 233-U
+│   └── U235_nf_nu_A.toml        #   ν(A), 235-U
+├── formatter/                   # pinned JuliaFormatter environment
+│   └── activate.jl
 ├── plotting/                    # detached survey figures; not a dependency of retrieval
 │   ├── activate.jl              #   silent activation of the plotting environment
 │   ├── Project.toml
@@ -51,6 +58,8 @@ julia --project scripts/retrieve.jl config/Cf252_0f_nu_A.toml     # retrieve one
 julia --project scripts/retrieve.jl config/U233_nf_yield_A.toml ~/data   # elsewhere
 julia plotting/survey.jl data/Cf252_0f_nuA --format png           # check what it returned
 julia --project -e 'using Pkg; Pkg.test()'                        # test suite
+julia check.jl                                                    # format, then test
+julia check.jl --check                                            # fail on formatting differences
 julia -e 'include("activate.jl")' -i                              # REPL in the environment
 ```
 
@@ -104,6 +113,11 @@ suffixed name.
 | `TKE`, `TKEp` | pre- and post-neutron total kinetic energy |
 | `epsE` | centre-of-mass neutron energy |
 | `spectrum`, `spectrumRatioMXW` | prompt fission neutron spectrum, absolute and as a ratio to a Maxwellian |
+
+Each ordinate belongs to one EXFOR quantity code — `yield` to `FY`, `nu` and `nuPair` to `NU`,
+the kinetic energies to `E`, the spectra to `MFQ` — and the configuration is refused if the two
+disagree. The quantity decides which datasets the archive offers at all, so a mismatch retrieves
+a different observable under the requested name rather than nothing.
 
 ## Conventions
 
@@ -170,9 +184,13 @@ indistinguishable from one the archive does not hold.
 
 | Component | State |
 | :--- | :--- |
-| Column contract, tag grammar, selection | tested; validated against live responses for 252-Cf, 235-U, 239-Pu and 233-U |
+| Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f) |
 | Reduction: isomers, duplicates, energy windows | tested on fixtures and on live datasets exhibiting all three causes |
-| Retrieval: cache, backoff, bounded concurrency | in use; 205-dataset query exercised end to end |
+| Retrieval: cache, backoff, bounded concurrency | in use; order independence and the concurrency bound tested under 1, 4 and 8 threads |
 | Export and run record | in use |
 | `plotting/survey.jl` | in use; figures inspected |
-| Static QA | Aqua and JET in the suite |
+| Static QA | Aqua and JET in the suite; formatting gated against a pinned JuliaFormatter |
+
+Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against `TKE`
+is reported as a pair quantity, so it needs `nuPair`; 252-Cf carries no mass-resolved
+post-neutron kinetic energy, and no `Y(A, TKE)` under any quantity code.

@@ -260,5 +260,28 @@ const ENERGY_ORDINATES = ("KE", "KEp", "TKE", "TKEp", "epsE")
 """EXFOR quantity codes within the scope of this package."""
 const QUANTITIES = ("NU", "FY", "E", "MFQ")
 
+"""
+The EXFOR quantity code each ordinate belongs to.
+
+The quantity selects which datasets the archive offers at all; the tag rule then chooses among
+them. Several ordinates — `yield` most of all — impose no tags of their own and rely entirely on
+the abscissa rule, so pairing one with the wrong quantity silently admits a different observable:
+asking for `yield` under `NU` returns prompt multiplicities, and under `E` returns kinetic
+energies, both written as though they were yields. The configuration validator refuses the
+mismatch rather than leaving it to be noticed in the output.
+"""
+const ORDINATE_QUANTITY = Dict(
+    "yield" => "FY",
+    "nu" => "NU",
+    "nuPair" => "NU",
+    "KE" => "E",
+    "KEp" => "E",
+    "TKE" => "E",
+    "TKEp" => "E",
+    "epsE" => "E",
+    "spectrum" => "MFQ",
+    "spectrumRatioMXW" => "MFQ",
+)
+
 """Reaction codes within the scope of this package: neutron-induced and spontaneous fission."""
 const REACTIONS = ("n,f", "0,f")

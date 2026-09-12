@@ -188,6 +188,19 @@ function load_configuration(path::AbstractString)
     # Rejects an abscissa and ordinate that cannot both impose alternative tags.
     tag_rule(abscissa, ordinate)
 
+    # The quantity code decides which datasets the archive offers; the tag rule only chooses
+    # among them. An ordinate that imposes no tags of its own therefore inherits whatever the
+    # quantity returns, so a mismatch yields a different observable under the requested name.
+    expected = ORDINATE_QUANTITY[ordinate]
+    quantity == expected || throw(
+        ArgumentError(
+            "$(source): [query].ordinate \"$(ordinate)\" requires [query].quantity \
+             \"$(expected)\", got \"$(quantity)\". The quantity selects which datasets EXFOR \
+             returns, so this pairing would retrieve a different observable under the name \
+             \"$(ordinate)\".",
+        ),
+    )
+
     retrieval_section = get(table, "retrieval", Dict{String, Any}())
     retrieval_section isa AbstractDict ||
         throw(ArgumentError("$(source): [retrieval] must be a table of keys"))
