@@ -1,7 +1,178 @@
-# ExforFissionData
+# ExforFissionData.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://PaulGoG.github.io/ExforFissionData.jl/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://PaulGoG.github.io/ExforFissionData.jl/dev/)
-[![Build Status](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/PaulGoG/ExforFissionData.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/PaulGoG/ExforFissionData.jl)
-[![Aqua](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[![Julia](https://img.shields.io/badge/Julia-1.12%2B-9558B2?logo=julia&logoColor=white)](https://julialang.org)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[![JET](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
+[![Code style: JuliaFormatter](https://img.shields.io/badge/code%20style-JuliaFormatter-informational)](https://github.com/domluna/JuliaFormatter.jl)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Retrieval of experimental fission observables from the IAEA EXFOR archive, as tabulated data
+files with a record of everything the query considered.
+
+A query names a target, a reaction, an EXFOR quantity code, and the observable wanted as an
+abscissa and an ordinate. The package finds the datasets that answer it, reduces each to one row
+per abscissa value, and writes them beside a run record naming every dataset it kept or
+excluded, with the reason.
+
+```
+ExforFissionData.jl/
+├── activate.jl                  # silent activation of the package environment
+├── config/                      # retrieval configurations
+│   ├── Cf252_0f_nu_A.toml       #   ν(A), spontaneous fission of 252-Cf
+│   └── U233_nf_yield_A.toml     #   Y(A), thermal-neutron-induced fission of 233-U
+├── plotting/                    # detached survey figures; not a dependency of retrieval
+│   ├── activate.jl              #   silent activation of the plotting environment
+│   ├── Project.toml
+│   └── survey.jl                #   one figure per retrieval, as a check on what it returned
+├── scripts/
+│   └── retrieve.jl              # entry point
+├── src/
+│   ├── ExforFissionData.jl      # module
+│   ├── schema.jl                # the 39-column contract of the csv rendering
+│   ├── reaction_codes.jl        # the tag grammar, as data
+│   ├── client.jl                # retrieval: timeout, backoff, bounded concurrency, cache
+│   ├── configuration.jl         # TOML loading and validation
+│   ├── selection.jl             # what answers the query, and why the rest does not
+│   ├── reduction.jl             # projection, isomers, duplicates
+│   ├── export.jl                # data files and the run record
+│   └── pipeline.jl              # orchestration
+└── test/
+```
+
+## Requirements
+
+Julia 1.12 or later through [juliaup](https://github.com/JuliaLang/juliaup). Retrieval needs
+network access to `nds.iaea.org`; a cached query does not.
+
+## Entry points
+
+```bash
+julia --project scripts/retrieve.jl config/Cf252_0f_nu_A.toml     # retrieve one observable
+julia --project scripts/retrieve.jl config/U233_nf_yield_A.toml ~/data   # elsewhere
+julia plotting/survey.jl data/Cf252_0f_nuA --format png           # check what it returned
+julia --project -e 'using Pkg; Pkg.test()'                        # test suite
+julia -e 'include("activate.jl")' -i                              # REPL in the environment
+```
+
+Both environments activate and instantiate themselves silently, so a fresh clone needs no
+preparation.
+
+```julia
+using ExforFissionData
+result = retrieve(load_configuration("config/Cf252_0f_nu_A.toml"))
+length(result.accepted), length(result.rejected)
+```
+
+## What a retrieval writes
+
+```
+data/Cf252_0f_nuA/
+├── retrieval.toml                        # the run record
+├── data/
+│   └── 41425014_A.S.Vorobiev_2001.dat    # identifier, first author, year
+└── subentries/
+    └── 41425014_A.S.Vorobiev_2001.txt    # the original EXFOR subentry
+```
+
+Data files are space-separated with a single header line — `A nu errnu`, or `A nu` where the
+archive quotes no uncertainty:
+
+```
+A nu errnu
+81 0.644 0.06826
+82 0.905 0.08244
+```
+
+Nothing is overwritten. A retrieval landing on an existing directory writes beside it under a
+suffixed name.
+
+## Observables
+
+| Abscissa | Meaning |
+| :--- | :--- |
+| `A`, `Ap` | pre- and post-neutron fragment mass |
+| `Z` | fragment charge |
+| `ZAp` | charge and post-neutron mass jointly |
+| `E`, `TKE` | energy, total kinetic energy |
+| `ATKE` | mass and total kinetic energy jointly |
+
+| Ordinate | Meaning |
+| :--- | :--- |
+| `yield` | fission yield |
+| `nu`, `nuPair` | prompt neutron multiplicity, per fragment and per fragment pair |
+| `KE`, `KEp` | pre- and post-neutron fragment kinetic energy |
+| `TKE`, `TKEp` | pre- and post-neutron total kinetic energy |
+| `epsE` | centre-of-mass neutron energy |
+| `spectrum`, `spectrumRatioMXW` | prompt fission neutron spectrum, absolute and as a ratio to a Maxwellian |
+
+## Conventions
+
+**Energies are MeV**, converted from the electronvolts the archive reports.
+
+**No normalisation is applied to ordinates.** Normalisation conventions differ between the
+projects that consume this data and cannot be undone once applied, so the unit token of each
+dataset is recorded in the run record instead. A query returning more than one unit token is
+flagged: such datasets must not be renormalised together.
+
+**No point is dropped on the basis of its value or uncertainty.** Quality cuts belong with the
+project that can justify them.
+
+**The uncertainty column is omitted** when no row of a dataset carries one, rather than written
+as a column of zeros.
+
+**Duplicate abscissa values are resolved, never averaged blindly.** Three different things cause
+them, and each is handled on its own terms:
+
+| Cause | Treatment |
+| :--- | :--- |
+| several incident energies | selected by the configured window, as a row filter |
+| isomeric states | the archive's own total where it gives one, otherwise the resolved states summed with uncertainties in quadrature |
+| genuine repeats | inverse-variance weighted mean, uncertainty `1/√(Σ1/σ²)` |
+
+What the reduction had to do is recorded per dataset in the run record, including groups it could
+not disambiguate.
+
+## Selection
+
+Datasets are chosen by substring tests over the EXFOR reaction code — for instance
+`92-U-233(N,F)ELEM/MASS,CUM,FY`. The archive applies its own vocabulary inconsistently, so the
+tables in `src/reaction_codes.jl` are empirical: they encode observed failures of the upstream
+labelling rather than a formal grammar. A rule that looks redundant is more likely to be guarding
+against a real entry than to be dead weight.
+
+Three checks are worth naming because they are easy to get wrong:
+
+- the `y:Value` column marks **upper limits** with a `Max(` prefix; those rows are bounds, not
+  measurements;
+- it also marks **arbitrary units** as `ARB-UNITS`, which carry no scale and cannot be combined
+  with absolute data;
+- the incident-energy window is applied **per row**, not to the dataset as a whole. An EXFOR
+  dataset frequently reports one product at several energies, and admitting all of them collapses
+  an excitation function into a single number.
+
+## Retrieval
+
+Requests run under a bounded concurrency limit with a per-request timeout and exponential
+backoff, and every response is cached on disk in a `Scratch.jl` space. An EXFOR entry is immutable
+once published, so a dataset is fetched at most once and a re-run costs nothing.
+
+Datasets are processed and written in identifier order, so a re-run over an unchanged archive
+reproduces its output exactly.
+
+## The run record
+
+`retrieval.toml` holds the query, the conventions applied, the package revision, the platform,
+and both dataset lists — accepted, with what the reduction did to each, and rejected, with the
+reason. The rejection list is the point: a dataset missing from the output is otherwise
+indistinguishable from one the archive does not hold.
+
+## Status
+
+| Component | State |
+| :--- | :--- |
+| Column contract, tag grammar, selection | tested; validated against live responses for 252-Cf, 235-U, 239-Pu and 233-U |
+| Reduction: isomers, duplicates, energy windows | tested on fixtures and on live datasets exhibiting all three causes |
+| Retrieval: cache, backoff, bounded concurrency | in use; 205-dataset query exercised end to end |
+| Export and run record | in use |
+| `plotting/survey.jl` | in use; figures inspected |
+| Static QA | Aqua and JET in the suite |
