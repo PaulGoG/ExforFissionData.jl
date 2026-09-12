@@ -1,0 +1,7 @@
+name = "ExforFissionData"
+uuid = "d02a33b8-3da8-4825-8b46-52714913fc73"
+authors = ["Paul-Adrian Gogîță"]
+version = "0.1.0"
+
+[compat]
+julia = "1.12"

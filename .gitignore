@@ -1,0 +1,32 @@
+# retrieval outputs (never version-controlled)
+data/
+plots/
+*.log
+
+# retrieved and generated data formats, except committed test fixtures
+*.csv
+*.dat
+*.h5
+*.jld2
+*.pdf
+*.png
+*.svg
+!**/test/fixtures/**
+
+# the test environment regenerates its manifest; the package manifest is
+# version-controlled
+test/Manifest.toml
+/docs/Manifest*.toml
+/docs/build/
+
+# editor and OS metadata
+*.swp
+*~
+.DS_Store
+.vscode/
+.idea/
+
+# coverage artifacts
+*.jl.cov
+*.jl.*.cov
+*.jl.mem

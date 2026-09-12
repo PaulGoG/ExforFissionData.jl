@@ -1,0 +1,6 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ExforFissionData = "d02a33b8-3da8-4825-8b46-52714913fc73"
+
+[sources]
+ExforFissionData = {path = ".."}

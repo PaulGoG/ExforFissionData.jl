@@ -1,0 +1,10 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.13.0"
+manifest_format = "2.1"
+project_hash = "bfcccf1c7e74afbfeed13792a825c2df4d4efaeb"
+
+[[deps.ExforFissionData]]
+path = "."
+uuid = "d02a33b8-3da8-4825-8b46-52714913fc73"
+version = "0.1.0"
