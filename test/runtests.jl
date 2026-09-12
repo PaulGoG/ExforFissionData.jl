@@ -386,6 +386,61 @@ include("fixtures.jl")
         end
     end
 
+    @testset "bounded concurrency" begin
+        # Results follow the input order, never completion order. The original script wrote in
+        # whatever order threads finished, so no two runs agreed.
+        options = ExforFissionData.RetrievalOptions(; concurrency = 4)
+        delays = [0.05, 0.0, 0.03, 0.0, 0.01, 0.0, 0.02, 0.0, 0.04]
+        result = ExforFissionData.map_bounded(eachindex(delays), options) do index
+            sleep(delays[index])
+            index
+        end
+        @test result == collect(eachindex(delays))
+
+        # The semaphore bounds work in flight. Counting concurrent entries must never exceed it.
+        for limit in (1, 3)
+            options = ExforFissionData.RetrievalOptions(; concurrency = limit)
+            in_flight = Threads.Atomic{Int}(0)
+            peak = Threads.Atomic{Int}(0)
+            ExforFissionData.map_bounded(1:24, options) do _
+                current = Threads.atomic_add!(in_flight, 1) + 1
+                old = peak[]
+                while current > old
+                    old = Threads.atomic_cas!(peak, old, current)
+                end
+                sleep(0.005)
+                Threads.atomic_sub!(in_flight, 1)
+                nothing
+            end
+            @test peak[] ≤ limit
+        end
+
+        # A task that throws surfaces rather than being swallowed.
+        options = ExforFissionData.RetrievalOptions(; concurrency = 2)
+        @test_throws TaskFailedException ExforFissionData.map_bounded(1:4, options) do index
+            index == 3 && error("failure in task $(index)")
+            index
+        end
+    end
+
+    @testset "response cache" begin
+        directory = mktempdir()
+        options = ExforFissionData.RetrievalOptions(; cache_directory = directory)
+        # A cached response is returned without a request, which is what makes a re-run free and
+        # keeps one dataset from being fetched from the archive more than once.
+        key = ExforFissionData._cache_key("x4get?DatasetID=10433002&op=csv&plus=2")
+        write(joinpath(directory, key), "cached body")
+        @test ExforFissionData.request("x4get?DatasetID=10433002&op=csv&plus=2", options) ==
+              "cached body"
+
+        # Cache keys stay distinct across the queries that differ only in punctuation.
+        @test ExforFissionData._cache_key(
+            "x4list?Target=U-235&Reaction=n,f&Quantity=FY&txt",
+        ) != ExforFissionData._cache_key(
+            "x4list?Target=U-233&Reaction=n,f&Quantity=FY&txt",
+        )
+    end
+
     @testset "quality" begin
         using Aqua
         Aqua.test_all(ExforFissionData; ambiguities = false)

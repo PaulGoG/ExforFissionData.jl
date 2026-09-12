@@ -60,7 +60,7 @@ function _cache_key(query::AbstractString)
 end
 
 """
-    fetch(query, options) -> String
+    request(query, options) -> String
 
 Retrieve `query` relative to [`EXFOR_BASE`](@ref), through the cache when enabled.
 
@@ -68,7 +68,7 @@ Retries on transport failures and on server errors with exponential backoff; a 4
 not retried, since it will not succeed on repetition. Throws the final exception when every
 attempt fails.
 """
-function fetch(query::AbstractString, options::RetrievalOptions)
+function request(query::AbstractString, options::RetrievalOptions)
     path = joinpath(cache_directory(options), _cache_key(query))
     if options.use_cache && isfile(path)
         return read(path, String)
@@ -86,8 +86,11 @@ function fetch(query::AbstractString, options::RetrievalOptions)
             )
             body = String(response.body)
             if options.use_cache
-                # Write through a temporary name so a concurrent reader never sees a partial file.
-                temporary = string(path, ".", getpid(), ".", attempt, ".partial")
+                # Write through a name unique to this task, so that a concurrent reader never
+                # sees a partial file and two tasks fetching the same query cannot collide on
+                # the temporary. The rename is atomic within a filesystem.
+                temporary =
+                    string(path, ".", getpid(), ".", objectid(current_task()), ".partial")
                 write(temporary, body)
                 mv(temporary, path; force = true)
             end
@@ -127,7 +130,7 @@ function dataset_identifiers(
     options::RetrievalOptions,
 )
     query = "x4list?Target=$(target)&Reaction=$(reaction)&Quantity=$(quantity)&txt"
-    body = fetch(query, options)
+    body = request(query, options)
     identifiers = String[]
     for line in eachline(IOBuffer(body))
         token = strip(line)
@@ -143,7 +146,7 @@ end
 The `op=csv&plus=2` rendering of one dataset.
 """
 function dataset_csv(identifier::AbstractString, options::RetrievalOptions)
-    return fetch("x4get?DatasetID=$(identifier)&op=csv&plus=2", options)
+    return request("x4get?DatasetID=$(identifier)&op=csv&plus=2", options)
 end
 
 """
@@ -153,7 +156,7 @@ The original EXFOR subentry text of one dataset, retained beside the extracted d
 every written file can be traced to the archive record it came from.
 """
 function subentry_text(identifier::AbstractString, options::RetrievalOptions)
-    return fetch("x4get?sub=$(identifier)", options)
+    return request("x4get?sub=$(identifier)", options)
 end
 
 """
@@ -177,5 +180,5 @@ function map_bounded(f, items::AbstractVector, options::RetrievalOptions)
             end
         end
     end
-    return map(fetch_task -> Base.fetch(fetch_task), tasks)
+    return map(Base.fetch, tasks)
 end

@@ -14,7 +14,7 @@ include(joinpath(@__DIR__, "activate.jl"))
 
 using CairoMakie
 using CSV: CSV
-using DataFrames: DataFrame, nrow
+using DataFrames: DataFrame, ncol, nrow
 using MathTeXEngine: texfont
 using TOML: TOML
 
@@ -48,6 +48,9 @@ const PALETTE = [
     RGBf(0.35, 0.35, 0.35),
 ]
 const MARKERS = [:circle, :rect, :utriangle, :diamond, :cross, :xcross, :star5, :dtriangle]
+
+"""Largest number of series that still yields a readable per-dataset legend."""
+const MAX_LEGEND_ENTRIES = 12
 
 """
     read_record(directory) -> Dict
@@ -85,14 +88,14 @@ function survey(
 
     set_theme!(THEME)
     width = 246                      # points, a single column
-    figure = Figure(; size = (width, joint ? width : 0.78width))
+    figure = Figure(; size = (width, joint ? 0.85width : 0.78width))
     axis = Axis(
         figure[1, 1];
-        xlabel = joint ? _axis_label(abscissa, 1) : _axis_label(abscissa, 1),
+        xlabel = _axis_label(abscissa, 1),
         ylabel = joint ? _axis_label(abscissa, 2) : _ordinate_label(ordinate),
     )
 
-    entries = String[]
+    tables = Tuple{Int, DataFrame, String}[]
     for (index, entry) in enumerate(accepted)
         file = joinpath(directory, entry["file"])
         isfile(file) || continue
@@ -105,41 +108,86 @@ function survey(
             silencewarnings = true,
         )
         nrow(table) == 0 && continue
-        # The two cycles must not share a period, or the nth dataset past the palette repeats
-        # the first exactly. Advancing the marker by one extra step per completed colour cycle
-        # keeps every (colour, marker) pair distinct for 64 datasets.
-        colour = PALETTE[mod1(index, length(PALETTE))]
-        marker = MARKERS[mod1(index + (index - 1) ÷ length(PALETTE), length(MARKERS))]
-        label = string(entry["author"], " ", entry["year"])
-        columns = names(table)
-        x = table[!, 1]
-        if joint
-            scatter!(axis, x, table[!, 2]; color = colour, marker, markersize = 4, label)
-        else
-            y = table[!, 2]
-            if length(columns) ≥ 3
+        push!(tables, (index, table, string(entry["author"], " ", entry["year"])))
+    end
+    isempty(tables) && error("no dataset of the retrieval at $(directory) could be read")
+
+    if joint
+        # A joint abscissa is a plane, so the ordinate cannot also be a position. Colouring by it
+        # makes the figure say something; one marker per dataset would only say which archive
+        # entry a point came from, which at this many datasets is not a readable question.
+        x = reduce(vcat, [table[!, 1] for (_, table, _) in tables])
+        y = reduce(vcat, [table[!, 2] for (_, table, _) in tables])
+        v = reduce(vcat, [table[!, 3] for (_, table, _) in tables])
+        finite = findall(value -> isfinite(value) && value > 0, v)
+        points = scatter!(
+            axis,
+            x[finite],
+            y[finite];
+            color = log10.(v[finite]),
+            colormap = :viridis,
+            markersize = 3,
+        )
+        Colorbar(
+            figure[1, 2],
+            points;
+            label = string("log₁₀ ", _ordinate_label(ordinate)),
+            width = 8,
+            ticklabelsize = 7,
+            labelsize = 8,
+        )
+        text!(
+            axis,
+            0.03,
+            0.95;
+            text = "$(length(tables)) datasets, $(length(finite)) points",
+            space = :relative,
+            align = (:left, :top),
+            fontsize = 7,
+        )
+        colgap!(figure.layout, 6)
+    else
+        for (index, table, label) in tables
+            # The two cycles must not share a period, or the nth dataset past the palette
+            # repeats the first exactly. Advancing the marker by one extra step per completed
+            # colour cycle keeps every (colour, marker) pair distinct for 64 datasets.
+            colour = PALETTE[mod1(index, length(PALETTE))]
+            marker = MARKERS[mod1(index + (index - 1) ÷ length(PALETTE), length(MARKERS))]
+            x, y = table[!, 1], table[!, 2]
+            if ncol(table) ≥ 3
                 errorbars!(axis, x, y, table[!, 3]; color = (colour, 0.5), linewidth = 0.6)
             end
             scatter!(axis, x, y; color = colour, marker, markersize = 4, label)
         end
-        push!(entries, label)
-    end
 
-    if !isempty(entries)
-        Legend(
-            figure[0, 1],
-            axis;
-            orientation = :horizontal,
-            nbanks = cld(length(entries), 3),
-            framevisible = false,
-            padding = (0, 0, 0, 0),
-            patchsize = (6, 6),
-            colgap = 6,
-            rowgap = 1,
-            labelsize = 6,
-        )
+        # Beyond this many series a per-dataset legend takes the figure over and stops being
+        # readable, so the count is stated instead and the record names the datasets.
+        if length(tables) ≤ MAX_LEGEND_ENTRIES
+            Legend(
+                figure[0, 1],
+                axis;
+                orientation = :horizontal,
+                nbanks = cld(length(tables), 3),
+                framevisible = false,
+                padding = (0, 0, 0, 0),
+                patchsize = (6, 6),
+                colgap = 6,
+                rowgap = 1,
+                labelsize = 6,
+            )
+            rowgap!(figure.layout, 4)
+        else
+            text!(
+                axis,
+                0.03,
+                0.95;
+                text = "$(length(tables)) datasets",
+                space = :relative,
+                align = (:left, :top),
+                fontsize = 7,
+            )
+        end
     end
-    rowgap!(figure.layout, 4)
 
     path = if isempty(output)
         joinpath(directory, string(record["run"]["label"], ".", format))
