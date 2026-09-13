@@ -24,4 +24,4 @@ save_subentries = true            # store the original EXFOR subentry text besid
 
 [output]
 directory = "data"                # root for retrieved data, relative to the working directory
-digits = 7                        # decimals in tabulated output, 1 to 15
+significant_digits = 7            # significant digits in tabulated output, 1 to 15

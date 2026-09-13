@@ -32,13 +32,16 @@ function dataset_stem(dataset::Dataset)
 end
 
 """
-    write_dataset(path, reduced, query; digits) -> Nothing
+    write_dataset(path, reduced, query; significant_digits) -> Nothing
 
 Write one reduced dataset as a space-separated table with a single header line.
 
+Values are rounded to `significant_digits` significant digits, which is scale-invariant: a fixed
+number of decimals would keep a multiplicity of order 1 and destroy a spectrum of order 1e-7.
+
 The uncertainty column is written only when at least one row carries one; a dataset quoting none
-yields a two-column file, which the consuming readers accept and which is honest about what the
-archive holds. Line endings are `\\n`.
+yields a two-column file, which a reader accepts and which is honest about what the archive
+holds. Line endings are `\\n`.
 
 The header names the abscissa columns, then the ordinate, then its uncertainty — for example
 `A nu errnu`, or `Z Ap yield erryield` for a joint abscissa.
@@ -47,12 +50,18 @@ function write_dataset(
     path::AbstractString,
     reduced::Reduced,
     query::Query;
-    digits::Int = 7,
+    significant_digits::Int = 7,
 )
     table = reduced.table
     header = String[String(column) for column in reduced.columns]
     push!(header, query.ordinate)
     reduced.has_uncertainties && push!(header, string("err", query.ordinate))
+
+    # Significant digits, never decimal places. Rounding to a fixed number of decimals is a
+    # statement about the scale of the quantity, and the ordinates here span many: an absolute
+    # prompt fission neutron spectrum is of order 1e-7 PC/FIS/MEV, which seven decimal places
+    # reduce to one significant digit and eight erase entirely.
+    round_written(value) = string(round(value; sigdigits = significant_digits))
 
     open(path, "w") do io
         println(io, join(header, ' '))
@@ -60,14 +69,10 @@ function write_dataset(
             fields = String[]
             for column in reduced.columns
                 value = row[column]
-                push!(
-                    fields,
-                    value isa Integer ? string(value) : string(round(value; digits)),
-                )
+                push!(fields, value isa Integer ? string(value) : round_written(value))
             end
-            push!(fields, string(round(row.value; digits)))
-            reduced.has_uncertainties &&
-                push!(fields, string(round(row.uncertainty; digits)))
+            push!(fields, round_written(row.value))
+            reduced.has_uncertainties && push!(fields, round_written(row.uncertainty))
             println(io, join(fields, ' '))
         end
     end

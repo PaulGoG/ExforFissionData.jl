@@ -66,8 +66,25 @@ Notable changes to ExforFissionData.jl. The format follows
   identifier order the pipeline processes them, so that what was kept is seen against what was
   considered. The animation of the four `ν(A)` retrievals is the figure in the README. Theme,
   palette and axis labels common to the plotting scripts moved to `plotting/style.jl`.
+- Survey figures draw relative datasets in a panel of their own beneath the absolute ones,
+  sharing the abscissa, and put a spectrum on a log ordinate. One pair of linear axes asserted a
+  comparison the data does not support — arbitrary units against absolute ones — and collapsed
+  every spectrum but the largest onto the abscissa.
+
+### Changed
+
+- `[output] digits` is now `[output] significant_digits`, and rounds to significant digits. The
+  old name meant decimal places, which is a statement about the scale of a quantity rather than
+  about its precision.
 
 ### Fixed
+
+- **Small ordinate values were written away.** Rounding to seven decimal places left an absolute
+  prompt fission neutron spectrum of order 1e-7 PC/FIS/MEV with one significant digit, wrote its
+  uncertainties as zero, and reduced a dataset of order 1e-8 to a column of zeros: of the six
+  absolute 235-U(n,f) spectra the thermal window admits, one was destroyed outright and five lost
+  three digits. Rounding now follows the significant digits of the value, so the written precision
+  no longer depends on the unit the archive happens to quote a quantity in.
 
 - **The response cache stored failures and served them forever.** A transient empty body, and the
   application-level message the archive returns with HTTP 200 when it declines a request, were

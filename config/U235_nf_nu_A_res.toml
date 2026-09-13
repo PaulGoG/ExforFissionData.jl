@@ -26,4 +26,4 @@ save_subentries = true      # store the original EXFOR subentry text beside the 
 directory = "data/resonance"  # kept apart: the label does not encode the energy window, so a
                             # thermal and a resonance run of the same observable would otherwise
                             # differ only by a numeric suffix
-digits = 7                  # decimals in tabulated output, 1 to 15
+significant_digits = 7      # significant digits in tabulated output, 1 to 15

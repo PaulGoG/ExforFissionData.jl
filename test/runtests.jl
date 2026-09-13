@@ -371,7 +371,7 @@ include("fixtures.jl")
         ])
         reduced = reduce_dataset(select_dataset("10", body, query), query)
         path = joinpath(directory, "with.dat")
-        write_dataset(path, reduced, query; digits = 7)
+        write_dataset(path, reduced, query; significant_digits = 7)
         lines = readlines(path)
         @test lines[1] == "A yield erryield"
         @test length(split(lines[2], ' ')) == 3
@@ -384,10 +384,25 @@ include("fixtures.jl")
         reduced = reduce_dataset(select_dataset("11", bare, query), query)
         @test !reduced.has_uncertainties
         path = joinpath(directory, "bare.dat")
-        write_dataset(path, reduced, query; digits = 7)
+        write_dataset(path, reduced, query; significant_digits = 7)
         lines = readlines(path)
         @test lines[1] == "A yield"
         @test length(split(lines[2], ' ')) == 2
+
+        # Rounding is by significant digits, not decimal places. An absolute prompt fission
+        # neutron spectrum is of order 1e-7 in the units the archive quotes it in, and seven
+        # decimal places would write it as one significant digit and a value of 1e-8 as zero.
+        small = exfor_csv([
+            exfor_row(; product_za = 100, y = 5.214e-7, dy = 1.3e-8, incident_ev = 0.0253),
+            exfor_row(; product_za = 101, y = 1.2e-8, incident_ev = 0.0253),
+        ])
+        reduced = reduce_dataset(select_dataset("12", small, query), query)
+        path = joinpath(directory, "small.dat")
+        write_dataset(path, reduced, query; significant_digits = 7)
+        rows = readlines(path)
+        @test parse(Float64, split(rows[2], ' ')[2]) ≈ 5.214e-7
+        @test parse(Float64, split(rows[2], ' ')[3]) ≈ 1.3e-8
+        @test parse(Float64, split(rows[3], ' ')[2]) ≈ 1.2e-8
 
         # Writing never destroys an earlier result.
         @test unused_path(path) != path

@@ -139,7 +139,12 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             data_directory
         end
         file = joinpath(target, string(stem, ".dat"))
-        write_dataset(file, reduced, query; digits = configuration.digits)
+        write_dataset(
+            file,
+            reduced,
+            query;
+            significant_digits = configuration.significant_digits,
+        )
         push!(accepted, AcceptedEntry(dataset, reduced, relpath(file, directory)))
     end
 
