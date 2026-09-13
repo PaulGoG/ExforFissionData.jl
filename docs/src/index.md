@@ -63,6 +63,16 @@ are written unchanged, with their uncertainties.
 **The uncertainty column is omitted** when no row of a dataset carries one, rather than written
 as a column of zeros.
 
+**Fragment and prompt-neutron observables only.** Prompt-γ quantities, the multiplicity
+distribution P(ν), and the centre-of-mass spectrum Φ(ε) are outside the observable set; the last
+the archive does not carry as a quantity of its own.
+
+**Relative spectra are excluded**, and that one has teeth: `spectrum` rejects datasets in
+`ARB-UNITS`, which for ²³⁵U(n,f) is 54 of the 125 the archive offers against 15 accepted. A
+relative spectrum genuinely has no absolute scale and cannot be combined with absolute data, but
+prompt fission neutron spectra are conventionally measured relative and normalised afterwards, so
+most published spectrum comparisons cannot be rebuilt from what this package returns.
+
 ## Conventions applied
 
 Energies are restated in MeV — both an energy abscissa and an ordinate that is itself an energy.

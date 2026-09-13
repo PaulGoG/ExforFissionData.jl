@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: ExforFissionData.jl
+abstract: >-
+  Retrieval of experimental fission observables from the IAEA EXFOR archive as tabulated data
+  files, with a record of every dataset the query considered and why each was kept or excluded.
+  Selection is driven by the EXFOR reaction code, and no normalisation is applied to retrieved
+  ordinates.
+type: software
+authors:
+  - family-names: Gogîță
+    given-names: Paul-Adrian
+version: 0.1.0
+date-released: "2026-09-13"
+license: MIT
+repository-code: https://github.com/PaulGoG/ExforFissionData.jl
+keywords:
+  - nuclear fission
+  - nuclear data
+  - EXFOR
+  - fission fragment yields
+  - prompt neutron multiplicity
+  - Julia
+references:
+  - type: article
+    title: >-
+      Towards a More Complete and Accurate Experimental Nuclear Reaction Data Library (EXFOR):
+      International Collaboration Between Nuclear Reaction Data Centres (NRDC)
+    authors:
+      - family-names: Otuka
+        given-names: Naohiko
+      - family-names: Dupont
+        given-names: Emmeric
+      - family-names: Semkova
+        given-names: Viktoriya
+    journal: Nuclear Data Sheets
+    volume: 120
+    start: 272
+    end: 276
+    year: 2014
+    doi: 10.1016/j.nds.2014.07.065
+    notes: >-
+      The archive this package retrieves from. Data obtained through it should cite the original
+      measurements, whose EXFOR accession numbers the run record preserves.

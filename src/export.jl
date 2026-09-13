@@ -131,7 +131,10 @@ function write_metadata(
         "run" => Dict{String, Any}(
             "timestamp" => string(now()),
             "package_revision" => _revision(),
-            "configuration" => configuration.source,
+            # The file name, not the path it was read from. Consumers commit these records into
+            # their own repositories, and an absolute path would carry the directory layout of
+            # whoever ran the retrieval into somebody else's history.
+            "configuration" => basename(configuration.source),
             "label" => query_label(query),
         ),
         "query" => Dict{String, Any}(

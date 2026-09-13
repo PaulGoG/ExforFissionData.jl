@@ -34,8 +34,17 @@ Notable changes to ExforFissionData.jl. The format follows
   over a single peak.
 - A note on two known miscoded 252-Cf multiplicity subentries, which the reaction code places
   among pair data while their values are per fragment.
+- Joint `ν(A, TKE)` configurations for all four systems, and resonance-region variants for 235-U
+  whose incident-energy window reaches the measurements made on a resonance beam.
+- `CITATION.cff`, and activation scripts for the `docs/` and `test/` environments.
 
 ### Fixed
+
+- The run record named the configuration by the absolute path it was read from. Consumers commit
+  these records, so that carried the directory layout of whoever ran the retrieval into other
+  repositories; it now records the file name.
+- `[compat]` pinned the `Dates` and `TOML` standard libraries to patch versions, which constrains
+  nothing useful and can make a declared Julia floor unsatisfiable.
 
 Corrections relative to the script this package replaces, preserved on the `legacy` branch:
 

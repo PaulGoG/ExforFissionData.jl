@@ -1,5 +1,7 @@
 # ExforFissionData.jl
 
+[![CI](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml)
+[![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://PaulGoG.github.io/ExforFissionData.jl/dev/)
 [![Julia](https://img.shields.io/badge/Julia-1.12%2B-9558B2?logo=julia&logoColor=white)](https://julialang.org)
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 [![JET](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
@@ -14,17 +16,24 @@ abscissa and an ordinate. The package finds the datasets that answer it, reduces
 per abscissa value, and writes them beside a run record naming every dataset it kept or
 excluded, with the reason.
 
+It exists as a data-preparation step for separate fission-model analyses, which read the files it
+writes rather than calling it at run time. That is why the output layout is plain whitespace-
+separated text with one header line, why nothing is normalised or filtered on the way out, and why
+the reasoning behind every exclusion is written down. Where the documentation says "consumers",
+it means those downstream analyses — or yours.
+
 ```
 ExforFissionData.jl/
 ├── activate.jl                  # silent activation of the package environment
-├── CHANGELOG.md
 ├── check.jl                     # pre-commit: format with formatter/, then test
-├── config/                      # retrieval configurations, one per observable
-│   ├── Cf252_0f_nu_A.toml       #   ν(A), spontaneous fission of 252-Cf
-│   ├── Pu239_nf_nu_A.toml       #   ν(A), thermal-neutron-induced fission of 239-Pu
-│   ├── U233_nf_nu_A.toml        #   ν(A), 233-U
-│   ├── U233_nf_yield_A.toml     #   Y(A), 233-U
-│   └── U235_nf_nu_A.toml        #   ν(A), 235-U
+├── CHANGELOG.md
+├── CITATION.cff
+├── LICENSE
+├── Project.toml  Manifest.toml
+├── config/                      # 14 configurations, <target>_<reaction>_<ordinate>_<abscissa>
+├── docs/                        # Documenter site
+│   ├── make.jl
+│   └── src/index.md
 ├── formatter/                   # pinned JuliaFormatter environment
 │   └── activate.jl
 ├── plotting/                    # detached survey figures; not a dependency of retrieval
@@ -43,13 +52,64 @@ ExforFissionData.jl/
 │   ├── reduction.jl             # projection, isomers, duplicates
 │   ├── export.jl                # data files and the run record
 │   └── pipeline.jl              # orchestration
-└── test/
+├── test/
+└── .github/workflows/CI.yml
 ```
+
+Retrieved data lands in `data/<label>/` and is not version-controlled: EXFOR entries are
+immutable once published, so a configuration and this package reproduce a retrieval exactly.
+
+## Configurations
+
+| System | Y(A) | ν(A) | ν(A,TKE) |
+| :--- | :--- | :--- | :--- |
+| ²⁵²Cf(sf) | `Cf252_0f_yield_A` | `Cf252_0f_nu_A` | `Cf252_0f_nu_ATKE` |
+| ²³⁵U(n,f) | `U235_nf_yield_A` | `U235_nf_nu_A` | `U235_nf_nu_ATKE` |
+| ²³³U(n,f) | `U233_nf_yield_A` | `U233_nf_nu_A` | `U233_nf_nu_ATKE` |
+| ²³⁹Pu(n,f) | `Pu239_nf_yield_A` | `Pu239_nf_nu_A` | `Pu239_nf_nu_ATKE` |
+
+The neutron-induced configurations admit thermal incident energies. `U235_nf_nu_A_res` and
+`U235_nf_nu_ATKE_res` widen the window to 1 keV, which is what the resonance-beam measurements
+need — a thermal window excludes them on their incident energy alone.
 
 ## Requirements
 
 Julia 1.12 or later through [juliaup](https://github.com/JuliaLang/juliaup). Retrieval needs
 network access to `nds.iaea.org`; a cached query does not.
+
+## Installation
+
+This is **not a registered package** — `Pkg.add("ExforFissionData")` will not find it. Either
+clone it and work in the repository, which is what the configurations and scripts assume,
+
+```bash
+git clone https://github.com/PaulGoG/ExforFissionData.jl
+cd ExforFissionData.jl
+julia -e 'include("activate.jl")'
+```
+
+or add it to another environment by URL,
+
+```julia
+using Pkg
+Pkg.develop(url = "https://github.com/PaulGoG/ExforFissionData.jl")
+```
+
+Documentation: <https://PaulGoG.github.io/ExforFissionData.jl>
+
+## The data, and using the archive politely
+
+The experimental data belongs to the [IAEA Nuclear Data Section](https://nds.iaea.org/exfor) and
+to the groups that measured it. This package only automates queries against it; it neither
+redistributes EXFOR data nor claims any rights over what it retrieves.
+
+**Cite the original measurements, not this tool.** Every retrieval writes the EXFOR accession
+number of each dataset into both the file name and the run record, which is what makes those
+citations recoverable. A reference for the archive itself is in `CITATION.cff`.
+
+EXFOR is a shared public service. Responses are cached on disk and an entry is fetched at most
+once, so a re-run costs the archive nothing — please leave that caching enabled, and keep the
+configured concurrency modest.
 
 ## Entry points
 
@@ -60,11 +120,13 @@ julia plotting/survey.jl data/Cf252_0f_nuA --format png           # check what i
 julia --project -e 'using Pkg; Pkg.test()'                        # test suite
 julia check.jl                                                    # format, then test
 julia check.jl --check                                            # fail on formatting differences
+julia --project=docs docs/make.jl                                 # build the documentation
 julia -e 'include("activate.jl")' -i                              # REPL in the environment
 ```
 
-Both environments activate and instantiate themselves silently, so a fresh clone needs no
-preparation.
+Every environment — the package, `test/`, `docs/`, `formatter/` and `plotting/` — carries an
+`activate.jl` that activates and instantiates it silently, so a fresh clone needs no preparation.
+The auxiliary ones take the package by path, so they always run against the local source.
 
 ```julia
 using ExforFissionData

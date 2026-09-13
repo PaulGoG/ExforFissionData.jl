@@ -56,7 +56,6 @@ const EXFOR_HEADER = (
 # Column positions, named. Access through these rather than through integer literals: the header
 # validation above is what makes a position meaningful, and a named constant is what makes the
 # connection reviewable.
-const COL_DATASET_ID = 1
 const COL_YEAR = 2
 const COL_AUTHOR = 3
 const COL_VALUE_KIND = 4      # e.g. "Data(PART/FIS)", "Max(NO-DIM)" — datum type and unit

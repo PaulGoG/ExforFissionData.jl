@@ -55,7 +55,7 @@ function combine_measurements(
         return (sum(values) / length(values), 0.0, 0)
     end
     weights = Vector{Float64}(undef, length(values))
-    reference = median_of(1 ./ (Float64.(uncertainties[positive]) .^ 2))
+    reference = _median_of(1 ./ (Float64.(uncertainties[positive]) .^ 2))
     imputed = 0
     for index in eachindex(values)
         if uncertainties[index] > 0
@@ -70,7 +70,7 @@ function combine_measurements(
 end
 
 # A median without a Statistics dependency for a handful of values.
-function median_of(values::AbstractVector{<:Real})
+function _median_of(values::AbstractVector{<:Real})
     sorted = sort(collect(Float64, values))
     n = length(sorted)
     isodd(n) && return sorted[(n + 1) ÷ 2]
