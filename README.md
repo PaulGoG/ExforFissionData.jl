@@ -164,6 +164,22 @@ Three checks are worth naming because they are easy to get wrong:
   dataset frequently reports one product at several energies, and admitting all of them collapses
   an excitation function into a single number.
 
+### Known miscoded entries
+
+Selection follows the reaction code, so a dataset whose code disagrees with its own contents is
+excluded correctly and unhelpfully. Two are known for `ordinate = "nu"`, both 252-Cf(sf):
+
+| Subentry | Coded | Holds |
+| :--- | :--- | :--- |
+| `23268005` (Göök, 2014) | `MASS,PR,NU` | multiplicity per fragment, normalised to a total of 3.759 |
+| `23118006` (Zeynalov, 2011) | `MASS,PR,NU` | multiplicity per fragment, though its own description says "total" |
+
+Neither carries `FRG`, so `ordinate = "nu"` rejects both and `ordinate = "nuPair"` accepts them as
+pair data, which they are not: for 252-Cf a pair multiplicity is about 3.76 everywhere, and
+`23118006` reports 0.56 at A = 80. The tag rules are not loosened to admit them, since
+`MASS,PR,NU` is the correct code for genuine pair data and admitting it would mix the two
+quantities. Both appear in the rejection list of the run record with their reaction codes.
+
 ## Retrieval
 
 Requests run under a bounded concurrency limit with a per-request timeout and exponential

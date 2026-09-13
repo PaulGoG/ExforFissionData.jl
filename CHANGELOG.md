@@ -29,6 +29,11 @@ Notable changes to ExforFissionData.jl. The format follows
   for 252-Cf — and under `E` retrieved kinetic energies. The pairing is now refused.
 - `check.jl`, applying the same formatting gate as CI and then the tests.
 - Configurations for 233-U, 235-U and 239-Pu alongside 252-Cf.
+- Mass yield configurations for all four systems. Validated by mass conservation: summing the
+  ordinate over a complete mass range gives 2.000 to three or four significant figures, and 1.00
+  over a single peak.
+- A note on two known miscoded 252-Cf multiplicity subentries, which the reaction code places
+  among pair data while their values are per fragment.
 
 ### Fixed
 
