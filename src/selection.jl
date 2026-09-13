@@ -126,7 +126,10 @@ function select_dataset(identifier::AbstractString, body::AbstractString, query)
             "value kind \"$(kind)\" is a limit, not a measurement",
         )
     end
-    if !has_absolute_scale(kind)
+    # Arbitrary units are fatal for most observables and normal for a spectrum, which is
+    # conventionally measured relative and normalised afterwards. Where they are admitted the
+    # data is written apart from absolute data rather than mixed with it.
+    if !has_absolute_scale(kind) && !tolerates_relative_scale(query.ordinate)
         return Rejection(identifier, code, "value kind \"$(kind)\" has no absolute scale")
     end
     unit = last(parse_value_kind(kind))

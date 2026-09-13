@@ -1,0 +1,28 @@
+# Prompt fission neutron spectrum against secondary neutron energy, thermal-neutron-induced
+# fission of 235-U.
+#
+# A prompt fission neutron spectrum is conventionally measured relative and normalised
+# afterwards, so most of what the archive holds is in arbitrary units. Those datasets are
+# retrieved and written under `relative/`, apart from the absolute ones in `data/`: each carries
+# a shape and no scale, and none can be put on a common scale with another.
+
+[query]
+target = "U-235"            # EXFOR nuclide symbol of the target
+reaction = "n,f"            # one of: "n,f" | "0,f"
+quantity = "MFQ"            # one of: "NU" | "FY" | "E" | "MFQ"
+abscissa = "E"              # one of: "A" | "Ap" | "Z" | "ZAp" | "E" | "TKE" | "ATKE"
+ordinate = "spectrum"       # one of: "nu" | "nuPair" | "yield" | "KE" | "KEp" | "TKE" | "TKEp" | "epsE" | "spectrum" | "spectrumRatioMXW"
+energy_min = 0.0            # incident energy window, MeV, at least 0
+energy_max = 1.0e-7         # incident energy window, MeV, above energy_min
+
+[retrieval]
+concurrency = 4             # simultaneous requests, 1 to 16
+timeout = 60.0              # per-request timeout in seconds, positive
+retries = 4                 # retry attempts after a failure, 0 to 10
+backoff = 1.0               # base of the exponential backoff in seconds, positive
+use_cache = true            # read and write the on-disk response cache
+save_subentries = true      # store the original EXFOR subentry text beside the data
+
+[output]
+directory = "data"          # root for retrieved data, relative to the working directory
+digits = 7                  # decimals in tabulated output, 1 to 15

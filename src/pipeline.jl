@@ -94,6 +94,11 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     directory = unused_path(joinpath(root, configuration.output_directory, label))
     data_directory = joinpath(directory, "data")
     mkpath(data_directory)
+    # Datasets in arbitrary units are kept apart from absolute ones, and the directory is created
+    # only if any arrive. A relative measurement cannot be put on a common scale with anything —
+    # not even another relative measurement — so a consumer that reads a directory wholesale must
+    # not be able to pick one up by accident.
+    relative_directory = joinpath(directory, "relative")
     subentry_directory = joinpath(directory, "subentries")
     configuration.save_subentries && mkpath(subentry_directory)
 
@@ -112,7 +117,13 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             continue
         end
         stem = dataset_stem(dataset)
-        file = joinpath(data_directory, string(stem, ".dat"))
+        target = if is_relative_unit(dataset.unit)
+            isdir(relative_directory) || mkpath(relative_directory)
+            relative_directory
+        else
+            data_directory
+        end
+        file = joinpath(target, string(stem, ".dat"))
         write_dataset(file, reduced, query; digits = configuration.digits)
         push!(accepted, AcceptedEntry(dataset, reduced, relpath(file, directory)))
     end

@@ -67,11 +67,20 @@ as a column of zeros.
 distribution P(ν), and the centre-of-mass spectrum Φ(ε) are outside the observable set; the last
 the archive does not carry as a quantity of its own.
 
-**Relative spectra are excluded**, and that one has teeth: `spectrum` rejects datasets in
-`ARB-UNITS`, which for ²³⁵U(n,f) is 54 of the 125 the archive offers against 15 accepted. A
-relative spectrum genuinely has no absolute scale and cannot be combined with absolute data, but
-prompt fission neutron spectra are conventionally measured relative and normalised afterwards, so
-most published spectrum comparisons cannot be rebuilt from what this package returns.
+**Spectra between two fissioning systems** — the ratio form the archive holds a good deal of — are
+a distinct observable and are excluded. A spectrum as a ratio to a Maxwellian is not: that is
+`spectrumRatioMXW`.
+
+**Relative data is retrieved but kept apart.** A prompt fission neutron spectrum is conventionally
+measured relative and normalised afterwards, so most of what the archive holds for ²³⁵U(n,f) is in
+arbitrary units. Those datasets are written under `relative/` rather than beside the absolute ones
+in `data/`, because a relative dataset cannot be put on a common scale with anything — not even
+another relative dataset. Each must be normalised on its own, and none may be averaged with
+absolute data. A reader that takes a whole directory therefore cannot pick one up by accident, and
+the run record marks every accepted dataset `relative = true` or `false`.
+
+Arbitrary units remain fatal for every other ordinate, where a relative value is not an
+interpretable quantity.
 
 ## Conventions applied
 

@@ -186,3 +186,14 @@ Whether a `y:Value` token carries a usable scale, i.e. is not in arbitrary units
 """
 has_absolute_scale(token::AbstractString) =
     !(last(parse_value_kind(token)) in UNSCALED_UNITS)
+
+"""
+    is_relative_unit(unit) -> Bool
+
+Whether a unit token denotes an arbitrary rather than an absolute scale.
+
+Takes the unit alone, as recorded on a [`Dataset`](@ref) — `"ARB-UNITS"`, not
+`"Data(ARB-UNITS)"`. [`has_absolute_scale`](@ref) takes the whole `y:Value` token including its
+wrapper and would read a bare unit as the kind, reporting any of them as absolute.
+"""
+is_relative_unit(unit::AbstractString) = strip(String(unit)) in UNSCALED_UNITS

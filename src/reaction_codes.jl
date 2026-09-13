@@ -155,6 +155,30 @@ const ORDINATE_RULES = Dict{String, TagRule}(
 )
 
 """
+Ordinates for which a measurement in arbitrary units is a standard, interpretable form.
+
+A prompt fission neutron spectrum is conventionally measured relative and normalised afterwards,
+and the published comparisons are ratios to a Maxwellian in which only the shape carries the
+physics. Excluding relative spectra therefore removes most of what the archive holds: for
+235-U(n,f), 54 of the 125 datasets it offers against 15 in absolute units.
+
+Every other ordinate is excluded from this, because a relative value there is not a form anyone
+can interpret — a kinetic energy in arbitrary units is not an energy, and a multiplicity is a
+count per fragment whose scale is the whole quantity.
+
+A relative dataset cannot be put on a common scale with any other, not even another relative one,
+so [`retrieve`](@ref) writes these to their own directory rather than beside absolute data.
+"""
+const RELATIVE_SCALE_ORDINATES = ("spectrum", "spectrumRatioMXW")
+
+"""
+    tolerates_relative_scale(ordinate) -> Bool
+
+Whether `ordinate` admits datasets in arbitrary units; see [`RELATIVE_SCALE_ORDINATES`](@ref).
+"""
+tolerates_relative_scale(ordinate::AbstractString) = ordinate in RELATIVE_SCALE_ORDINATES
+
+"""
     tag_rule(abscissa, ordinate) -> TagRule
 
 Compose the selection rule for an observable from its abscissa and ordinate rules.

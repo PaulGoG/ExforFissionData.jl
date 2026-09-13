@@ -9,7 +9,9 @@ using ExforFissionData:
     TagRule,
     combine_measurements,
     is_measurement,
+    is_relative_unit,
     is_usable_response,
+    tolerates_relative_scale,
     has_absolute_scale,
     matches,
     parse_dataset,
@@ -322,6 +324,43 @@ include("fixtures.jl")
         @test accepted isa Dataset
     end
 
+    @testset "arbitrary units are fatal for a yield and normal for a spectrum" begin
+        # The same dataset, asked for two ways. A relative mass yield is not an interpretable
+        # quantity; a relative spectrum is how prompt fission neutron spectra are measured, and
+        # rejecting them removes most of what the archive holds.
+        body = exfor_csv([
+            exfor_row(;
+                value_kind = "Data(ARB-UNITS)",
+                y = 0.34,
+                dy = 0.02,
+                secondary_ev = 7.0e5,
+                incident_ev = 0.0253,
+                reaction_code = "92-U-235(N,F),PR,NU/DE,,REL",
+            ),
+            exfor_row(;
+                value_kind = "Data(ARB-UNITS)",
+                y = 0.21,
+                dy = 0.01,
+                secondary_ev = 3.0e6,
+                incident_ev = 0.0253,
+                reaction_code = "92-U-235(N,F),PR,NU/DE,,REL",
+            ),
+        ])
+
+        as_yield = select_dataset("1", body, test_query())
+        @test as_yield isa Rejection
+        @test occursin("no absolute scale", as_yield.reason)
+
+        as_spectrum = select_dataset(
+            "1",
+            body,
+            test_query(; quantity = "MFQ", abscissa = "E", ordinate = "spectrum"),
+        )
+        @test as_spectrum isa Dataset
+        @test as_spectrum.unit == "ARB-UNITS"
+        @test is_relative_unit(as_spectrum.unit)
+    end
+
     @testset "export" begin
         query = test_query()
         directory = mktempdir()
@@ -430,6 +469,20 @@ include("fixtures.jl")
         ordinate = "nu"
         """)
         @test load_configuration(spontaneous).query.spontaneous
+
+        # Arbitrary units are fatal for most observables and normal for a spectrum, which is
+        # conventionally measured relative. The unit predicate takes the bare token, unlike
+        # has_absolute_scale, which needs the Data(...) wrapper and would call any bare unit
+        # absolute.
+        @test tolerates_relative_scale("spectrum")
+        @test tolerates_relative_scale("spectrumRatioMXW")
+        @test !tolerates_relative_scale("yield")
+        @test !tolerates_relative_scale("nu")
+        @test !tolerates_relative_scale("KE")
+        @test is_relative_unit("ARB-UNITS")
+        @test !is_relative_unit("PART/FIS")
+        @test !is_relative_unit("NO-DIM")
+        @test !has_absolute_scale("Data(ARB-UNITS)")
 
         # The machine name is off unless asked for: the run record is written to be committed by
         # whoever consumes the data, and it is the one field identifying a person, not a result.

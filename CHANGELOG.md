@@ -37,6 +37,16 @@ Notable changes to ExforFissionData.jl. The format follows
 - Joint `ν(A, TKE)` configurations for all four systems, and resonance-region variants for 235-U
   whose incident-energy window reaches the measurements made on a resonance beam.
 - `CITATION.cff`, and activation scripts for the `docs/` and `test/` environments.
+- **Relative spectra are retrieved**, into a `relative/` directory of their own. The arbitrary-
+  units check rejected them, which contradicted this package's own stated policy: `REL` in the
+  reaction code is documented as a qualifier that is *recorded* rather than used to reject, and
+  every arbitrary-units spectrum carries it. Two rules disagreed about the same datasets and the
+  stricter one won silently. Since a relative dataset cannot be put on a common scale with
+  anything — not even another relative one — they are written apart from the absolute data rather
+  than mixed with it, so a reader that takes a whole directory cannot pick one up by accident.
+  Arbitrary units remain fatal for every other ordinate. For 235-U(n,f) this recovers 42 datasets
+  against the 15 in absolute units.
+- Configurations for the 235-U spectrum and its Maxwellian-ratio form.
 - `[output] record_hostname`, off by default. The run record is written to be committed by
   whoever consumes the data, and the machine name was the one field in it that identified a
   person rather than a result; the rest of the platform fingerprint still attributes a run to

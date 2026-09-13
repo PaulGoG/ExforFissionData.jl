@@ -30,7 +30,7 @@ ExforFissionData.jl/
 ├── CITATION.cff
 ├── LICENSE
 ├── Project.toml  Manifest.toml
-├── config/                      # 14 configurations, <target>_<reaction>_<ordinate>_<abscissa>
+├── config/                      # 18 configurations, <target>_<reaction>_<ordinate>_<abscissa>
 ├── docs/                        # Documenter site
 │   ├── make.jl
 │   └── src/index.md
@@ -71,6 +71,10 @@ immutable once published, so a configuration and this package reproduce a retrie
 The neutron-induced configurations admit thermal incident energies. `U235_nf_nu_A_res` and
 `U235_nf_nu_ATKE_res` widen the window to 1 keV, which is what the resonance-beam measurements
 need — a thermal window excludes them on their incident energy alone.
+
+For the prompt fission neutron spectrum, `U235_nf_spectrum_E` and `U235_nf_spectrumRatioMXW_E`.
+The two are separate observables, not two renderings of one: the archive codes the Maxwellian
+ratio with `MXD`, which the plain spectrum excludes.
 
 ## Requirements
 
@@ -188,12 +192,33 @@ prompt fission γ-ray spectrum — are outside the observable set, as are the ne
 distribution P(ν) and the centre-of-mass spectrum Φ(ε), the last of which the archive does not
 carry as a quantity of its own.
 
-Relative spectra are also absent, and that one bites: `spectrum` rejects datasets in
-`ARB-UNITS`, which for 235-U(n,f) is 54 of the 125 the archive offers against 15 accepted.
-The rule is right in that a relative spectrum has no absolute scale and cannot be combined with
-absolute data, but prompt fission neutron spectra are conventionally measured relative and
-normalised afterwards, so most published spectrum comparisons cannot be reproduced from what
-this package returns.
+Spectra between two different fissioning systems — the `(A(n,f),PR,NU/DE)/(B(n,f),PR,NU/DE)`
+ratio form the archive holds a good deal of — are a distinct observable and are excluded. A
+spectrum expressed as a ratio to a Maxwellian is not: that is `spectrumRatioMXW`.
+
+## Relative data
+
+A prompt fission neutron spectrum is conventionally measured relative and normalised afterwards,
+so for 235-U(n,f) most of what the archive holds is in arbitrary units. Those datasets are
+retrieved, and **written under `relative/` rather than beside the absolute ones in `data/`**:
+
+```
+data/U235_nf_spectrumE/
+├── data/        # absolute, PC/FIS/MEV or 1/EV
+├── relative/    # arbitrary units — a shape, with no scale
+├── subentries/
+└── retrieval.toml
+```
+
+The separation is the point. A relative dataset cannot be put on a common scale with anything,
+not even another relative dataset: each has to be normalised on its own before it is compared
+with anything, and none may be averaged with absolute data. A reader that takes a whole directory
+therefore cannot pick one up by accident. The run record marks each accepted dataset
+`relative = true` or `false` and names them all in one warning.
+
+This applies to the spectrum ordinates alone. For every other observable arbitrary units are
+still fatal, because a relative value there is not interpretable — a kinetic energy in arbitrary
+units is not an energy, and a multiplicity is a count whose scale is the whole quantity.
 
 ## Conventions
 

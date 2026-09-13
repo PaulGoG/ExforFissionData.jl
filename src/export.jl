@@ -180,6 +180,18 @@ function write_metadata(
         record["datasets"]["units_warning"] = "this query returned more than one unit token; datasets in different units must \
              not be renormalised together"
     end
+    relative = [
+        entry.dataset.identifier for
+        entry in accepted if is_relative_unit(entry.dataset.unit)
+    ]
+    if !isempty(relative)
+        record["datasets"]["relative"] = length(relative)
+        record["datasets"]["relative_warning"] =
+            "these datasets are in arbitrary units and are written under `relative/` rather \
+             than beside the absolute data. They carry a shape and no scale: normalise each one \
+             on its own before comparing it with anything, and never average them with absolute \
+             data or with each other. " * join(relative, ", ")
+    end
 
     record["accepted"] = [
         merge(
@@ -189,6 +201,7 @@ function write_metadata(
                 "year" => entry.dataset.year,
                 "reaction_code" => entry.dataset.reaction_code,
                 "unit" => entry.dataset.unit,
+                "relative" => is_relative_unit(entry.dataset.unit),
                 "qualifiers" => code_qualifiers(entry.dataset.reaction_code),
                 "file" => entry.file,
             ),
