@@ -2,7 +2,7 @@
 # jointly, thermal-neutron-induced fission of 239-Pu.
 
 [query]
-target = "Pu-239"            # EXFOR nuclide symbol of the target
+target = "Pu-239"           # EXFOR nuclide symbol of the target
 reaction = "n,f"            # one of: "n,f" | "0,f"
 quantity = "NU"             # one of: "NU" | "FY" | "E" | "MFQ"
 abscissa = "ATKE"           # one of: "A" | "Ap" | "Z" | "ZAp" | "E" | "TKE" | "ATKE"
