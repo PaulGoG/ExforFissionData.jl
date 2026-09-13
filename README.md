@@ -16,11 +16,23 @@ abscissa and an ordinate. The package finds the datasets that answer it, reduces
 per abscissa value, and writes them beside a run record naming every dataset it kept or
 excluded, with the reason.
 
-It exists as a data-preparation step for separate fission-model analyses, which read the files it
-writes rather than calling it at run time. That is why the output layout is plain whitespace-
-separated text with one header line, why nothing is normalised or filtered on the way out, and why
-the reasoning behind every exclusion is written down. Where the documentation says "consumers",
-it means those downstream analyses — or yours.
+It is a data-preparation step rather than an analysis code: a consumer reads the files it writes
+rather than calling it at run time. That is why the output layout is plain whitespace-separated
+text with one header line, why nothing is normalised or filtered on the way out, and why the
+reasoning behind every exclusion is written down. Two fission-model analyses by the same author —
+a fragment temperature-ratio study and a sequential-emission model — consume it in exactly that
+way; neither is public yet, and both are to be released in repositories of their own under
+[github.com/PaulGoG](https://github.com/PaulGoG). Where the documentation says "consumers", it
+means those, or yours.
+
+![Prompt neutron multiplicity against fragment mass for four fissioning systems, dataset by dataset as each retrieval is worked through](docs/src/assets/coverage.gif)
+
+Prompt neutron multiplicity against fragment mass, one panel per fissioning system, as the
+`*_nu_A` configurations return it. Each frame advances through the datasets the archive offers for
+that query in the order the pipeline processes them; a dataset enters the axes only where its
+reaction code answers the query, and otherwise advances the tally alone. Thirty datasets kept of
+824 considered — the remainder are other quantities filed under the same target and reaction, and
+the run record names every one of them with the reason it was left out.
 
 ```
 ExforFissionData.jl/
@@ -33,13 +45,17 @@ ExforFissionData.jl/
 ├── config/                      # 18 configurations, <target>_<reaction>_<ordinate>_<abscissa>
 ├── docs/                        # Documenter site
 │   ├── make.jl
-│   └── src/index.md
+│   └── src/
+│       ├── index.md
+│       └── assets/coverage.gif  #   the figure above, as plotting/coverage.jl writes it
 ├── formatter/                   # pinned JuliaFormatter environment
 │   └── activate.jl
-├── plotting/                    # detached survey figures; not a dependency of retrieval
+├── plotting/                    # detached figures; not a dependency of retrieval
 │   ├── activate.jl              #   silent activation of the plotting environment
 │   ├── Project.toml
-│   └── survey.jl                #   one figure per retrieval, as a check on what it returned
+│   ├── style.jl                 #   theme, palette and labels shared by the scripts
+│   ├── survey.jl                #   one figure per retrieval, as a check on what it returned
+│   └── coverage.jl              #   several retrievals accumulating, as an animation
 ├── scripts/
 │   └── retrieve.jl              # entry point
 ├── src/
@@ -125,6 +141,7 @@ configured concurrency modest.
 julia --project scripts/retrieve.jl config/Cf252_0f_nu_A.toml     # retrieve one observable
 julia --project scripts/retrieve.jl config/U233_nf_yield_A.toml ~/data   # elsewhere
 julia plotting/survey.jl data/Cf252_0f_nuA --format png           # check what it returned
+julia plotting/coverage.jl data/{Cf252_0f,U235_nf,U233_nf,Pu239_nf}_nuA   # redraw the animation
 julia --project -e 'using Pkg; Pkg.test()'                        # test suite
 julia check.jl                                                    # format, then test
 julia check.jl --check                                            # fail on formatting differences
@@ -228,9 +245,9 @@ units is not an energy, and a multiplicity is a count whose scale is the whole q
 
 **Energies are MeV**, converted from the electronvolts the archive reports.
 
-**No normalisation is applied to ordinates.** Normalisation conventions differ between the
-projects that consume this data and cannot be undone once applied, so the unit token of each
-dataset is recorded in the run record instead. A query returning more than one unit token is
+**No normalisation is applied to ordinates.** Normalisation conventions differ between consumers
+and cannot be undone once applied, so the unit token of each dataset is recorded in the run record
+instead. A query returning more than one unit token is
 flagged: such datasets must not be renormalised together.
 
 **No point is dropped on the basis of its value or uncertainty.** Quality cuts belong with the
@@ -332,7 +349,7 @@ the machine as well, which is useful when the records stay yours.
 | Reduction: isomers, duplicates, energy windows | tested on fixtures and on live datasets exhibiting all three causes |
 | Retrieval: cache, backoff, bounded concurrency | in use; order independence and the concurrency bound tested under 1, 4 and 8 threads |
 | Export and run record | in use |
-| `plotting/survey.jl` | in use; figures inspected |
+| `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
 | Static QA | Aqua and JET in the suite; formatting gated against a pinned JuliaFormatter |
 
 Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against `TKE`

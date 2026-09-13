@@ -12,6 +12,14 @@ abscissa and an ordinate. The package finds the datasets that answer it, reduces
 per abscissa value, and writes them beside a run record naming every dataset it kept or excluded,
 with the reason.
 
+![Prompt neutron multiplicity against fragment mass for four fissioning systems, dataset by dataset as each retrieval is worked through](assets/coverage.gif)
+
+Prompt neutron multiplicity against fragment mass, one panel per fissioning system. Each frame
+advances through the datasets the archive offers for that query in the order the pipeline
+processes them; a dataset enters the axes only where its reaction code answers the query. Thirty
+datasets kept of 824 considered, with the run record naming the remainder and the reason each was
+left out.
+
 ```julia
 using ExforFissionData
 
@@ -51,9 +59,8 @@ pair quantity, so `nuPair` with abscissa `TKE` returns data where `nu` returns n
 
 ## What the package does not do
 
-**No normalisation is applied to ordinates.** Normalisation conventions differ between the
-projects that consume this data and cannot be undone once applied, so the unit token of each
-dataset is recorded instead. A query returning more than one unit token is flagged: such datasets
+**No normalisation is applied to ordinates.** Normalisation conventions differ between consumers
+and cannot be undone once applied, so the unit token of each dataset is recorded instead. A query returning more than one unit token is flagged: such datasets
 must not be renormalised together.
 
 **No point is dropped on the basis of its value or uncertainty.** Quality cuts belong with the
