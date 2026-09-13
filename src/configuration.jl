@@ -268,7 +268,8 @@ end
 
 The directory and file stem identifying a query, e.g. `"U233_nf_yieldA"`.
 
-Matches the convention the consuming projects already use for their stored datasets.
+Target, reaction, ordinate and abscissa and nothing else, so that a label stays stable as long as
+the query does and a consumer can key its stored data on it.
 """
 function query_label(query::Query)
     target = replace(query.target, "-" => "")

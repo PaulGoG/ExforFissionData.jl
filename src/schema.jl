@@ -69,8 +69,8 @@ const COL_PRODUCT_ISOMER = 27     # ProdM: 0 ground, 1 first isomer, …; missin
 const COL_REACTION_CODE = 39      # Reacode, e.g. "92-U-233(N,F)ELEM/MASS,CUM,FY"
 
 """
-Conversion from the electronvolts EXFOR reports energies in to the megaelectronvolts the
-consuming projects work in. Exact by definition, applied to energy abscissae and to the
+Conversion from the electronvolts EXFOR reports energies in to the megaelectronvolts fission
+observables are quoted in. Exact by definition, applied to energy abscissae and to the
 incident-energy window, and recorded in the run metadata.
 
 Ordinate *normalisation* is deliberately not applied: the unit token is recorded instead and the

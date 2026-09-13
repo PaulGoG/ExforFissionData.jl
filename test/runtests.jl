@@ -582,8 +582,8 @@ include("fixtures.jl")
         for file in files
             configuration = load_configuration(file)
             @test configuration.query.target != ""
-            # The label is what names the output directory, and the consuming projects key their
-            # stored data on it, so it must stay stable.
+            # The label is what names the output directory, and a consumer keys its stored data
+            # on it, so it must stay stable.
             @test occursin(configuration.query.ordinate, query_label(configuration.query))
             @test occursin(configuration.query.abscissa, query_label(configuration.query))
             @test configuration.query.quantity ==

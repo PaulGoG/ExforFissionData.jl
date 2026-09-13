@@ -39,9 +39,10 @@ Combine repeat measurements of one quantity by an inverse-variance weighted mean
 
 Points with a positive uncertainty carry weight `1/σ²`. Points quoting none carry no information
 about their own weight; rather than discarding them they are given the median of the positive
-weights, and the number so treated is returned as `imputed`. This follows the convention of the
-consuming projects. Where no point quotes an uncertainty the result is the unweighted mean with a
-zero uncertainty, which downstream marks a point as unweighted rather than as perfectly measured.
+weights, and the number so treated is returned as `imputed`. The median is what a point of unknown
+precision is worth among its neighbours: it neither privileges such a point nor throws away the
+measurement. Where no point quotes an uncertainty the result is the unweighted mean with a zero
+uncertainty, which marks a point as unweighted rather than as perfectly measured.
 
 The combined uncertainty is `1/sqrt(Σ w)`, the uncertainty of the weighted mean.
 """
@@ -157,7 +158,7 @@ Project one accepted dataset onto its abscissa and resolve every source of dupli
 
 Isomeric states are resolved per nuclide and incident energy, then any abscissa value still
 carrying several measurements is combined by [`combine_measurements`](@ref). The result has one
-row per abscissa value, which the consuming projects require.
+row per abscissa value, which is the contract the written files keep.
 
 Energy abscissae are converted from the electronvolts EXFOR reports to megaelectronvolts, and so
 is an ordinate that is itself an energy — see [`ENERGY_ORDINATES`](@ref). Both are exact
@@ -237,8 +238,8 @@ function reduce_dataset(dataset::Dataset, query)
         push!(final_uncertainties, uncertainty)
     end
 
-    # An ordinate that is itself an energy is restated in MeV, the unit the consuming projects
-    # work in. This is an exact conversion of a value, with the factor recorded — unlike a
+    # An ordinate that is itself an energy is restated in MeV, the unit fission observables are
+    # quoted in. This is an exact conversion of a value, with the factor recorded — unlike a
     # normalisation, which is deliberately never applied. A spectrum is a density in energy, so
     # it is left alone: rescaling one would change the distribution, not restate it.
     unit_written = dataset.unit

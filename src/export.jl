@@ -22,8 +22,9 @@ end
 """
     dataset_stem(dataset) -> String
 
-The file stem of one dataset: identifier, first author and year, as the consuming projects
-expect, e.g. `"21685003_A.Goeoek_2014"`.
+The file stem of one dataset: identifier, first author and year, e.g.
+`"21685003_A.Goeoek_2014"`. The accession leads back to the measurement; the author and year are
+what a figure legend keys on.
 """
 function dataset_stem(dataset::Dataset)
     author = replace(dataset.author, r"\s+" => "")
