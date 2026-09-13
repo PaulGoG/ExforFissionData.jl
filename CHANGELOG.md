@@ -47,6 +47,9 @@ Notable changes to ExforFissionData.jl. The format follows
   Arbitrary units remain fatal for every other ordinate. For 235-U(n,f) this recovers 42 datasets
   against the 15 in absolute units.
 - Configurations for the 235-U spectrum and its Maxwellian-ratio form.
+- The resonance-region configurations write under `data/resonance/`. A label carries the target,
+  reaction, ordinate and abscissa but not the energy window, so a thermal and a resonance run of
+  the same observable produced directories differing only by a numeric suffix.
 - Requests identify the client and its version in a `User-Agent` header. The archive is a shared
   public service and this package asks its users to treat it as one; arriving anonymously while
   saying so was inconsistent, and an identified client gives whoever runs the archive something

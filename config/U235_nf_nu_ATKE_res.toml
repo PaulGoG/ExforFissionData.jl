@@ -22,5 +22,7 @@ use_cache = true            # read and write the on-disk response cache
 save_subentries = true      # store the original EXFOR subentry text beside the data
 
 [output]
-directory = "data"          # root for retrieved data, relative to the working directory
+directory = "data/resonance"  # kept apart: the label does not encode the energy window, so a
+                            # thermal and a resonance run of the same observable would otherwise
+                            # differ only by a numeric suffix
 digits = 7                  # decimals in tabulated output, 1 to 15

@@ -72,6 +72,10 @@ The neutron-induced configurations admit thermal incident energies. `U235_nf_nu_
 `U235_nf_nu_ATKE_res` widen the window to 1 keV, which is what the resonance-beam measurements
 need — a thermal window excludes them on their incident energy alone.
 
+The `_res` pair writes under `data/resonance/`. A label is built from target, reaction, ordinate
+and abscissa and does not encode the energy window, so a thermal and a resonance run of the same
+observable would otherwise produce directory names differing only by a numeric suffix.
+
 For the prompt fission neutron spectrum, `U235_nf_spectrum_E` and `U235_nf_spectrumRatioMXW_E`.
 The two are separate observables, not two renderings of one: the archive codes the Maxwellian
 ratio with `MXD`, which the plain spectrum excludes.
@@ -274,6 +278,18 @@ excluded correctly and unhelpfully. Two are known for `ordinate = "nu"`, both 25
 | :--- | :--- | :--- |
 | `23268005` (Göök, 2014) | `MASS,PR,NU` | multiplicity per fragment, normalised to a total of 3.759 |
 | `23118006` (Zeynalov, 2011) | `MASS,PR,NU` | multiplicity per fragment, though its own description says "total" |
+
+That both hold per-fragment data is established from the data, not inferred from the wording.
+Complementary masses sum to the total, `ν(A) + ν(252−A) ≈ 3.76`, where a pair quantity would
+already be 3.76 at every point and the sums twice that. Both trace the per-fragment sawtooth,
+rising to ≈3.4 near `A = 120` and collapsing to ≈0.8 at `A = 132` where the `N = 82`, `Z = 50`
+shells close — a pair multiplicity varies only weakly with mass and cannot do this. And within the
+Göök entry, `23268005` agrees to within a few percent with `23268008` marginalised over TKE, which
+*is* coded `MASS,PR/FRG,NU/TKE`; were it a pair quantity it would be twice as large.
+
+Beyond `A ≈ 180`, `23268005` reports values from 11 to 104. Those are not multiplicities: the
+complement there is `A ≲ 70`, the yield is vanishing and the extraction diverges. They are written
+unchanged, since nothing is dropped on the basis of its value, but they are not data to fit.
 
 Neither carries `FRG`, so `ordinate = "nu"` rejects both and `ordinate = "nuPair"` accepts them as
 pair data, which they are not: for 252-Cf a pair multiplicity is about 3.76 everywhere, and
