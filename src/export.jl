@@ -32,7 +32,7 @@ function dataset_stem(dataset::Dataset)
 end
 
 """
-    write_dataset(path, reduced, query; significant_digits) -> Nothing
+    write_dataset(path, reduced; significant_digits) -> Nothing
 
 Write one reduced dataset as a space-separated table with a single header line.
 
@@ -44,18 +44,21 @@ yields a two-column file, which a reader accepts and which is honest about what 
 holds. Line endings are `\\n`.
 
 The header names the abscissa columns, then the ordinate, then its uncertainty — for example
-`A nu errnu`, or `Z Ap yield erryield` for a joint abscissa.
+`A nu nu_uncertainty`, or `Z A_p Y Y_uncertainty` for a joint abscissa. Every name is the ASCII
+symbol of the quantity the column holds, so no column has to be identified from the file name.
+A reader is expected to take columns by **position**: the header names what is there, and
+renaming a quantity must not be able to break anything that reads these files.
 """
 function write_dataset(
     path::AbstractString,
-    reduced::Reduced,
-    query::Query;
+    reduced::ReducedDataset;
     significant_digits::Int = 7,
 )
     table = reduced.table
-    header = String[String(column) for column in reduced.columns]
-    push!(header, query.ordinate)
-    reduced.has_uncertainties && push!(header, string("err", query.ordinate))
+    header = String[String(column) for column in reduced.abscissa_columns]
+    push!(header, String(reduced.ordinate_column))
+    reduced.has_uncertainties &&
+        push!(header, String(uncertainty_column(reduced.ordinate_column)))
 
     # Significant digits, never decimal places. Rounding to a fixed number of decimals is a
     # statement about the scale of the quantity, and the ordinates here span many: an absolute
@@ -67,12 +70,15 @@ function write_dataset(
         println(io, join(header, ' '))
         for row in eachrow(table)
             fields = String[]
-            for column in reduced.columns
+            for column in reduced.abscissa_columns
                 value = row[column]
                 push!(fields, value isa Integer ? string(value) : round_written(value))
             end
-            push!(fields, round_written(row.value))
-            reduced.has_uncertainties && push!(fields, round_written(row.uncertainty))
+            push!(fields, round_written(row[reduced.ordinate_column]))
+            reduced.has_uncertainties && push!(
+                fields,
+                round_written(row[uncertainty_column(reduced.ordinate_column)]),
+            )
             println(io, join(fields, ' '))
         end
     end
@@ -144,10 +150,14 @@ function write_metadata(
             # their own repositories, and an absolute path would carry the directory layout of
             # whoever ran the retrieval into somebody else's history.
             "configuration" => basename(configuration.source),
-            "label" => query_label(query),
+            "system" => system_label(query),
+            "observable" => observable_label(query),
         ),
         "query" => Dict{String, Any}(
-            "target" => query.target,
+            "target_Z" => query.target_Z,
+            "target_A" => query.target_A,
+            "target_symbol" => target_symbol(query),
+            "channel" => query.channel,
             "reaction" => query.reaction,
             "quantity" => query.quantity,
             "abscissa" => query.abscissa,

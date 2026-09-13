@@ -1,0 +1,30 @@
+# Pre-neutron mass yields of thermal-neutron-induced fission of 239-Pu.
+
+[query]
+target_Z = 94           # atomic number of the target, 1 to 118
+target_A = 239          # mass number of the target, at least target_Z and at most 300
+channel = "nth"         # entrance channel, one of: "sf" | "nth" | "nres" | "nfast"
+abscissa = ["mass"]     # quantities the observable is tabulated against; one of:
+                        #   ["mass"] | ["product_mass"] | ["charge"] | ["neutron_energy"] |
+                        #   ["total_kinetic_energy"] | ["charge", "product_mass"] |
+                        #   ["mass", "total_kinetic_energy"]
+ordinate = "yield"      # the observable; one of:
+                        #   "yield" | "multiplicity" | "multiplicity_per_fission" |
+                        #   "fragment_kinetic_energy" | "product_kinetic_energy" |
+                        #   "total_kinetic_energy" | "post_neutron_total_kinetic_energy" |
+                        #   "neutron_kinetic_energy" | "spectrum" |
+                        #   "spectrum_maxwellian_ratio"
+energy_min = 0.0        # incident energy window, MeV, at least 0
+energy_max = 1.0e-7     # incident energy window, MeV, above energy_min
+
+[retrieval]
+concurrency = 4         # simultaneous requests, 1 to 16
+timeout = 60.0          # per-request timeout in seconds, positive
+retries = 4             # retry attempts after a failure, 0 to 10
+backoff = 1.0           # base of the exponential backoff in seconds, positive
+use_cache = true        # read and write the on-disk response cache
+save_subentries = true  # store the original EXFOR subentry text beside the data
+
+[output]
+directory = "data"      # root for retrieved data, relative to the working directory
+significant_digits = 7  # significant digits in tabulated output, 1 to 15

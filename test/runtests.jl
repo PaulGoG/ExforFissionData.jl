@@ -78,15 +78,15 @@ include("fixtures.jl")
         @test occursin("alternative", rejection_reason(rule, "92-U-233(N,F)MASS,CHN,FY"))
 
         # Per-fragment multiplicity requires FRG; the pair quantity must not match it.
-        nu = tag_rule("A", "nu")
+        nu = tag_rule(["mass"], "multiplicity")
         @test matches(nu, "98-CF-252(0,F)MASS,PR/FRG,NU")
         @test !matches(nu, "98-CF-252(0,F)MASS,PR,NU")
-        pair = tag_rule("A", "nuPair")
+        pair = tag_rule(["mass"], "multiplicity_per_fission")
         @test matches(pair, "98-CF-252(0,F)MASS,PR,NU")
         @test !matches(pair, "98-CF-252(0,F)MASS,PR/FRG,NU")
 
         # Cumulative yields and ratios are excluded everywhere.
-        yield = tag_rule("A", "yield")
+        yield = tag_rule(["mass"], "yield")
         @test !matches(yield, "92-U-233(N,F)MASS,CUM,FY")
         @test !matches(yield, "(92-U-235(N,F)MASS,CHN,FY,,REL)//(92-U-235(N,F)MASS,CHN,FY)")
     end
@@ -208,7 +208,7 @@ include("fixtures.jl")
 
         reduced = reduce_dataset(accepted, query)
         @test nrow(reduced.table) == 1
-        @test reduced.table.value[1] ≈ 6.0
+        @test reduced.table.Y[1] ≈ 6.0
 
         # A dataset entirely outside the window is rejected, with its range named.
         outside = select_dataset(
@@ -228,16 +228,18 @@ include("fixtures.jl")
             exfor_row(; product_za = 101, y = 7.0, dy = 0.2, incident_ev = 0.0253),
         ])
         reduced = reduce_dataset(select_dataset("8", body, query), query)
-        @test reduced.columns == [:A]
+        @test reduced.abscissa_columns == [:A]
+        @test reduced.ordinate_column == :Y
         @test reduced.table.A == [100, 101]
         @test allunique(reduced.table.A)
-        @test reduced.table.value[1] ≈ 6.2
+        @test names(reduced.table) == ["A", "Y", "Y_uncertainty"]
+        @test reduced.table.Y[1] ≈ 6.2
         @test reduced.diagnostics["abscissae_combined"] == 1
         @test reduced.has_uncertainties
     end
 
     @testset "energy abscissa converts to MeV" begin
-        query = test_query(; abscissa = "TKE", ordinate = "yield")
+        query = test_query(; abscissa = ["total_kinetic_energy"], ordinate = "yield")
         body = exfor_csv([
             exfor_row(;
                 reaction_code = "92-U-233(N,F),TKE,FY",
@@ -253,7 +255,7 @@ include("fixtures.jl")
     end
 
     @testset "energy ordinates are restated in MeV" begin
-        query = test_query(; abscissa = "A", ordinate = "TKE", quantity = "E")
+        query = test_query(; abscissa = ["mass"], ordinate = "total_kinetic_energy")
         body = exfor_csv([
             exfor_row(;
                 reaction_code = "98-CF-252(0,F)MASS,PRE,KE,LF+HF",
@@ -267,14 +269,14 @@ include("fixtures.jl")
         accepted = select_dataset("e1", body, query)
         @test accepted isa Dataset
         reduced = reduce_dataset(accepted, query)
-        @test reduced.table.value[1] ≈ 186.0
-        @test reduced.table.uncertainty[1] ≈ 1.0
+        @test reduced.table.TKE[1] ≈ 186.0
+        @test reduced.table.TKE_uncertainty[1] ≈ 1.0
         @test reduced.diagnostics["unit_written"] == "MEV"
         @test reduced.diagnostics["ordinate_factor"] ≈ 1.0e-6
 
         # A spectrum is a density in energy: rescaling it would change the distribution rather
         # than restate a value, so it is left exactly as the archive gives it.
-        spectral = test_query(; abscissa = "E", ordinate = "spectrum", quantity = "MFQ")
+        spectral = test_query(; abscissa = ["neutron_energy"], ordinate = "spectrum")
         body = exfor_csv([
             exfor_row(;
                 reaction_code = "98-CF-252(0,F),PR,NU/DE",
@@ -285,12 +287,13 @@ include("fixtures.jl")
             ),
         ])
         reduced = reduce_dataset(select_dataset("e2", body, spectral), spectral)
-        @test reduced.table.value[1] ≈ 3.0e-7
+        @test reduced.table.spectrum[1] ≈ 3.0e-7
         @test reduced.diagnostics["ordinate_factor"] == 1.0
     end
 
     @testset "light charge-coded products are not mistaken for masses" begin
-        query = test_query(; abscissa = "Ap", ordinate = "KEp", quantity = "E")
+        query =
+            test_query(; abscissa = ["product_mass"], ordinate = "product_kinetic_energy")
         # An alpha from ternary fission is ProdZA 2004. Below the 10^4 threshold that marks a
         # charge-coded product, but four times too heavy to be a fragment mass.
         rejected = select_dataset(
@@ -354,7 +357,7 @@ include("fixtures.jl")
         as_spectrum = select_dataset(
             "1",
             body,
-            test_query(; quantity = "MFQ", abscissa = "E", ordinate = "spectrum"),
+            test_query(; abscissa = ["neutron_energy"], ordinate = "spectrum"),
         )
         @test as_spectrum isa Dataset
         @test as_spectrum.unit == "ARB-UNITS"
@@ -371,9 +374,9 @@ include("fixtures.jl")
         ])
         reduced = reduce_dataset(select_dataset("10", body, query), query)
         path = joinpath(directory, "with.dat")
-        write_dataset(path, reduced, query; significant_digits = 7)
+        write_dataset(path, reduced; significant_digits = 7)
         lines = readlines(path)
-        @test lines[1] == "A yield erryield"
+        @test lines[1] == "A Y Y_uncertainty"
         @test length(split(lines[2], ' ')) == 3
 
         # No uncertainty anywhere yields a two-column file rather than a column of zeros.
@@ -384,9 +387,9 @@ include("fixtures.jl")
         reduced = reduce_dataset(select_dataset("11", bare, query), query)
         @test !reduced.has_uncertainties
         path = joinpath(directory, "bare.dat")
-        write_dataset(path, reduced, query; significant_digits = 7)
+        write_dataset(path, reduced; significant_digits = 7)
         lines = readlines(path)
-        @test lines[1] == "A yield"
+        @test lines[1] == "A Y"
         @test length(split(lines[2], ' ')) == 2
 
         # Rounding is by significant digits, not decimal places. An absolute prompt fission
@@ -398,7 +401,7 @@ include("fixtures.jl")
         ])
         reduced = reduce_dataset(select_dataset("12", small, query), query)
         path = joinpath(directory, "small.dat")
-        write_dataset(path, reduced, query; significant_digits = 7)
+        write_dataset(path, reduced; significant_digits = 7)
         rows = readlines(path)
         @test parse(Float64, split(rows[2], ' ')[2]) ≈ 5.214e-7
         @test parse(Float64, split(rows[2], ' ')[3]) ≈ 1.3e-8
@@ -412,15 +415,15 @@ include("fixtures.jl")
         # The run record carries the platform but names the machine only when asked to, and it
         # records the configuration by file name rather than by the path it was read from: these
         # records get committed into the repositories that consume the data.
-        config_path = joinpath(directory, "U233_nf_yield_A.toml")
+        config_path = joinpath(directory, "U233_nth_Y_vs_A.toml")
         write(
             config_path,
             """
             [query]
-            target = "U-233"
-            reaction = "n,f"
-            quantity = "FY"
-            abscissa = "A"
+            target_Z = 92
+            target_A = 233
+            channel = "nth"
+            abscissa = ["mass"]
             ordinate = "yield"
             energy_max = 1.0e-7
             """,
@@ -428,7 +431,12 @@ include("fixtures.jl")
         record_path = joinpath(directory, "retrieval.toml")
         write_metadata(record_path, load_configuration(config_path), [], Rejection[])
         record = TOML.parsefile(record_path)
-        @test record["run"]["configuration"] == "U233_nf_yield_A.toml"
+        @test record["run"]["configuration"] == "U233_nth_Y_vs_A.toml"
+        # System and observable are recorded apart, as they are written apart on disk.
+        @test record["run"]["system"] == "U233_nth"
+        @test record["run"]["observable"] == "Y_vs_A"
+        @test record["query"]["target_symbol"] == "U-233"
+        @test record["query"]["abscissa"] == ["mass"]
         @test haskey(record["platform"], "cpu_model")
         @test !haskey(record["platform"], "hostname")
 
@@ -436,10 +444,10 @@ include("fixtures.jl")
             config_path,
             """
             [query]
-            target = "U-233"
-            reaction = "n,f"
-            quantity = "FY"
-            abscissa = "A"
+            target_Z = 92
+            target_A = 233
+            channel = "nth"
+            abscissa = ["mass"]
             ordinate = "yield"
             energy_max = 1.0e-7
 
@@ -462,38 +470,67 @@ include("fixtures.jl")
 
         valid = write_config("""
         [query]
-        target = "U-233"
-        reaction = "n,f"
-        quantity = "FY"
-        abscissa = "A"
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
         ordinate = "yield"
         energy_max = 1.0e-7
         """)
         configuration = load_configuration(valid)
-        @test configuration.query.target == "U-233"
+        @test target_symbol(configuration.query) == "U-233"
         @test !configuration.query.spontaneous
-        @test query_label(configuration.query) == "U233_nf_yieldA"
+        # The EXFOR reaction and quantity codes are derived from the channel and the ordinate.
+        # A configuration that could state them could state them wrongly, and the quantity in
+        # particular decides which datasets the archive offers at all.
+        @test configuration.query.reaction == "n,f"
+        @test configuration.query.quantity == "FY"
+        # These two name the directories the data is written to, and a consumer keys its stored
+        # data on them, so they must stay stable as long as the query does.
+        @test system_label(configuration.query) == "U233_nth"
+        @test observable_label(configuration.query) == "Y_vs_A"
         @test configuration.retrieval.concurrency == 4
 
-        spontaneous = write_config("""
+        spontaneous = load_configuration(write_config("""
         [query]
-        target = "Cf-252"
-        reaction = "0,f"
-        quantity = "NU"
-        abscissa = "A"
-        ordinate = "nu"
-        """)
-        @test load_configuration(spontaneous).query.spontaneous
+        target_Z = 98
+        target_A = 252
+        channel = "sf"
+        abscissa = ["mass", "total_kinetic_energy"]
+        ordinate = "multiplicity"
+        """))
+        @test spontaneous.query.spontaneous
+        @test spontaneous.query.reaction == "0,f"
+        @test system_label(spontaneous.query) == "Cf252_sf"
+        @test observable_label(spontaneous.query) == "nu_vs_A_TKE"
+
+        # A thermal and a resonance run of one observable differ by system, not by an output
+        # directory chosen to keep them apart.
+        resonance = load_configuration(write_config("""
+        [query]
+        target_Z = 92
+        target_A = 235
+        channel = "nres"
+        abscissa = ["mass"]
+        ordinate = "multiplicity"
+        energy_max = 1.0e-3
+        """))
+        @test system_label(resonance.query) == "U235_nres"
+        @test resonance.query.reaction == "n,f"
+
+        @test element_symbol(98) == "Cf"
+        @test element_symbol(92) == "U"
+        @test_throws ArgumentError element_symbol(0)
 
         # Arbitrary units are fatal for most observables and normal for a spectrum, which is
         # conventionally measured relative. The unit predicate takes the bare token, unlike
         # has_absolute_scale, which needs the Data(...) wrapper and would call any bare unit
         # absolute.
         @test tolerates_relative_scale("spectrum")
-        @test tolerates_relative_scale("spectrumRatioMXW")
+        @test tolerates_relative_scale("spectrum_maxwellian_ratio")
         @test !tolerates_relative_scale("yield")
-        @test !tolerates_relative_scale("nu")
-        @test !tolerates_relative_scale("KE")
+        @test !tolerates_relative_scale("multiplicity")
+        @test !tolerates_relative_scale("fragment_kinetic_energy")
         @test is_relative_unit("ARB-UNITS")
         @test !is_relative_unit("PART/FIS")
         @test !is_relative_unit("NO-DIM")
@@ -504,10 +541,10 @@ include("fixtures.jl")
         @test !configuration.record_hostname
         hostnamed = write_config("""
         [query]
-        target = "U-233"
-        reaction = "n,f"
-        quantity = "FY"
-        abscissa = "A"
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
         ordinate = "yield"
         energy_max = 1.0e-7
 
@@ -520,32 +557,57 @@ include("fixtures.jl")
             (
                 """
                 [query]
-                target = "U-233"
-                reaction = "p,f"
-                quantity = "FY"
-                abscissa = "A"
+                target_Z = 92
+                target_A = 233
+                channel = "p,f"
+                abscissa = ["mass"]
                 ordinate = "yield"
                 """,
-                "reaction",
+                "channel",
             ),
             (
                 """
                 [query]
-                target = "U-233"
-                reaction = "n,f"
-                quantity = "FY"
-                abscissa = "Q"
+                target_Z = 92
+                target_A = 233
+                channel = "nth"
+                abscissa = ["charge_polarisation"]
                 ordinate = "yield"
                 """,
                 "abscissa",
             ),
             (
+                # An abscissa is a list even when it names one quantity, so that a joint index
+                # needs no vocabulary of its own.
                 """
                 [query]
-                target = "U-233"
-                reaction = "n,f"
-                quantity = "FY"
-                abscissa = "A"
+                target_Z = 92
+                target_A = 233
+                channel = "nth"
+                abscissa = "mass"
+                ordinate = "yield"
+                """,
+                "abscissa",
+            ),
+            (
+                # A quantity cannot be tabulated against itself: two columns would be called TKE.
+                """
+                [query]
+                target_Z = 92
+                target_A = 233
+                channel = "nth"
+                abscissa = ["total_kinetic_energy"]
+                ordinate = "total_kinetic_energy"
+                """,
+                "tabulated against itself",
+            ),
+            (
+                """
+                [query]
+                target_Z = 92
+                target_A = 233
+                channel = "nth"
+                abscissa = ["mass"]
                 ordinate = "yield"
                 energy_min = 1.0
                 energy_max = 0.5
@@ -555,10 +617,10 @@ include("fixtures.jl")
             (
                 """
                 [query]
-                target = "U-233"
-                reaction = "n,f"
-                quantity = "FY"
-                abscissa = "A"
+                target_Z = 92
+                target_A = 233
+                channel = "nth"
+                abscissa = ["mass"]
                 ordinate = "yield"
                 [retrieval]
                 concurrency = 99
@@ -568,12 +630,24 @@ include("fixtures.jl")
             (
                 """
                 [query]
-                reaction = "n,f"
-                quantity = "FY"
-                abscissa = "A"
+                target_A = 233
+                channel = "nth"
+                abscissa = ["mass"]
                 ordinate = "yield"
                 """,
-                "target",
+                "target_Z",
+            ),
+            (
+                # A mass number below the charge is not a nuclide.
+                """
+                [query]
+                target_Z = 92
+                target_A = 12
+                channel = "nth"
+                abscissa = ["mass"]
+                ordinate = "yield"
+                """,
+                "target_A",
             ),
         ]
             path = write_config(content)
@@ -595,14 +669,13 @@ include("fixtures.jl")
         files = filter(endswith(".toml"), readdir(directory; join = true))
         @test !isempty(files)
         for file in files
-            configuration = load_configuration(file)
-            @test configuration.query.target != ""
-            # The label is what names the output directory, and a consumer keys its stored data
-            # on it, so it must stay stable.
-            @test occursin(configuration.query.ordinate, query_label(configuration.query))
-            @test occursin(configuration.query.abscissa, query_label(configuration.query))
-            @test configuration.query.quantity ==
-                  ExforFissionData.ORDINATE_QUANTITY[configuration.query.ordinate]
+            query = load_configuration(file).query
+            # One name for one thing: a configuration is named for the system and observable it
+            # retrieves, which are the two directories its data is written to.
+            @test basename(file) ==
+                  string(system_label(query), "_", observable_label(query), ".toml")
+            @test query.reaction == ExforFissionData.CHANNEL_REACTION[query.channel]
+            @test query.quantity == ExforFissionData.ORDINATE_QUANTITY[query.ordinate]
         end
     end
 
@@ -666,7 +739,7 @@ include("fixtures.jl")
         # Reaching a written value goes through these, so they are part of the result rather
         # than internals and must be exported; a user should not have to name an unexported
         # type to read what a retrieval produced.
-        for name in (:AcceptedEntry, :Reduced, :RetrievalResult, :Dataset)
+        for name in (:AcceptedDataset, :ReducedDataset, :RetrievalResult, :Dataset)
             @test name in names(ExforFissionData)
         end
 

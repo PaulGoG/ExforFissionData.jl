@@ -1,0 +1,37 @@
+# Prompt fission neutron spectrum as a ratio to a Maxwellian, against secondary neutron
+# energy, spontaneous fission of 252-Cf.
+#
+# The form much of the published spectrum comparison is done in, and a separate
+# observable from `spectrum`: the archive codes it with MXD, which `spectrum` excludes.
+# Being a ratio, it is dimensionless and carries its own normalisation, which is what
+# makes it comparable between laboratories where the absolute spectra are reported in
+# arbitrary units.
+
+[query]
+target_Z = 98           # atomic number of the target, 1 to 118
+target_A = 252          # mass number of the target, at least target_Z and at most 300
+channel = "sf"          # entrance channel, one of: "sf" | "nth" | "nres" | "nfast"
+abscissa = ["neutron_energy"]
+                        # quantities the observable is tabulated against; one of:
+                        #   ["mass"] | ["product_mass"] | ["charge"] | ["neutron_energy"] |
+                        #   ["total_kinetic_energy"] | ["charge", "product_mass"] |
+                        #   ["mass", "total_kinetic_energy"]
+ordinate = "spectrum_maxwellian_ratio"
+                        # the observable; one of:
+                        #   "yield" | "multiplicity" | "multiplicity_per_fission" |
+                        #   "fragment_kinetic_energy" | "product_kinetic_energy" |
+                        #   "total_kinetic_energy" | "post_neutron_total_kinetic_energy" |
+                        #   "neutron_kinetic_energy" | "spectrum" |
+                        #   "spectrum_maxwellian_ratio"
+
+[retrieval]
+concurrency = 4         # simultaneous requests, 1 to 16
+timeout = 60.0          # per-request timeout in seconds, positive
+retries = 4             # retry attempts after a failure, 0 to 10
+backoff = 1.0           # base of the exponential backoff in seconds, positive
+use_cache = true        # read and write the on-disk response cache
+save_subentries = true  # store the original EXFOR subentry text beside the data
+
+[output]
+directory = "data"      # root for retrieved data, relative to the working directory
+significant_digits = 7  # significant digits in tabulated output, 1 to 15

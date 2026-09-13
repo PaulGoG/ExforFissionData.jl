@@ -1,19 +1,20 @@
 # Orchestration: query, retrieve, select, reduce, write.
 
 """
-    AcceptedEntry
+    AcceptedDataset
 
 One dataset that survived selection, with its reduction and the file it was written to.
 
 # Fields
 - `dataset::Dataset`: what the archive returned, after unit, tag and energy selection.
-- `reduced::Reduced`: the projection onto the requested abscissa, one row per value.
+- `reduced::ReducedDataset`: the projection onto the requested abscissa, one row per value.
 - `file::String`: the written file, relative to the retrieval directory. Datasets in arbitrary
-  units are written under `relative/` rather than `data/`; see [`is_relative_unit`](@ref).
+  units are written under `relative/` rather than beside the absolute data; see
+  [`is_relative_unit`](@ref).
 """
-struct AcceptedEntry
+struct AcceptedDataset
     dataset::Dataset
-    reduced::Reduced
+    reduced::ReducedDataset
     file::String
 end
 
@@ -24,22 +25,22 @@ What a retrieval produced.
 
 # Fields
 - `directory::String`: where the data was written.
-- `accepted::Vector{AcceptedEntry}`: datasets written, in dataset-identifier order.
+- `accepted::Vector{AcceptedDataset}`: datasets written, in dataset-identifier order.
 - `rejected::Vector{Rejection}`: datasets excluded, each with its reason.
 - `metadata_file::String`: path of the run record.
 
-Reaching a written value goes through [`AcceptedEntry`](@ref) and [`Reduced`](@ref) — both
-exported, since they are part of this result rather than internals:
+Reaching a written value goes through [`AcceptedDataset`](@ref) and [`ReducedDataset`](@ref) —
+both exported, since they are part of this result rather than internals:
 
 ```julia
 entry = first(result.accepted)
-entry.dataset.identifier, entry.dataset.unit    # provenance and scale
-entry.reduced.table, entry.reduced.columns      # the rows as written
+entry.dataset.identifier, entry.dataset.unit            # provenance and scale
+entry.reduced.table, entry.reduced.ordinate_column      # the rows as written
 ```
 """
 struct RetrievalResult
     directory::String
-    accepted::Vector{AcceptedEntry}
+    accepted::Vector{AcceptedDataset}
     rejected::Vector{Rejection}
     metadata_file::String
 end
@@ -54,6 +55,9 @@ retrieved, parsed against the recorded column layout, and either accepted or rej
 reason; accepted datasets are projected onto the abscissa, reduced to one row per abscissa value,
 and written. A run record naming every dataset considered is written beside the data.
 
+Data is written to `<root>/<output.directory>/<system>/<observable>/` — one directory per
+fissioning system, one subdirectory per observable, one file per measurement.
+
 Datasets are processed in identifier order and written in identifier order, so a re-run over an
 unchanged archive reproduces the output byte for byte. Nothing is overwritten: a retrieval landing
 on an existing directory writes beside it under a suffixed name.
@@ -61,19 +65,19 @@ on an existing directory writes beside it under a suffixed name.
 # Example
 
 ```julia
-julia> result = retrieve(load_configuration("config/U233_nf_yield_A.toml"));
+julia> result = retrieve(load_configuration("config/U233_nth_Y_vs_A.toml"));
 
 julia> length(result.accepted), length(result.rejected)
 ```
 """
 function retrieve(configuration::Configuration; root::AbstractString = pwd())
     query = configuration.query
-    label = query_label(query)
     options = configuration.retrieval
+    target = target_symbol(query)
 
-    @info "querying EXFOR" target = query.target reaction = query.reaction quantity =
+    @info "querying EXFOR" target = target reaction = query.reaction quantity =
         query.quantity abscissa = query.abscissa ordinate = query.ordinate
-    identifiers = dataset_identifiers(query.target, query.reaction, query.quantity, options)
+    identifiers = dataset_identifiers(target, query.reaction, query.quantity, options)
     @info "dataset identifiers returned" count = length(identifiers)
 
     bodies = map_bounded(identifiers, options) do identifier
@@ -106,9 +110,18 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     @info "selection complete" accepted = length(accepted_datasets) rejected =
         length(rejected)
 
-    directory = unused_path(joinpath(root, configuration.output_directory, label))
-    data_directory = joinpath(directory, "data")
-    mkpath(data_directory)
+    # One directory per system, one subdirectory per observable, the measurements directly
+    # inside it. The absolute data needs no directory of its own: naming a path segment `data`
+    # inside a `data` root says nothing the path does not already say.
+    directory = unused_path(
+        joinpath(
+            root,
+            configuration.output_directory,
+            system_label(query),
+            observable_label(query),
+        ),
+    )
+    mkpath(directory)
     # Datasets in arbitrary units are kept apart from absolute ones, and the directory is created
     # only if any arrive. A relative measurement cannot be put on a common scale with anything —
     # not even another relative measurement — so a consumer that reads a directory wholesale must
@@ -117,7 +130,7 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     subentry_directory = joinpath(directory, "subentries")
     configuration.save_subentries && mkpath(subentry_directory)
 
-    accepted = AcceptedEntry[]
+    accepted = AcceptedDataset[]
     for dataset in accepted_datasets
         reduced = reduce_dataset(dataset, query)
         if isempty(reduced.table)
@@ -126,26 +139,21 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
                 Rejection(
                     dataset.identifier,
                     dataset.reaction_code,
-                    "no usable rows remained after projection onto \"$(query.abscissa)\"",
+                    "no usable rows remained after projection onto $(query.abscissa)",
                 ),
             )
             continue
         end
         stem = dataset_stem(dataset)
-        target = if is_relative_unit(dataset.unit)
+        destination = if is_relative_unit(dataset.unit)
             isdir(relative_directory) || mkpath(relative_directory)
             relative_directory
         else
-            data_directory
+            directory
         end
-        file = joinpath(target, string(stem, ".dat"))
-        write_dataset(
-            file,
-            reduced,
-            query;
-            significant_digits = configuration.significant_digits,
-        )
-        push!(accepted, AcceptedEntry(dataset, reduced, relpath(file, directory)))
+        file = joinpath(destination, string(stem, ".dat"))
+        write_dataset(file, reduced; significant_digits = configuration.significant_digits)
+        push!(accepted, AcceptedDataset(dataset, reduced, relpath(file, directory)))
     end
 
     if configuration.save_subentries && !isempty(accepted)

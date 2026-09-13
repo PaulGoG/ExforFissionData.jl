@@ -12,25 +12,38 @@
 #      inverse-variance weighted mean.
 
 """
-    Reduced
+    ReducedDataset
 
 An observable tabulated against its abscissa, reduced from one dataset.
 
 # Fields
-- `columns::Vector{Symbol}`: abscissa column names, one for a simple abscissa and two for the
-  joint abscissae `ZAp` and `ATKE`.
-- `table::DataFrame`: the abscissa columns, then `value`, then `uncertainty`.
+- `abscissa_columns::Vector{Symbol}`: abscissa column names, one per quantity of the abscissa.
+- `ordinate_column::Symbol`: the ordinate column name.
+- `table::DataFrame`: the abscissa columns, then the ordinate, then its uncertainty. Every
+  column is named for the quantity it holds, the uncertainty as `<ordinate>_uncertainty`, so
+  that a frame read out of this type says what it carries without the file name to explain it.
 - `has_uncertainties::Bool`: whether any row carries a non-zero uncertainty. When false the
   uncertainty column is omitted on export rather than written as a column of zeros.
 - `diagnostics::Dict{String,Any}`: what the reduction had to do — isomer totals used, isomer
   sums taken, ambiguous groups, duplicates combined, distinct incident energies retained.
 """
-struct Reduced
-    columns::Vector{Symbol}
+struct ReducedDataset
+    abscissa_columns::Vector{Symbol}
+    ordinate_column::Symbol
     table::DataFrame
     has_uncertainties::Bool
     diagnostics::Dict{String, Any}
 end
+
+"""
+    uncertainty_column(ordinate_column) -> Symbol
+
+The name of the column holding the uncertainty of `ordinate_column`.
+
+One spelling and one position throughout the toolchain: the quantity's own name suffixed with
+`_uncertainty`, immediately after the quantity it belongs to.
+"""
+uncertainty_column(ordinate_column::Symbol) = Symbol(ordinate_column, "_uncertainty")
 
 """
     combine_measurements(values, uncertainties) -> (value, uncertainty, imputed)
@@ -113,33 +126,34 @@ function resolve_isomers(values::AbstractVector, uncertainties::AbstractVector, 
 end
 
 # Abscissa values of every row, as a vector of tuples, plus the column names.
-function _abscissa(dataset::Dataset, abscissa::AbstractString)
+function _abscissa(dataset::Dataset, abscissa::AbstractVector{<:AbstractString})
     table = dataset.table
     product = table[!, COL_PRODUCT_ZA]
     secondary = table[!, COL_SECONDARY_ENERGY]
-    if abscissa == "A" || abscissa == "Ap"
+    columns = [Symbol(ABSCISSA_TOKEN[quantity]) for quantity in abscissa]
+    if abscissa == ["mass"] || abscissa == ["product_mass"]
+        return (columns, [(ismissing(p) ? missing : round(Int, p),) for p in product])
+    elseif abscissa == ["charge"]
         return (
-            [Symbol(abscissa)],
-            [(ismissing(p) ? missing : round(Int, p),) for p in product],
+            columns,
+            [(ismissing(p) ? missing : round(Int, p) ÷ 1000,) for p in product],
         )
-    elseif abscissa == "Z"
-        return ([:Z], [(ismissing(p) ? missing : round(Int, p) ÷ 1000,) for p in product])
-    elseif abscissa == "ZAp"
+    elseif abscissa == ["charge", "product_mass"]
         return (
-            [:Z, :Ap],
+            columns,
             [
                 ismissing(p) ? (missing, missing) :
                 (round(Int, p) ÷ 1000, round(Int, p) % 1000) for p in product
             ],
         )
-    elseif abscissa == "E" || abscissa == "TKE"
+    elseif abscissa == ["neutron_energy"] || abscissa == ["total_kinetic_energy"]
         return (
-            [Symbol(abscissa)],
+            columns,
             [(ismissing(e) ? missing : Float64(e) * EV_TO_MEV,) for e in secondary],
         )
-    elseif abscissa == "ATKE"
+    elseif abscissa == ["mass", "total_kinetic_energy"]
         return (
-            [:A, :TKE],
+            columns,
             [
                 (
                     ismissing(p) ? missing : round(Int, p),
@@ -148,11 +162,11 @@ function _abscissa(dataset::Dataset, abscissa::AbstractString)
             ],
         )
     end
-    throw(ArgumentError("unsupported abscissa \"$(abscissa)\""))
+    throw(ArgumentError("unsupported abscissa $(abscissa)"))
 end
 
 """
-    reduce_dataset(dataset, query) -> Reduced
+    reduce_dataset(dataset, query) -> ReducedDataset
 
 Project one accepted dataset onto its abscissa and resolve every source of duplication.
 
@@ -167,7 +181,7 @@ convention differs between consumers and cannot be undone, so the unit token is 
 """
 function reduce_dataset(dataset::Dataset, query)
     table = dataset.table
-    columns, keys_of_row = _abscissa(dataset, query.abscissa)
+    abscissa_columns, keys_of_row = _abscissa(dataset, query.abscissa)
 
     raw_values = table[!, COL_Y]
     raw_uncertainties = table[!, COL_DY]
@@ -186,7 +200,7 @@ function reduce_dataset(dataset::Dataset, query)
     # `ProdZA` is charge-coded. For the bare-mass abscissae the field is a mass number alone,
     # `ProdM` says nothing, and rows sharing a mass are repeats rather than isomers — so this
     # stage is skipped and the combination is left to stage two.
-    resolves_isomers = query.abscissa in ("Z", "ZAp")
+    resolves_isomers = "charge" in query.abscissa
     per_nuclide = Dict{Any, Vector{Int}}()
     order = Any[]
     for i in usable
@@ -253,13 +267,14 @@ function reduce_dataset(dataset::Dataset, query)
         unit_written = "MEV"
     end
 
+    ordinate_column = Symbol(ORDINATE_TOKEN[query.ordinate])
     result = DataFrame()
-    for (position, column) in enumerate(columns)
+    for (position, column) in enumerate(abscissa_columns)
         result[!, column] = [key[position] for key in final_keys]
     end
-    result[!, :value] = final_values
-    result[!, :uncertainty] = final_uncertainties
-    sort!(result, columns)
+    result[!, ordinate_column] = final_values
+    result[!, uncertainty_column(ordinate_column)] = final_uncertainties
+    sort!(result, abscissa_columns)
 
     retained_energies = sort!(unique(collect(skipmissing(energies))))
     diagnostics = Dict{String, Any}(
@@ -276,5 +291,11 @@ function reduce_dataset(dataset::Dataset, query)
         "ordinate_factor" => factor,
     )
 
-    return Reduced(columns, result, any(>(0), final_uncertainties), diagnostics)
+    return ReducedDataset(
+        abscissa_columns,
+        ordinate_column,
+        result,
+        any(>(0), final_uncertainties),
+        diagnostics,
+    )
 end

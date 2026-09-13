@@ -62,24 +62,29 @@ end
     test_query(; kwargs...) -> Query
 
 A query with thermal defaults, for selection and reduction tests.
+
+The reaction code and the EXFOR quantity code are derived, as `load_configuration` derives them,
+so a fixture cannot pair an ordinate with a quantity the loader would refuse.
 """
 function test_query(;
-    target = "U-233",
-    reaction = "n,f",
-    quantity = "FY",
-    abscissa = "A",
+    target_Z = 92,
+    target_A = 233,
+    channel = "nth",
+    abscissa = ["mass"],
     ordinate = "yield",
     energy_min = 0.0,
     energy_max = 1.0e-7,
 )
     return ExforFissionData.Query(
-        target,
-        reaction,
-        quantity,
+        target_Z,
+        target_A,
+        channel,
+        ExforFissionData.CHANNEL_REACTION[channel],
+        ExforFissionData.ORDINATE_QUANTITY[ordinate],
         abscissa,
         ordinate,
         energy_min,
         energy_max,
-        reaction == "0,f",
+        channel == "sf",
     )
 end

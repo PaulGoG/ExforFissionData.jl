@@ -11,10 +11,10 @@
 Retrieval of experimental fission observables from the IAEA EXFOR archive, as tabulated data
 files with a record of everything the query considered.
 
-A query names a target, a reaction, an EXFOR quantity code, and the observable wanted as an
-abscissa and an ordinate. The package finds the datasets that answer it, reduces each to one row
-per abscissa value, and writes them beside a run record naming every dataset it kept or
-excluded, with the reason.
+A query names a fissioning system — target charge, target mass and entrance channel — and the
+observable wanted as an abscissa and an ordinate. The package finds the datasets that answer it,
+reduces each to one row per abscissa value, and writes them beside a run record naming every
+dataset it kept or excluded, with the reason.
 
 It is a data-preparation step rather than an analysis code: a consumer reads the files it writes
 rather than calling it at run time. That is why the output layout is plain whitespace-separated
@@ -28,8 +28,8 @@ means those, or yours.
 ![Prompt neutron multiplicity against fragment mass for four fissioning systems, dataset by dataset as each retrieval is worked through](docs/src/assets/coverage.gif)
 
 Prompt neutron multiplicity against fragment mass, one panel per fissioning system, as the
-`*_nu_A` configurations return it. Each frame advances through the datasets the archive offers for
-that query in the order the pipeline processes them; a dataset enters the axes only where its
+`*_nu_vs_A` configurations return it. Each frame advances through the datasets the archive offers
+for that query in the order the pipeline processes them; a dataset enters the axes only where its
 reaction code answers the query, and otherwise advances the tally alone. Thirty datasets kept of
 824 considered — the remainder are other quantities filed under the same target and reaction, and
 the run record names every one of them with the reason it was left out.
@@ -42,11 +42,12 @@ ExforFissionData.jl/
 ├── CITATION.cff
 ├── LICENSE
 ├── Project.toml  Manifest.toml
-├── config/                      # 19 configurations, <target>_<reaction>_<ordinate>_<abscissa>
+├── config/                      # 21 configurations, <system>_<observable>.toml
 ├── docs/                        # Documenter site
 │   ├── make.jl
 │   └── src/
 │       ├── index.md
+│       ├── naming.md            #   the naming convention, in full
 │       └── assets/coverage.gif  #   the figure above, as plotting/coverage.jl writes it
 ├── formatter/                   # pinned JuliaFormatter environment
 │   └── activate.jl
@@ -60,6 +61,7 @@ ExforFissionData.jl/
 │   └── retrieve.jl              # entry point
 ├── src/
 │   ├── ExforFissionData.jl      # module
+│   ├── elements.jl              # chemical symbols, for naming a target by Z and A
 │   ├── schema.jl                # the 39-column contract of the csv rendering
 │   ├── reaction_codes.jl        # the tag grammar, as data
 │   ├── client.jl                # retrieval: timeout, backoff, bounded concurrency, cache
@@ -72,30 +74,37 @@ ExforFissionData.jl/
 └── .github/workflows/CI.yml
 ```
 
-Retrieved data lands in `data/<label>/` and is not version-controlled: EXFOR entries are
-immutable once published, so a configuration and this package reproduce a retrieval exactly.
+Retrieved data lands in `data/<system>/<observable>/` and is not version-controlled: EXFOR
+entries are immutable once published, so a configuration and this package reproduce a retrieval
+exactly.
 
 ## Configurations
 
+A configuration is named for what it retrieves: `<system>_<observable>.toml`, the same two tokens
+that name the directories its data is written to.
+
 | System | Y(A) | ν(A) | ν(A,TKE) | N(E) |
 | :--- | :--- | :--- | :--- | :--- |
-| ²⁵²Cf(sf) | `Cf252_0f_yield_A` | `Cf252_0f_nu_A` | `Cf252_0f_nu_ATKE` | `Cf252_0f_spectrum_E` |
-| ²³⁵U(n,f) | `U235_nf_yield_A` | `U235_nf_nu_A` | `U235_nf_nu_ATKE` | `U235_nf_spectrum_E` |
-| ²³³U(n,f) | `U233_nf_yield_A` | `U233_nf_nu_A` | `U233_nf_nu_ATKE` | `U233_nf_spectrum_E` |
-| ²³⁹Pu(n,f) | `Pu239_nf_yield_A` | `Pu239_nf_nu_A` | `Pu239_nf_nu_ATKE` | `Pu239_nf_spectrum_E` |
+| ²⁵²Cf(sf) | `Cf252_sf_Y_vs_A` | `Cf252_sf_nu_vs_A` | `Cf252_sf_nu_vs_A_TKE` | `Cf252_sf_spectrum_vs_E` |
+| ²³⁵U(n,f) | `U235_nth_Y_vs_A` | `U235_nth_nu_vs_A` | `U235_nth_nu_vs_A_TKE` | `U235_nth_spectrum_vs_E` |
+| ²³³U(n,f) | `U233_nth_Y_vs_A` | `U233_nth_nu_vs_A` | `U233_nth_nu_vs_A_TKE` | `U233_nth_spectrum_vs_E` |
+| ²³⁹Pu(n,f) | `Pu239_nth_Y_vs_A` | `Pu239_nth_nu_vs_A` | `Pu239_nth_nu_vs_A_TKE` | `Pu239_nth_spectrum_vs_E` |
 
-The neutron-induced configurations admit thermal incident energies. `U235_nf_nu_A_res` and
-`U235_nf_nu_ATKE_res` widen the window to 1 keV, which is what the resonance-beam measurements
-need — a thermal window excludes them on their incident energy alone.
+A system is an element symbol, a mass number and an **entrance channel** — `sf` spontaneous, `nth`
+thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel decides the EXFOR
+reaction code, so the configuration names the channel and never the code: the two can disagree
+only if both are written down. The window that actually selects datasets is `energy_min` and
+`energy_max`, and the channel has to agree with it.
 
-The `_res` pair writes under `data/resonance/`. A label is built from target, reaction, ordinate
-and abscissa and does not encode the energy window, so a thermal and a resonance run of the same
-observable would otherwise produce directory names differing only by a numeric suffix.
+`U235_nres_nu_vs_A` and `U235_nres_nu_vs_A_TKE` widen the window to 1 keV, which is what the
+resonance-beam measurements need — a thermal window excludes them on their incident energy alone.
+They are a different system by name, `U235_nres` against `U235_nth`, so they land in a directory of
+their own without any special provision.
 
-`U235_nf_spectrumRatioMXW_E` retrieves the 235-U spectrum as a ratio to a Maxwellian. That is a
-separate observable rather than a second rendering of `U235_nf_spectrum_E`: the archive codes the
-ratio with `MXD`, which the plain spectrum excludes. The archive holds the ratio form for 235-U
-alone among these systems.
+`Cf252_sf_spectrum_maxwellian_ratio_vs_E` and `U235_nth_spectrum_maxwellian_ratio_vs_E` retrieve
+the spectrum as a ratio to a Maxwellian. That is a separate observable rather than a second
+rendering of `spectrum`: the archive codes the ratio with `MXD`, which the plain spectrum excludes.
+The archive holds the ratio form for these two systems alone.
 
 Spectra are the one observable the archive holds more of for 252-Cf than for 235-U — 156 datasets
 against 125, the spontaneous-fission spectrum being a reference standard — and none of it is
@@ -143,15 +152,15 @@ configured concurrency modest.
 ## Entry points
 
 ```bash
-julia --project scripts/retrieve.jl config/Cf252_0f_nu_A.toml     # retrieve one observable
-julia --project scripts/retrieve.jl config/U233_nf_yield_A.toml ~/data   # elsewhere
-julia plotting/survey.jl data/Cf252_0f_nuA --format png           # check what it returned
-julia plotting/coverage.jl data/{Cf252_0f,U235_nf,U233_nf,Pu239_nf}_nuA   # redraw the animation
-julia --project -e 'using Pkg; Pkg.test()'                        # test suite
-julia check.jl                                                    # format, then test
-julia check.jl --check                                            # fail on formatting differences
-julia --project=docs docs/make.jl                                 # build the documentation
-julia -e 'include("activate.jl")' -i                              # REPL in the environment
+julia --project scripts/retrieve.jl config/Cf252_sf_nu_vs_A.toml        # retrieve one observable
+julia --project scripts/retrieve.jl config/U233_nth_Y_vs_A.toml ~/data  # elsewhere
+julia plotting/survey.jl data/Cf252_sf/nu_vs_A --format png             # check what it returned
+julia plotting/coverage.jl data/{Cf252_sf,U235_nth,U233_nth,Pu239_nth}/nu_vs_A   # the animation
+julia --project -e 'using Pkg; Pkg.test()'                              # test suite
+julia check.jl                                                          # format, then test
+julia check.jl --check                                                  # fail on formatting diffs
+julia --project=docs docs/make.jl                                       # build the documentation
+julia -e 'include("activate.jl")' -i                                    # REPL in the environment
 ```
 
 Every environment — the package, `test/`, `docs/`, `formatter/` and `plotting/` — carries an
@@ -160,56 +169,77 @@ The auxiliary ones take the package by path, so they always run against the loca
 
 ```julia
 using ExforFissionData
-result = retrieve(load_configuration("config/Cf252_0f_nu_A.toml"))
+result = retrieve(load_configuration("config/Cf252_sf_nu_vs_A.toml"))
 length(result.accepted), length(result.rejected)
 ```
 
 ## What a retrieval writes
 
+One directory per fissioning system, one subdirectory per observable, one file per measurement:
+
 ```
-data/Cf252_0f_nuA/
+data/Cf252_sf/nu_vs_A/
 ├── retrieval.toml                        # the run record
-├── data/
-│   └── 41425014_A.S.Vorobiev_2001.dat    # identifier, first author, year
+├── 41425014_A.S.Vorobiev_2001.dat        # identifier, first author, year
 └── subentries/
     └── 41425014_A.S.Vorobiev_2001.txt    # the original EXFOR subentry
 ```
 
-Data files are space-separated with a single header line — `A nu errnu`, or `A nu` where the
-archive quotes no uncertainty:
+Data files are space-separated with a single header line — `A nu nu_uncertainty`, or `A nu` where
+the archive quotes no uncertainty:
 
 ```
-A nu errnu
+A nu nu_uncertainty
 81 0.644 0.06826
 82 0.905 0.08244
 ```
+
+Every column is named for the quantity it holds, as the literature writes it, and an uncertainty
+is the quantity's own name suffixed with `_uncertainty`. A reader is nonetheless expected to take
+columns by **position**: the header says what is there, and renaming a quantity must not be able
+to break anything that reads these files.
 
 Nothing is overwritten. A retrieval landing on an existing directory writes beside it under a
 suffixed name.
 
 ## Observables
 
-| Abscissa | Meaning |
-| :--- | :--- |
-| `A`, `Ap` | pre- and post-neutron fragment mass |
-| `Z` | fragment charge |
-| `ZAp` | charge and post-neutron mass jointly |
-| `E`, `TKE` | energy, total kinetic energy |
-| `ATKE` | mass and total kinetic energy jointly |
+A quantity has one name in a configuration and one symbol in a path, a file name and a column
+header. The configuration spells it out, so a file a user edits explains itself; the path and the
+header carry the symbol, which is the field's own nomenclature. The convention in full, including
+the identifier and configuration rules, is in
+[the documentation](https://PaulGoG.github.io/ExforFissionData.jl/dev/naming/).
 
-| Ordinate | Meaning |
-| :--- | :--- |
-| `yield` | fission yield |
-| `nu`, `nuPair` | prompt neutron multiplicity, per fragment and per fragment pair |
-| `KE`, `KEp` | pre- and post-neutron fragment kinetic energy |
-| `TKE`, `TKEp` | pre- and post-neutron total kinetic energy |
-| `epsE` | centre-of-mass neutron energy |
-| `spectrum`, `spectrumRatioMXW` | prompt fission neutron spectrum, absolute and as a ratio to a Maxwellian |
+| Abscissa | Symbol | Meaning |
+| :--- | :--- | :--- |
+| `mass`, `product_mass` | `A`, `A_p` | pre- and post-neutron fragment mass |
+| `charge` | `Z` | fragment charge |
+| `neutron_energy` | `E` | secondary neutron energy |
+| `total_kinetic_energy` | `TKE` | total kinetic energy |
 
-Each ordinate belongs to one EXFOR quantity code — `yield` to `FY`, `nu` and `nuPair` to `NU`,
-the kinetic energies to `E`, the spectra to `MFQ` — and the configuration is refused if the two
-disagree. The quantity decides which datasets the archive offers at all, so a mismatch retrieves
-a different observable under the requested name rather than nothing.
+| Ordinate | Symbol | Meaning |
+| :--- | :--- | :--- |
+| `yield` | `Y` | fission yield |
+| `multiplicity`, `multiplicity_per_fission` | `nu`, `nu_bar` | prompt neutron multiplicity, per fragment and per fragment pair |
+| `fragment_kinetic_energy`, `product_kinetic_energy` | `E_K`, `E_K_p` | pre- and post-neutron fragment kinetic energy |
+| `total_kinetic_energy`, `post_neutron_total_kinetic_energy` | `TKE`, `TKE_p` | pre- and post-neutron total kinetic energy |
+| `neutron_kinetic_energy` | `eps` | centre-of-mass neutron energy |
+| `spectrum`, `spectrum_maxwellian_ratio` | — | prompt fission neutron spectrum, absolute and as a ratio to a Maxwellian |
+
+An abscissa is a **list**, because it is a joint index: `["mass"]`, or
+`["mass", "total_kinetic_energy"]` for ν(A, TKE). A joint abscissa is therefore no separate
+vocabulary item, and the directory it writes to is the ordinate, `vs`, then the abscissa
+symbols — `nu_vs_A_TKE`, `Y_vs_A`, `spectrum_maxwellian_ratio_vs_E`.
+
+The seven abscissae the archive can be asked for are `["mass"]`, `["product_mass"]`, `["charge"]`,
+`["neutron_energy"]`, `["total_kinetic_energy"]`, `["charge", "product_mass"]` and
+`["mass", "total_kinetic_energy"]`.
+
+Each ordinate belongs to one EXFOR quantity code — `yield` to `FY`, the multiplicities to `NU`,
+the kinetic energies to `E`, the spectra to `MFQ` — and the configuration does not name it: the
+code is read from the ordinate. The quantity decides which datasets the archive offers at all, and
+several ordinates impose no tags of their own, so a pairing that could be written down could be
+written down wrong and would retrieve a different observable under the requested name.
 
 ### Not covered
 
@@ -218,7 +248,7 @@ prompt fission γ-ray spectrum — are outside the observable set, as are the ne
 distribution P(ν) and the centre-of-mass spectrum Φ(ε), the last of which the archive does not
 carry as a quantity of its own — with the consequence that a measurement in the centre of mass is
 compiled under the same code as a laboratory-frame one and separated from it only by free text.
-`23268009` (Göök, 2014) is such a dataset, retrieved by `Cf252_0f_spectrum_E` alongside
+`23268009` (Göök, 2014) is such a dataset, retrieved by `Cf252_sf_spectrum_vs_E` alongside
 laboratory spectra. The frame is the consumer's to check, in the subentry stored beside the data.
 
 For the first two, exclusion is what the archive holds rather than a preference:
@@ -239,7 +269,7 @@ states, and which a file of one row per abscissa *value* would then present as d
 
 Spectra between two different fissioning systems — the `(A(n,f),PR,NU/DE)/(B(n,f),PR,NU/DE)`
 ratio form the archive holds a good deal of — are a distinct observable and are excluded. A
-spectrum expressed as a ratio to a Maxwellian is not: that is `spectrumRatioMXW`.
+spectrum expressed as a ratio to a Maxwellian is not: that is `spectrum_maxwellian_ratio`.
 
 ## Relative data
 
@@ -247,11 +277,11 @@ A prompt fission neutron spectrum is conventionally measured relative and normal
 so for 235-U(n,f) most of what the archive holds is in arbitrary units: of the 125 datasets
 offered under `MFQ`, 42 answer the query in arbitrary units against 15 in absolute ones, and a
 thermal window narrows both to 11 and 6. Those datasets are retrieved, and **written under
-`relative/` rather than beside the absolute ones in `data/`**:
+`relative/` rather than beside the absolute ones**:
 
 ```
-data/U235_nf_spectrumE/
-├── data/        # absolute, PC/FIS/MEV or 1/EV
+data/U235_nth/spectrum_vs_E/
+├── *.dat        # absolute, PC/FIS/MEV or 1/EV
 ├── relative/    # arbitrary units — a shape, with no scale
 ├── subentries/
 └── retrieval.toml
@@ -320,7 +350,7 @@ Three checks are worth naming because they are easy to get wrong:
 ### Known miscoded entries
 
 Selection follows the reaction code, so a dataset whose code disagrees with its own contents is
-excluded correctly and unhelpfully. Two are known for `ordinate = "nu"`, both 252-Cf(sf):
+excluded correctly and unhelpfully. Two are known for `ordinate = "multiplicity"`, both 252-Cf(sf):
 
 | Subentry | Coded | Holds |
 | :--- | :--- | :--- |
@@ -339,14 +369,16 @@ Beyond `A ≈ 180`, `23268005` reports values from 11 to 104. Those are not mult
 complement there is `A ≲ 70`, the yield is vanishing and the extraction diverges. They are written
 unchanged, since nothing is dropped on the basis of its value, but they are not data to fit.
 
-Neither carries `FRG`, so `ordinate = "nu"` rejects both and `ordinate = "nuPair"` accepts them as
+Neither carries `FRG`, so `ordinate = "multiplicity"` rejects both and
+`ordinate = "multiplicity_per_fission"` accepts them as
 pair data, which they are not: for 252-Cf a pair multiplicity is about 3.76 everywhere, and
 `23118006` reports 0.56 at A = 80. The tag rules are not loosened to admit them, since
 `MASS,PR,NU` is the correct code for genuine pair data and admitting it would mix the two
 quantities. Both appear in the rejection list of the run record with their reaction codes.
 
 Only the one-dimensional projections are affected. The same Göök entry compiles the joint
-distribution correctly as `23268008`, `MASS,PR/FRG,NU/TKE`, which `abscissa = "ATKE"` retrieves in
+distribution correctly as `23268008`, `MASS,PR/FRG,NU/TKE`, which
+`abscissa = ["mass", "total_kinetic_energy"]` retrieves in
 full — 2234 points of ν(A, TKE). A consumer that wants ν(A) from this measurement should take the
 joint distribution and marginalise it rather than reach for the miscoded projection.
 
@@ -356,7 +388,7 @@ energy column `MEV` over values running from 5.128 to 2132.8. The subentry contr
 its own `REACTION` text gives the range as "5 keV - 2 MeV", and its comment places the structure
 it reports at 85 keV to 0.75 MeV. The column is keV. The dataset is retrieved and written as the
 archive states it, since a unit token is not something this package overrules, but its abscissa is
-a factor of 1000 too large and it is the one dataset in `Cf252_0f_spectrumE` reaching past
+a factor of 1000 too large and it is the one dataset in `Cf252_sf/spectrum_vs_E` reaching past
 40 MeV — a sanity check on the abscissa range finds it immediately.
 
 ## Retrieval
@@ -392,6 +424,7 @@ the machine as well, which is useful when the records stay yours.
 | `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
 | Static QA | Aqua and JET in the suite; formatting gated against a pinned JuliaFormatter |
 
-Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against `TKE`
-is reported as a pair quantity, so it needs `nuPair`; 252-Cf carries no mass-resolved
-post-neutron kinetic energy, and no `Y(A, TKE)` under any quantity code.
+Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against
+`["total_kinetic_energy"]` is reported as a pair quantity, so it needs
+`multiplicity_per_fission`; 252-Cf carries no mass-resolved post-neutron kinetic energy, and no
+`Y(A, TKE)` under any quantity code.

@@ -9,8 +9,7 @@ Notable changes to ExforFissionData.jl. The format follows
 ### Added
 
 - Retrieval of fission observables from the IAEA EXFOR archive, driven by a validated TOML
-  configuration: seven abscissae (`A`, `Ap`, `Z`, `ZAp`, `E`, `TKE`, `ATKE`) against ten
-  ordinates.
+  configuration: seven abscissae against ten ordinates.
 - A run record, `retrieval.toml`, naming every dataset considered — those written, with what the
   reduction did to each, and those excluded, with the reason. A dataset missing from the output
   is otherwise indistinguishable from one the archive does not hold.
@@ -47,16 +46,15 @@ Notable changes to ExforFissionData.jl. The format follows
   Arbitrary units remain fatal for every other ordinate. For 235-U(n,f) this recovers 42 datasets
   against the 15 in absolute units.
 - Configurations for the 235-U spectrum and its Maxwellian-ratio form.
-- The resonance-region configurations write under `data/resonance/`. A label carries the target,
-  reaction, ordinate and abscissa but not the energy window, so a thermal and a resonance run of
-  the same observable produced directories differing only by a numeric suffix.
+- Resonance-region configurations for 235-U, kept apart from the thermal ones by their entrance
+  channel.
 - Requests identify the client and its version in a `User-Agent` header. The archive is a shared
   public service and this package asks its users to treat it as one; arriving anonymously while
   saying so was inconsistent, and an identified client gives whoever runs the archive something
   to look up and somebody to contact.
-- `AcceptedEntry` and `Reduced` are exported. Reaching a written value goes through both, so they
-  were part of the result rather than internals, and a user should not have to name an unexported
-  type to read what a retrieval produced.
+- `AcceptedDataset` and `ReducedDataset` are exported. Reaching a written value goes through
+  both, so they were part of the result rather than internals, and a user should not have to name
+  an unexported type to read what a retrieval produced.
 - `[output] record_hostname`, off by default. The run record is written to be committed by
   whoever consumes the data, and the machine name was the one field in it that identified a
   person rather than a result; the rest of the platform fingerprint still attributes a run to
@@ -88,6 +86,43 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ### Changed
 
+- **One name per quantity, everywhere it appears.** The configuration vocabulary, the output
+  layout, the file names and the column headers now draw on a single table of quantities, shared
+  with the two analyses that consume this data, so a name learned in one place is the name
+  everywhere.
+  - Configurations spell a quantity out — `multiplicity`, `total_kinetic_energy`,
+    `spectrum_maxwellian_ratio` — where they carried symbols and camelCase (`nu`, `TKE`,
+    `spectrumRatioMXW`). Paths, file names and column headers carry the symbol the literature
+    uses, `nu`, `TKE`, `Y`, `A_p`.
+  - An abscissa is a **list** of quantities, because it is a joint index:
+    `abscissa = ["mass", "total_kinetic_energy"]`. `ATKE` and `ZAp` were composite tokens naming
+    a pair with no vocabulary of their own, and now they are not vocabulary items at all.
+  - Retrievals are written to `data/<system>/<observable>/` — one directory per fissioning
+    system, one subdirectory per observable, the measurements directly inside it. The old layout
+    was `data/<target>_<reaction>_<ordinate><abscissa>/data/`, which named a path segment `data`
+    inside a `data` root and concatenated four tokens with no relation stated between them.
+  - A system is an element symbol, a mass number and an **entrance channel**: `Cf252_sf`,
+    `U235_nth`, `U235_nres`. `0f` was an EXFOR reaction code rather than a name, and the
+    resonance runs needed an output directory of their own — `data/resonance/` — precisely
+    because the old label could not tell them from the thermal ones. The channel does that now.
+  - The observable directory is the ordinate, `vs`, then the abscissa symbols: `nu_vs_A_TKE`,
+    `Y_vs_A`, `spectrum_maxwellian_ratio_vs_E`. `vs` is what makes a name a statement rather than
+    a list of symbols.
+  - An uncertainty column is `<quantity>_uncertainty`, after the quantity it belongs to, where it
+    was `err<quantity>` before. `errspectrumRatioMXW` was unreadable, and an error is not an
+    uncertainty. The same holds of `ReducedDataset.table`, whose ordinate column is named for the
+    quantity rather than `value`.
+  - `AcceptedEntry` is `AcceptedDataset` and `Reduced` is `ReducedDataset`; `query_label` is
+    replaced by `system_label` and `observable_label`, one for each directory it now names.
+- **The target is named by charge and mass**, `target_Z` and `target_A`, as the analyses that
+  consume this data name a nucleus. The EXFOR nuclide symbol is formed from them, so the symbol
+  and the numbers beside it cannot disagree. `element_symbol` is exported.
+- **`[query] reaction` and `[query] quantity` are gone.** The reaction code follows from the
+  entrance channel and the quantity code from the ordinate; both were keys that could only be
+  redundant or wrong. The ordinate–quantity pairing in particular was validated and refused, which
+  is one way of saying it should never have been written down twice.
+- A configuration is refused if its ordinate repeats a quantity of its abscissa, which would write
+  two columns under one name.
 - `[output] digits` is now `[output] significant_digits`, and rounds to significant digits. The
   old name meant decimal places, which is a statement about the scale of a quantity rather than
   about its precision.

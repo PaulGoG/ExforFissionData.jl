@@ -96,6 +96,9 @@ const MAXIMUM_FRAGMENT_MASS = 250
 """Smallest plausible bare mass number of a fission fragment."""
 const MINIMUM_FRAGMENT_MASS = 10
 
+"""Largest plausible mass number of a fissioning target."""
+const MAXIMUM_TARGET_MASS = 300
+
 """
     validate_header(header, source) -> Nothing
 

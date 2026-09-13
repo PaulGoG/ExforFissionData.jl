@@ -7,10 +7,10 @@ CurrentModule = ExforFissionData
 Retrieval of experimental fission observables from the IAEA EXFOR archive, as tabulated data
 files with a record of everything the query considered.
 
-A query names a target, a reaction, an EXFOR quantity code, and the observable wanted as an
-abscissa and an ordinate. The package finds the datasets that answer it, reduces each to one row
-per abscissa value, and writes them beside a run record naming every dataset it kept or excluded,
-with the reason.
+A query names a fissioning system — target charge, target mass and entrance channel — and the
+observable wanted as an abscissa and an ordinate. The package finds the datasets that answer it,
+reduces each to one row per abscissa value, and writes them beside a run record naming every
+dataset it kept or excluded, with the reason.
 
 ![Prompt neutron multiplicity against fragment mass for four fissioning systems, dataset by dataset as each retrieval is worked through](assets/coverage.gif)
 
@@ -23,7 +23,7 @@ left out.
 ```julia
 using ExforFissionData
 
-configuration = load_configuration("config/Cf252_0f_nu_A.toml")
+configuration = load_configuration("config/Cf252_sf_nu_vs_A.toml")
 result = retrieve(configuration)
 
 length(result.accepted), length(result.rejected)
@@ -32,30 +32,39 @@ length(result.accepted), length(result.rejected)
 or from a shell,
 
 ```
-julia --project scripts/retrieve.jl config/Cf252_0f_nu_A.toml
+julia --project scripts/retrieve.jl config/Cf252_sf_nu_vs_A.toml
 ```
 
 ## Observables
 
-| Abscissa | Meaning |
-| :--- | :--- |
-| `A`, `Ap` | pre- and post-neutron fragment mass |
-| `Z` | fragment charge |
-| `ZAp` | charge and post-neutron mass jointly |
-| `E`, `TKE` | energy, total kinetic energy |
-| `ATKE` | mass and total kinetic energy jointly |
+A quantity has one name in a configuration and one symbol in a path, a file name and a column
+header.
 
-| Ordinate | Meaning |
-| :--- | :--- |
-| `yield` | fission yield |
-| `nu`, `nuPair` | prompt neutron multiplicity, per fragment and per fragment pair |
-| `KE`, `KEp` | pre- and post-neutron fragment kinetic energy |
-| `TKE`, `TKEp` | pre- and post-neutron total kinetic energy |
-| `epsE` | centre-of-mass neutron energy |
-| `spectrum`, `spectrumRatioMXW` | prompt fission neutron spectrum, absolute and as a ratio to a Maxwellian |
+| Abscissa | Symbol | Meaning |
+| :--- | :--- | :--- |
+| `mass`, `product_mass` | `A`, `A_p` | pre- and post-neutron fragment mass |
+| `charge` | `Z` | fragment charge |
+| `neutron_energy` | `E` | secondary neutron energy |
+| `total_kinetic_energy` | `TKE` | total kinetic energy |
 
-Not every combination exists in the archive. `ν(TKE)`, for instance, is reported as a
-pair quantity, so `nuPair` with abscissa `TKE` returns data where `nu` returns none.
+| Ordinate | Symbol | Meaning |
+| :--- | :--- | :--- |
+| `yield` | `Y` | fission yield |
+| `multiplicity`, `multiplicity_per_fission` | `nu`, `nu_bar` | prompt neutron multiplicity, per fragment and per fragment pair |
+| `fragment_kinetic_energy`, `product_kinetic_energy` | `E_K`, `E_K_p` | pre- and post-neutron fragment kinetic energy |
+| `total_kinetic_energy`, `post_neutron_total_kinetic_energy` | `TKE`, `TKE_p` | pre- and post-neutron total kinetic energy |
+| `neutron_kinetic_energy` | `eps` | centre-of-mass neutron energy |
+| `spectrum`, `spectrum_maxwellian_ratio` | — | prompt fission neutron spectrum, absolute and as a ratio to a Maxwellian |
+
+An abscissa is a list, because it is a joint index: `["mass"]`, or
+`["mass", "total_kinetic_energy"]` for ν(A, TKE). The retrieval is written to
+`data/<system>/<observable>/`, where the system is an element symbol, a mass number and an
+entrance channel — `Cf252_sf`, `U235_nth`, `U235_nres` — and the observable is the ordinate, `vs`,
+then the abscissa symbols: `nu_vs_A_TKE`, `Y_vs_A`, `spectrum_maxwellian_ratio_vs_E`.
+
+Not every combination exists in the archive. ν(TKE), for instance, is reported as a pair quantity,
+so `multiplicity_per_fission` against `["total_kinetic_energy"]` returns data where
+`multiplicity` returns none.
 
 ## What the package does not do
 
@@ -76,12 +85,12 @@ the archive does not carry as a quantity of its own.
 
 **Spectra between two fissioning systems** — the ratio form the archive holds a good deal of — are
 a distinct observable and are excluded. A spectrum as a ratio to a Maxwellian is not: that is
-`spectrumRatioMXW`.
+`spectrum_maxwellian_ratio`.
 
 **Relative data is retrieved but kept apart.** A prompt fission neutron spectrum is conventionally
 measured relative and normalised afterwards, so most of what the archive holds for ²³⁵U(n,f) is in
-arbitrary units. Those datasets are written under `relative/` rather than beside the absolute ones
-in `data/`, because a relative dataset cannot be put on a common scale with anything — not even
+arbitrary units. Those datasets are written under `relative/` rather than beside the absolute ones,
+because a relative dataset cannot be put on a common scale with anything — not even
 another relative dataset. Each must be normalised on its own, and none may be averaged with
 absolute data. A reader that takes a whole directory therefore cannot pick one up by accident, and
 the run record marks every accepted dataset `relative = true` or `false`.

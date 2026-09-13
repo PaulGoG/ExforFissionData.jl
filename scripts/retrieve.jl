@@ -1,8 +1,8 @@
 # Entry point: retrieve one configured observable from EXFOR.
 #
-#     julia --project scripts/retrieve.jl config/U233_nf_yield_A.toml [output-root]
+#     julia --project scripts/retrieve.jl config/U233_nth_Y_vs_A.toml [output-root]
 #
-# The output root defaults to the repository, so data lands in `data/<label>/`.
+# The output root defaults to the repository, so data lands in `data/<system>/<observable>/`.
 
 include(joinpath(@__DIR__, "..", "activate.jl"))
 
@@ -15,8 +15,9 @@ function main(arguments::Vector{String})
             usage: julia --project scripts/retrieve.jl <configuration.toml> [output-root]
 
             Retrieves the observable described by the configuration from the IAEA EXFOR
-            archive and writes it under <output-root>/<output.directory>/<label>/, together
-            with a record of every dataset considered and why it was kept or excluded.
+            archive and writes it under
+            <output-root>/<output.directory>/<system>/<observable>/, together with a record
+            of every dataset considered and why it was kept or excluded.
             """,
         )
         return 0

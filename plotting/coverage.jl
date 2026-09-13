@@ -1,7 +1,7 @@
 # Coverage animation: what a set of retrievals returned, dataset by dataset.
 #
-#     julia plotting/coverage.jl data/Cf252_0f_nuA data/U235_nf_nuA \
-#                                data/U233_nf_nuA data/Pu239_nf_nuA
+#     julia plotting/coverage.jl data/Cf252_sf/nu_vs_A data/U235_nth/nu_vs_A \
+#                                data/U233_nth/nu_vs_A data/Pu239_nth/nu_vs_A
 #
 # One panel per retrieval. Each frame advances every panel through the datasets the archive
 # offered for its query, in the identifier order the pipeline processes them: a dataset that
@@ -102,12 +102,12 @@ function coverage(
     isempty(directories) && error("no retrieval directory given")
     panels = panel.(directories)
 
-    abscissae = unique(String[p.query["abscissa"] for p in panels])
+    abscissae = unique([String[String(q) for q in p.query["abscissa"]] for p in panels])
     ordinates = unique(String[p.query["ordinate"] for p in panels])
     length(abscissae) == 1 && length(ordinates) == 1 || error(
         "the retrievals must share one abscissa and one ordinate; got $(abscissae) against $(ordinates)",
     )
-    abscissae[1] in ("ZAp", "ATKE") && error(
+    length(abscissae[1]) > 1 && error(
         "a joint abscissa needs a plane per dataset, which these shared axes cannot give; use plotting/survey.jl",
     )
 
@@ -171,7 +171,7 @@ function coverage(
             axis,
             0.035,
             0.94;
-            text = system_label(source.query),
+            text = system_notation(source.query),
             space = :relative,
             align = (:left, :top),
             fontsize = 10,

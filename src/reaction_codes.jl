@@ -106,52 +106,99 @@ const BASE_FORBID = [
     "RAW",
 ]
 
-# Abscissa rules. The key is the value of `abscissa` in the configuration.
+# Abscissa rules, keyed by the `abscissa` list of the configuration. An abscissa is a joint
+# index, so the key is a list of quantities rather than a composite token: the two-quantity
+# rules are not the composition of the one-quantity ones and have to be stated in their own
+# right.
 #
-#   A      pre-neutron fragment mass:  mass-resolved, not charge-resolved, not energy-resolved,
-#          and neither independent nor secondary, which would make it post-neutron
-#   Ap      post-neutron fragment mass: as A, but requiring the independent/secondary marking
-#          and forbidding the pre-neutron one
-#   Z       fragment charge: charge-resolved, not mass-resolved
-#   E       energy abscissa of a spectrum
-#   TKE     total kinetic energy
-#   ZAp     charge and post-neutron mass jointly
-#   ATKE    mass and total kinetic energy jointly
-const ABSCISSA_RULES = Dict{String, TagRule}(
-    "A" => TagRule(["MASS"], String[], ["TKE", "ELEM", "SEC", "DE", "IND"]),
-    "Ap" => TagRule(["MASS"], ["SEC", "IND"], ["TKE", "ELEM", "PRE", "DE"]),
-    "Z" => TagRule([","], ["ELEM", "CHG"], ["TKE", "MASS", "DE"]),
-    "E" => TagRule([","], ["KE", "DE"], ["MASS", "ELEM", "TKE", "LF+HF"]),
-    "TKE" => TagRule([","], ["TKE", "DE,LF+HF"], ["MASS", "ELEM"]),
-    "ZAp" => TagRule(["MASS", "ELEM"], ["SEC", "IND"], ["KE", "DE", "PRE"]),
-    "ATKE" => TagRule(["MASS"], ["TKE", "DE,LF+HF"], ["ELEM"]),
+#   mass                  pre-neutron fragment mass:  mass-resolved, not charge-resolved, not
+#                         energy-resolved, and neither independent nor secondary, which would
+#                         make it post-neutron
+#   product_mass          post-neutron fragment mass: as mass, but requiring the
+#                         independent/secondary marking and forbidding the pre-neutron one
+#   charge                fragment charge: charge-resolved, not mass-resolved
+#   neutron_energy        energy abscissa of a spectrum
+#   total_kinetic_energy  total kinetic energy
+const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
+    ["mass"] => TagRule(["MASS"], String[], ["TKE", "ELEM", "SEC", "DE", "IND"]),
+    ["product_mass"] => TagRule(["MASS"], ["SEC", "IND"], ["TKE", "ELEM", "PRE", "DE"]),
+    ["charge"] => TagRule([","], ["ELEM", "CHG"], ["TKE", "MASS", "DE"]),
+    ["neutron_energy"] =>
+        TagRule([","], ["KE", "DE"], ["MASS", "ELEM", "TKE", "LF+HF"]),
+    ["total_kinetic_energy"] => TagRule([","], ["TKE", "DE,LF+HF"], ["MASS", "ELEM"]),
+    ["charge", "product_mass"] =>
+        TagRule(["MASS", "ELEM"], ["SEC", "IND"], ["KE", "DE", "PRE"]),
+    ["mass", "total_kinetic_energy"] =>
+        TagRule(["MASS"], ["TKE", "DE,LF+HF"], ["ELEM"]),
 )
 
 # Ordinate rules, composed with the abscissa rule. The key is the value of `ordinate` in the
 # configuration.
 #
-#   nu                  prompt multiplicity per fragment (PR prompt, FRG per fragment)
-#   nuPair              prompt multiplicity per fragment pair (PR, and not per fragment)
-#   yield               fission yield; carries no tags of its own, the abscissa rule decides
-#   KE / KEp            pre- and post-neutron fragment kinetic energy
-#   TKE / TKEp          pre- and post-neutron total kinetic energy (LF+HF, both fragments)
-#   epsE                centre-of-mass neutron energy, per neutron (,N)
-#   spectrum            prompt fission neutron spectrum (DE, energy-differential)
-#   spectrumRatioMXW    the same, as a ratio to a Maxwellian (MXD)
+#   multiplicity                       prompt multiplicity per fragment (PR prompt, FRG per
+#                                      fragment)
+#   multiplicity_per_fission           prompt multiplicity per fragment pair (PR, and not per
+#                                      fragment)
+#   yield                              fission yield; carries no tags of its own, the abscissa
+#                                      rule decides
+#   fragment_kinetic_energy            pre-neutron fragment kinetic energy
+#   product_kinetic_energy             post-neutron fragment kinetic energy
+#   total_kinetic_energy               pre-neutron total kinetic energy (LF+HF, both fragments)
+#   post_neutron_total_kinetic_energy  the same, post-neutron
+#   neutron_kinetic_energy             centre-of-mass neutron energy, per neutron (,N)
+#   spectrum                           prompt fission neutron spectrum (DE, energy-differential)
+#   spectrum_maxwellian_ratio          the same, as a ratio to a Maxwellian (MXD)
 #
 # MSC excludes miscellaneous groupings; /DA and PR/ exclude angular differential and
 # ratio-to-prompt forms of the spectrum.
 const ORDINATE_RULES = Dict{String, TagRule}(
-    "nu" => TagRule(["PR", "FRG"], String[], ["MSC"]),
-    "nuPair" => TagRule(["PR"], String[], ["MSC", "FRG"]),
+    "multiplicity" => TagRule(["PR", "FRG"], String[], ["MSC"]),
+    "multiplicity_per_fission" => TagRule(["PR"], String[], ["MSC", "FRG"]),
     "yield" => TagRule(String[], String[], String[]),
-    "KE" => TagRule(["KE", "PRE"], String[], ["LF+HF", ",N"]),
-    "KEp" => TagRule(["KE"], String[], ["LF+HF", ",N", "PRE"]),
-    "TKE" => TagRule(["KE", "LF+HF", "PRE"], String[], [",N"]),
-    "TKEp" => TagRule(["KE", "LF+HF"], String[], [",N", "PRE"]),
-    "epsE" => TagRule(["KE", "PR", ",N"], String[], ["PRE"]),
+    "fragment_kinetic_energy" => TagRule(["KE", "PRE"], String[], ["LF+HF", ",N"]),
+    "product_kinetic_energy" => TagRule(["KE"], String[], ["LF+HF", ",N", "PRE"]),
+    "total_kinetic_energy" => TagRule(["KE", "LF+HF", "PRE"], String[], [",N"]),
+    "post_neutron_total_kinetic_energy" =>
+        TagRule(["KE", "LF+HF"], String[], [",N", "PRE"]),
+    "neutron_kinetic_energy" => TagRule(["KE", "PR", ",N"], String[], ["PRE"]),
     "spectrum" => TagRule(["PR", "DE"], String[], ["/DA", "PR/", "FRG", "MXD", "MSC"]),
-    "spectrumRatioMXW" => TagRule(["PR", "DE", "MXD"], String[], ["/DA", "PR/", "FRG"]),
+    "spectrum_maxwellian_ratio" =>
+        TagRule(["PR", "DE", "MXD"], String[], ["/DA", "PR/", "FRG"]),
+)
+
+"""
+The ASCII symbol of each abscissa quantity, as the literature writes it.
+
+The configuration spells a quantity out, so that a file a user edits explains itself; a path and
+a column header carry the symbol, which is the field's own nomenclature and what every other file
+in this toolchain uses. `nu_vs_A_TKE` says what
+`multiplicity_vs_mass_total_kinetic_energy` says, and a directory listing stays readable.
+"""
+const ABSCISSA_TOKEN = Dict(
+    "mass" => "A",
+    "product_mass" => "A_p",
+    "charge" => "Z",
+    "neutron_energy" => "E",
+    "total_kinetic_energy" => "TKE",
+)
+
+"""
+The ASCII symbol of each ordinate quantity; see [`ABSCISSA_TOKEN`](@ref).
+
+A quantity appearing in both vocabularies — the total kinetic energy, which is an abscissa of a
+yield and an ordinate against mass — carries the same symbol in both.
+"""
+const ORDINATE_TOKEN = Dict(
+    "multiplicity" => "nu",
+    "multiplicity_per_fission" => "nu_bar",
+    "yield" => "Y",
+    "fragment_kinetic_energy" => "E_K",
+    "product_kinetic_energy" => "E_K_p",
+    "total_kinetic_energy" => "TKE",
+    "post_neutron_total_kinetic_energy" => "TKE_p",
+    "neutron_kinetic_energy" => "eps",
+    "spectrum" => "spectrum",
+    "spectrum_maxwellian_ratio" => "spectrum_maxwellian_ratio",
 )
 
 """
@@ -170,7 +217,7 @@ count per fragment whose scale is the whole quantity.
 A relative dataset cannot be put on a common scale with any other, not even another relative one,
 so [`retrieve`](@ref) writes these to their own directory rather than beside absolute data.
 """
-const RELATIVE_SCALE_ORDINATES = ("spectrum", "spectrumRatioMXW")
+const RELATIVE_SCALE_ORDINATES = ("spectrum", "spectrum_maxwellian_ratio")
 
 """
     tolerates_relative_scale(ordinate) -> Bool
@@ -184,6 +231,9 @@ tolerates_relative_scale(ordinate::AbstractString) = ordinate in RELATIVE_SCALE_
 
 Compose the selection rule for an observable from its abscissa and ordinate rules.
 
+`abscissa` is the list of quantities the observable is tabulated against — `["mass"]`, or
+`["mass", "total_kinetic_energy"]` for a joint index.
+
 The requirements of both are taken together and the forbidden tags of both are added to
 [`BASE_FORBID`](@ref). When both contribute a `require_any` list the observable is not
 expressible, since the two alternatives cannot be imposed independently by substring tests;
@@ -192,14 +242,14 @@ that combination is rejected by the configuration validator rather than silently
 # Example
 
 ```jldoctest
-julia> rule = ExforFissionData.tag_rule("A", "nu");
+julia> rule = ExforFissionData.tag_rule(["mass"], "multiplicity");
 
 julia> ExforFissionData.matches(rule, "98-CF-252(0,F)MASS,PR,FRG,NU")
 true
 ```
 """
-function tag_rule(abscissa::AbstractString, ordinate::AbstractString)
-    x = ABSCISSA_RULES[String(abscissa)]
+function tag_rule(abscissa::AbstractVector{<:AbstractString}, ordinate::AbstractString)
+    x = ABSCISSA_RULES[String[abscissa...]]
     y = ORDINATE_RULES[String(ordinate)]
     require_any = if isempty(y.require_any)
         x.require_any
@@ -208,7 +258,7 @@ function tag_rule(abscissa::AbstractString, ordinate::AbstractString)
     else
         throw(
             ArgumentError(
-                "abscissa \"$(abscissa)\" and ordinate \"$(ordinate)\" both impose alternative \
+                "abscissa $(abscissa) and ordinate \"$(ordinate)\" both impose alternative \
                  tags ($(x.require_any) and $(y.require_any)); the combination cannot be \
                  selected by substring tests and is not supported",
             ),
@@ -221,7 +271,7 @@ function tag_rule(abscissa::AbstractString, ordinate::AbstractString)
     )
 end
 
-"""Abscissae this package can retrieve, in configuration vocabulary."""
+"""Abscissae this package can retrieve, each a list of quantities, in configuration vocabulary."""
 const ABSCISSAE = sort!(collect(keys(ABSCISSA_RULES)))
 
 """Ordinates this package can retrieve, in configuration vocabulary."""
@@ -277,10 +327,16 @@ end
 """
 Ordinates whose value is itself an energy, and which are therefore restated in MeV.
 
-`spectrum` and `spectrumRatioMXW` are excluded: the first is a density in energy and the second
-is already dimensionless.
+`spectrum` and `spectrum_maxwellian_ratio` are excluded: the first is a density in energy and
+the second is already dimensionless.
 """
-const ENERGY_ORDINATES = ("KE", "KEp", "TKE", "TKEp", "epsE")
+const ENERGY_ORDINATES = (
+    "fragment_kinetic_energy",
+    "product_kinetic_energy",
+    "total_kinetic_energy",
+    "post_neutron_total_kinetic_energy",
+    "neutron_kinetic_energy",
+)
 
 """EXFOR quantity codes within the scope of this package."""
 const QUANTITIES = ("NU", "FY", "E", "MFQ")
@@ -290,23 +346,38 @@ The EXFOR quantity code each ordinate belongs to.
 
 The quantity selects which datasets the archive offers at all; the tag rule then chooses among
 them. Several ordinates — `yield` most of all — impose no tags of their own and rely entirely on
-the abscissa rule, so pairing one with the wrong quantity silently admits a different observable:
-asking for `yield` under `NU` returns prompt multiplicities, and under `E` returns kinetic
-energies, both written as though they were yields. The configuration validator refuses the
-mismatch rather than leaving it to be noticed in the output.
+the abscissa rule, so an ordinate paired with the wrong quantity silently admits a different
+observable: asking for `yield` under `NU` returns prompt multiplicities, and under `E` returns
+kinetic energies, both written as though they were yields. The configuration therefore names the
+ordinate alone and the quantity is read from here, which is a pairing that cannot be got wrong.
 """
 const ORDINATE_QUANTITY = Dict(
     "yield" => "FY",
-    "nu" => "NU",
-    "nuPair" => "NU",
-    "KE" => "E",
-    "KEp" => "E",
-    "TKE" => "E",
-    "TKEp" => "E",
-    "epsE" => "E",
+    "multiplicity" => "NU",
+    "multiplicity_per_fission" => "NU",
+    "fragment_kinetic_energy" => "E",
+    "product_kinetic_energy" => "E",
+    "total_kinetic_energy" => "E",
+    "post_neutron_total_kinetic_energy" => "E",
+    "neutron_kinetic_energy" => "E",
     "spectrum" => "MFQ",
-    "spectrumRatioMXW" => "MFQ",
+    "spectrum_maxwellian_ratio" => "MFQ",
 )
 
 """Reaction codes within the scope of this package: neutron-induced and spontaneous fission."""
 const REACTIONS = ("n,f", "0,f")
+
+"""
+The EXFOR reaction code each entrance channel is queried under.
+
+The channel names the fissioning system — `Cf252_sf`, `U235_nth`, `U235_nres` — and decides the
+reaction code, which is why the configuration carries the channel and not the code: the two can
+disagree only if both are written down. Which datasets a neutron-induced channel actually admits
+is settled by the incident-energy window, not by the channel; the channel has to agree with that
+window, and naming a system is what it is for.
+"""
+const CHANNEL_REACTION =
+    Dict("sf" => "0,f", "nth" => "n,f", "nres" => "n,f", "nfast" => "n,f")
+
+"""Entrance channels this package can retrieve, in configuration vocabulary."""
+const CHANNELS = sort!(collect(keys(CHANNEL_REACTION)))

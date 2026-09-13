@@ -7,23 +7,27 @@
 """
     Query
 
-What to retrieve: a reaction, an observable, and the incident-energy window.
+What to retrieve: a fissioning system, an observable, and the incident-energy window.
 
 # Fields
-- `target::String`: EXFOR nuclide symbol of the target, e.g. `"U-233"`.
-- `reaction::String`: `"n,f"` for neutron-induced or `"0,f"` for spontaneous fission.
-- `quantity::String`: EXFOR quantity code, one of [`QUANTITIES`](@ref).
-- `abscissa::String`: one of [`ABSCISSAE`](@ref).
+- `target_Z::Int`, `target_A::Int`: charge and mass numbers of the fissioning target.
+- `channel::String`: entrance channel, one of [`CHANNELS`](@ref).
+- `reaction::String`: EXFOR reaction code parameter, from [`CHANNEL_REACTION`](@ref).
+- `quantity::String`: EXFOR quantity code, from [`ORDINATE_QUANTITY`](@ref).
+- `abscissa::Vector{String}`: the quantities the observable is tabulated against, one of
+  [`ABSCISSAE`](@ref).
 - `ordinate::String`: one of [`ORDINATES`](@ref).
 - `energy_min::Float64`, `energy_max::Float64`: incident-energy window in MeV. Ignored for
   spontaneous fission, which has no incident particle.
-- `spontaneous::Bool`: derived from `reaction`.
+- `spontaneous::Bool`: derived from `channel`.
 """
 struct Query
-    target::String
+    target_Z::Int
+    target_A::Int
+    channel::String
     reaction::String
     quantity::String
-    abscissa::String
+    abscissa::Vector{String}
     ordinate::String
     energy_min::Float64
     energy_max::Float64
@@ -81,6 +85,20 @@ function _require(
     return value
 end
 
+# An array-valued key, normalised to a vector of strings. TOML hands back a `Vector{Any}`, and a
+# key that holds one string rather than a list is a common slip worth naming precisely.
+function _require_strings(section::AbstractDict, key::AbstractString, path, source)
+    value = _require(section, key, AbstractVector, path, source)
+    all(entry -> entry isa AbstractString, value) || throw(
+        ArgumentError(
+            "$(source): [$(path)].$(key) must be a list of strings, got $(repr(value))",
+        ),
+    )
+    isempty(value) &&
+        throw(ArgumentError("$(source): [$(path)].$(key) must name at least one quantity"))
+    return String[String(entry) for entry in value]
+end
+
 function _optional(
     section::AbstractDict,
     key::AbstractString,
@@ -127,12 +145,12 @@ Read and validate a retrieval configuration.
 
 Throws an `ArgumentError` naming the offending key when a value is missing, of the wrong type,
 outside its documented range, or not among its documented choices. The abscissa and ordinate are
-additionally checked to form an expressible combination.
+additionally checked to form an expressible combination whose symbols stay distinct.
 
 # Example
 
 ```julia
-julia> configuration = load_configuration("config/U233_nf_yield_A.toml");
+julia> configuration = load_configuration("config/U233_nth_Y_vs_A.toml");
 ```
 """
 function load_configuration(path::AbstractString)
@@ -141,25 +159,19 @@ function load_configuration(path::AbstractString)
     source = basename(path)
 
     query_section = _section(table, "query", source)
-    target = _require(query_section, "target", String, "query", source)
-    isempty(strip(target)) &&
-        throw(ArgumentError("$(source): [query].target must not be empty"))
-    reaction = _one_of(
-        _require(query_section, "reaction", String, "query", source),
-        REACTIONS,
-        "reaction",
-        "query",
-        source,
-    )
-    quantity = _one_of(
-        _require(query_section, "quantity", String, "query", source),
-        QUANTITIES,
-        "quantity",
+    target_Z = _require(query_section, "target_Z", Integer, "query", source)
+    _in_range(target_Z, 1, MAXIMUM_CHARGE, "target_Z", "query", source)
+    target_A = _require(query_section, "target_A", Integer, "query", source)
+    _in_range(target_A, target_Z, MAXIMUM_TARGET_MASS, "target_A", "query", source)
+    channel = _one_of(
+        _require(query_section, "channel", String, "query", source),
+        CHANNELS,
+        "channel",
         "query",
         source,
     )
     abscissa = _one_of(
-        _require(query_section, "abscissa", String, "query", source),
+        _require_strings(query_section, "abscissa", "query", source),
         ABSCISSAE,
         "abscissa",
         "query",
@@ -172,7 +184,7 @@ function load_configuration(path::AbstractString)
         "query",
         source,
     )
-    spontaneous = reaction == "0,f"
+    spontaneous = channel == "sf"
     energy_min = _optional(query_section, "energy_min", 0.0, "query", source)
     energy_max = _optional(query_section, "energy_max", Inf, "query", source)
     energy_min ≥ 0 || throw(
@@ -190,16 +202,14 @@ function load_configuration(path::AbstractString)
     # Rejects an abscissa and ordinate that cannot both impose alternative tags.
     tag_rule(abscissa, ordinate)
 
-    # The quantity code decides which datasets the archive offers; the tag rule only chooses
-    # among them. An ordinate that imposes no tags of its own therefore inherits whatever the
-    # quantity returns, so a mismatch yields a different observable under the requested name.
-    expected = ORDINATE_QUANTITY[ordinate]
-    quantity == expected || throw(
+    # One symbol names one column, so an ordinate may not repeat a quantity it is tabulated
+    # against. ⟨TKE⟩ against TKE is the pairing this catches; it is expressible by tags and
+    # would write two columns called TKE.
+    ordinate_token = ORDINATE_TOKEN[ordinate]
+    ordinate_token in [ABSCISSA_TOKEN[quantity] for quantity in abscissa] && throw(
         ArgumentError(
-            "$(source): [query].ordinate \"$(ordinate)\" requires [query].quantity \
-             \"$(expected)\", got \"$(quantity)\". The quantity selects which datasets EXFOR \
-             returns, so this pairing would retrieve a different observable under the name \
-             \"$(ordinate)\".",
+            "$(source): [query].ordinate \"$(ordinate)\" is already among [query].abscissa \
+             $(abscissa); a quantity cannot be tabulated against itself",
         ),
     )
 
@@ -239,9 +249,11 @@ function load_configuration(path::AbstractString)
 
     return Configuration(
         Query(
-            String(strip(target)),
-            reaction,
-            quantity,
+            target_Z,
+            target_A,
+            channel,
+            CHANNEL_REACTION[channel],
+            ORDINATE_QUANTITY[ordinate],
             abscissa,
             ordinate,
             Float64(energy_min),
@@ -265,15 +277,39 @@ function load_configuration(path::AbstractString)
 end
 
 """
-    query_label(query) -> String
+    target_symbol(query) -> String
 
-The directory and file stem identifying a query, e.g. `"U233_nf_yieldA"`.
+The EXFOR nuclide symbol of the fissioning target, e.g. `"Cf-252"`.
 
-Target, reaction, ordinate and abscissa and nothing else, so that a label stays stable as long as
-the query does and a consumer can key its stored data on it.
+Formed from `target_Z` and `target_A` rather than written into the configuration, so that the
+symbol and the numbers beside it cannot disagree.
 """
-function query_label(query::Query)
-    target = replace(query.target, "-" => "")
-    reaction = replace(query.reaction, "," => "")
-    return string(target, '_', reaction, '_', query.ordinate, query.abscissa)
+target_symbol(query::Query) = string(element_symbol(query.target_Z), '-', query.target_A)
+
+"""
+    system_label(query) -> String
+
+The fissioning system as one token, e.g. `"Cf252_sf"`, `"U235_nth"`, `"U235_nres"`.
+
+Element symbol, mass number and entrance channel. It names the directory a system's data is
+written under, and a consumer keys its stored data on it, so it must stay stable as long as the
+system does — which is why the energy window, which varies between runs of one system, is not in
+it and the channel is.
+"""
+function system_label(query::Query)
+    return string(element_symbol(query.target_Z), query.target_A, '_', query.channel)
+end
+
+"""
+    observable_label(query) -> String
+
+The observable as one token, e.g. `"nu_vs_A"`, `"nu_vs_A_TKE"`, `"spectrum_maxwellian_ratio_vs_E"`.
+
+The ordinate, `vs`, then the abscissa quantities, all as the ASCII symbols of
+[`ORDINATE_TOKEN`](@ref) and [`ABSCISSA_TOKEN`](@ref). It names the directory one retrieval is
+written to, under the directory of its system.
+"""
+function observable_label(query::Query)
+    abscissa = join((ABSCISSA_TOKEN[quantity] for quantity in query.abscissa), '_')
+    return string(ORDINATE_TOKEN[query.ordinate], "_vs_", abscissa)
 end

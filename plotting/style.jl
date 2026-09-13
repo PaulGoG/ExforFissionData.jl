@@ -85,49 +85,53 @@ function read_dataset(path::AbstractString)
     )
 end
 
-_ordinate_label(ordinate) = get(
-    Dict(
-        "yield" => "Yield",
-        "nu" => "Prompt multiplicity ν",
-        "nuPair" => "Pair multiplicity ν",
-        "KE" => "⟨KE⟩ [MeV]",
-        "KEp" => "⟨KE'⟩ [MeV]",
-        "TKE" => "TKE [MeV]",
-        "TKEp" => "TKE' [MeV]",
-        "epsE" => "ε [MeV]",
-        "spectrum" => "Spectrum [MeV⁻¹]",
-        "spectrumRatioMXW" => "Ratio to Maxwellian",
-    ),
-    ordinate,
-    ordinate,
+# Axis text, keyed by the quantity vocabulary the run record writes. One label per quantity,
+# whichever axis it appears on: the total kinetic energy is an abscissa of a yield and an
+# ordinate against mass, and it is the same quantity either way.
+const QUANTITY_LABELS = Dict(
+    "yield" => "Yield",
+    "multiplicity" => "Prompt multiplicity ν",
+    "multiplicity_per_fission" => "Pair multiplicity ν",
+    "fragment_kinetic_energy" => "⟨E_K⟩ [MeV]",
+    "product_kinetic_energy" => "⟨E_K'⟩ [MeV]",
+    "total_kinetic_energy" => "TKE [MeV]",
+    "post_neutron_total_kinetic_energy" => "TKE' [MeV]",
+    "neutron_kinetic_energy" => "ε [MeV]",
+    "spectrum" => "Spectrum [MeV⁻¹]",
+    "spectrum_maxwellian_ratio" => "Ratio to Maxwellian",
+    "mass" => "Fragment mass A",
+    "product_mass" => "Fragment mass A'",
+    "charge" => "Fragment charge Z",
+    "neutron_energy" => "Energy [MeV]",
 )
 
-function _axis_label(abscissa, position)
-    labels = Dict(
-        "A" => ("Fragment mass A", ""),
-        "Ap" => ("Fragment mass A'", ""),
-        "Z" => ("Fragment charge Z", ""),
-        "ZAp" => ("Fragment charge Z", "Fragment mass A'"),
-        "E" => ("Energy [MeV]", ""),
-        "TKE" => ("TKE [MeV]", ""),
-        "ATKE" => ("Fragment mass A", "TKE [MeV]"),
-    )
-    pair = get(labels, abscissa, (abscissa, ""))
-    return position == 1 ? pair[1] : pair[2]
+_ordinate_label(ordinate) = get(QUANTITY_LABELS, ordinate, ordinate)
+
+"""
+    _axis_label(abscissa, position) -> String
+
+The axis text of the `position`-th quantity of an abscissa, empty past its last.
+"""
+function _axis_label(abscissa::AbstractVector, position::Integer)
+    position ≤ length(abscissa) || return ""
+    quantity = String(abscissa[position])
+    return get(QUANTITY_LABELS, quantity, quantity)
 end
 
 """
-    system_label(query) -> LaTeXString
+    system_notation(query) -> LaTeXString
 
 The fissioning system of a query, in the notation of the literature: `²⁵²Cf(sf)`, `²³⁵U(n,f)`.
+
+Distinct from `system_label` in the retrieval package, which is the same system as the ASCII
+token that names its directory, `Cf252_sf`.
 """
-function system_label(query::AbstractDict)
-    target = String(query["target"])
-    element, mass = if occursin('-', target)
-        parts = split(target, '-')
-        parts[1], parts[end]
-    else
-        target, ""
+function system_notation(query::AbstractDict)
+    element = String(query["target_symbol"])
+    mass = ""
+    if occursin('-', element)
+        parts = split(element, '-')
+        element, mass = parts[1], parts[end]
     end
     # The inducing particle and the exit channel stay italic, as they are written in the
     # literature; "sf" is an abbreviation and is therefore upright.

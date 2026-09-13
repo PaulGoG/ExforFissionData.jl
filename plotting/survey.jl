@@ -5,7 +5,7 @@
 # stack through its data source. The figure here answers one question only — what did this query
 # actually return — and is a check on a retrieval, not a publication figure.
 #
-#     julia plotting/survey.jl data/Cf252_0f_nuA
+#     julia plotting/survey.jl data/Cf252_sf/nu_vs_A
 #
 # The environment activates and instantiates itself silently, so the script runs from a fresh
 # clone without preparation.
@@ -46,9 +46,9 @@ function survey(
     isempty(accepted) && error("retrieval at $(directory) accepted no dataset")
 
     query = record["query"]
-    abscissa = query["abscissa"]
+    abscissa = String[String(quantity) for quantity in query["abscissa"]]
     ordinate = query["ordinate"]
-    joint = abscissa in ("ZAp", "ATKE")
+    joint = length(abscissa) > 1
 
     tables = NamedTuple{
         (:index, :table, :label, :relative, :unit),
@@ -174,7 +174,10 @@ function survey(
     end
 
     path = if isempty(output)
-        joinpath(directory, string(record["run"]["label"], ".", format))
+        joinpath(
+            directory,
+            string(record["run"]["system"], "_", record["run"]["observable"], ".", format),
+        )
     else
         output
     end

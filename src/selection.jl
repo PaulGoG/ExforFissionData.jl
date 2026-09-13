@@ -170,21 +170,27 @@ function select_dataset(identifier::AbstractString, body::AbstractString, query)
     end
 
     product = collect(skipmissing(table[!, COL_PRODUCT_ZA]))
-    if query.abscissa in ("E", "TKE")
+    # An abscissa made of energies alone identifies no nuclide; every other one does.
+    identifies_product =
+        !all(
+            quantity -> quantity in ("neutron_energy", "total_kinetic_energy"),
+            query.abscissa,
+        )
+    if !identifies_product
         isempty(product) || return Rejection(
             identifier,
             code,
-            "abscissa \"$(query.abscissa)\" expects no reaction product, but the dataset \
+            "abscissa $(query.abscissa) expects no reaction product, but the dataset \
              identifies one",
         )
     else
         isempty(product) && return Rejection(
             identifier,
             code,
-            "abscissa \"$(query.abscissa)\" needs a reaction product, which the dataset does \
+            "abscissa $(query.abscissa) needs a reaction product, which the dataset does \
              not identify",
         )
-        if query.abscissa in ("A", "Ap", "ATKE")
+        if !("charge" in query.abscissa)
             # A bare mass number, so it must look like one. `ProdZA` is 1000·Z + A whenever the
             # product is charge-resolved, which for Z ≥ 10 exceeds 10⁴ — but for a light charge-
             # resolved product it does not: an α from ternary fission is 2004, and taken as a
@@ -194,7 +200,7 @@ function select_dataset(identifier::AbstractString, body::AbstractString, query)
             maximum(product) > MAXIMUM_FRAGMENT_MASS && return Rejection(
                 identifier,
                 code,
-                "abscissa \"$(query.abscissa)\" expects bare mass numbers, but the products \
+                "abscissa $(query.abscissa) expects bare mass numbers, but the products \
                  reach $(maximum(product)), which is charge-coded rather than a mass",
             )
             minimum(product) ≤ MINIMUM_FRAGMENT_MASS && return Rejection(
@@ -203,11 +209,11 @@ function select_dataset(identifier::AbstractString, body::AbstractString, query)
                 "product mass numbers reach $(minimum(product)), too light to be a fission \
                  fragment",
             )
-        elseif query.abscissa in ("Z", "ZAp")
+        else
             minimum(product) < 1e4 && return Rejection(
                 identifier,
                 code,
-                "abscissa \"$(query.abscissa)\" expects charge-coded products, but the \
+                "abscissa $(query.abscissa) expects charge-coded products, but the \
                  products are bare mass numbers",
             )
         end
