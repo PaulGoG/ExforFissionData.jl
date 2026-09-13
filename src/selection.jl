@@ -56,9 +56,20 @@ end
 Parse the csv rendering of one dataset, validating the column layout.
 
 Throws an `ArgumentError` naming the dataset when the header does not match
-[`EXFOR_HEADER`](@ref).
+[`EXFOR_HEADER`](@ref), or when the archive returned no data at all — which is a different
+failure and must not be reported as a changed layout.
 """
 function parse_dataset(identifier::AbstractString, body::AbstractString)
+    # Distinguished from a layout change deliberately. An empty body or an application-level
+    # error message says nothing about the column contract, and reporting it as a schema
+    # mismatch sends the reader to `src/schema.jl` to look for a problem that is not there.
+    is_usable_response(body) || throw(
+        ArgumentError(
+            "dataset $(identifier): the archive returned no usable data for this identifier, \
+             so nothing could be parsed. This is a response failure rather than a change in \
+             the csv layout, and it is usually transient — re-running retries it.",
+        ),
+    )
     table = CSV.read(
         IOBuffer(body),
         DataFrame;

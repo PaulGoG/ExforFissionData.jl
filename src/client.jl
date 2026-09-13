@@ -60,6 +60,23 @@ function _cache_key(query::AbstractString)
 end
 
 """
+    is_usable_response(body) -> Bool
+
+Whether a response body is worth parsing or keeping.
+
+The archive answers some requests with HTTP 200 and a short application-level message instead of
+data, and a transient failure can yield an empty body under the same status. Neither is a
+response to cache: an entry is otherwise fetched at most once, so storing one silently removes
+that dataset from every later run.
+"""
+function is_usable_response(body::AbstractString)
+    trimmed = strip(body)
+    isempty(trimmed) && return false
+    startswith(trimmed, "No EXFOR file") && return false
+    return true
+end
+
+"""
     request(query, options) -> String
 
 Retrieve `query` relative to [`EXFOR_BASE`](@ref), through the cache when enabled.
@@ -71,7 +88,11 @@ attempt fails.
 function request(query::AbstractString, options::RetrievalOptions)
     path = joinpath(cache_directory(options), _cache_key(query))
     if options.use_cache && isfile(path)
-        return read(path, String)
+        cached = read(path, String)
+        # An unusable entry counts as a miss rather than being served. Caches written before
+        # this check existed hold empty bodies and archive error messages, and this repairs them
+        # on the next run instead of requiring anyone to know they need clearing.
+        is_usable_response(cached) && return cached
     end
 
     url = string(EXFOR_BASE, query)
@@ -85,7 +106,15 @@ function request(query::AbstractString, options::RetrievalOptions)
                 status_exception = true,
             )
             body = String(response.body)
-            if options.use_cache
+            # Retried rather than accepted: every instance of this observed so far has been
+            # transient, with the archive serving the same identifier correctly moments later.
+            # After the last attempt the body is returned anyway, so that one unlucky dataset
+            # is rejected with a reason rather than aborting the whole retrieval.
+            if !is_usable_response(body) && attempt ≤ options.retries
+                sleep(options.backoff * 2.0^(attempt - 1))
+                continue
+            end
+            if options.use_cache && is_usable_response(body)
                 # Write through a name unique to this task, so that a concurrent reader never
                 # sees a partial file and two tasks fetching the same query cannot collide on
                 # the temporary. The rename is atomic within a filesystem.

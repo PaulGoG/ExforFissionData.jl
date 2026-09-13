@@ -44,6 +44,16 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ### Fixed
 
+- **The response cache stored failures and served them forever.** A transient empty body, and the
+  application-level message the archive returns with HTTP 200 when it declines a request, were
+  both written to the cache as though they were data. Since an entry is otherwise fetched at most
+  once, one unlucky moment removed that dataset from every later run — silently, because the
+  dataset then failed the column check and was reported as a change in the csv layout. Measured on
+  a cache of 4516 responses: 19 entries were poisoned, and all 19 identifiers served correct data
+  when asked again. Unusable responses are now retried, never cached, and an existing poisoned
+  entry counts as a miss, so a cache written before this repairs itself on the next run.
+- A body the archive never sent is no longer reported as a layout change. That message sends the
+  reader to `src/schema.jl` to look for a problem that is not there.
 - The run record named the configuration by the absolute path it was read from. Consumers commit
   these records, so that carried the directory layout of whoever ran the retrieval into other
   repositories; it now records the file name.

@@ -9,6 +9,7 @@ using ExforFissionData:
     TagRule,
     combine_measurements,
     is_measurement,
+    is_usable_response,
     has_absolute_scale,
     matches,
     parse_dataset,
@@ -583,6 +584,45 @@ include("fixtures.jl")
         write(joinpath(directory, key), "cached body")
         @test ExforFissionData.request("x4get?DatasetID=10433002&op=csv&plus=2", options) ==
               "cached body"
+
+        # The archive answers some requests with HTTP 200 and a short message instead of data,
+        # and a transient failure gives an empty body under the same status. Caching either one
+        # removes that dataset from every later run, because an entry is fetched at most once.
+        @test is_usable_response("DatasetID,year1\n40871011,1983")
+        @test !is_usable_response("")
+        @test !is_usable_response("   \n ")
+        @test !is_usable_response("No EXFOR file...")
+
+        # A poisoned entry is a miss, not a response. Without this, a cache written before the
+        # check existed would keep serving the failure forever; with it, the next run repairs
+        # itself. No request is made here, so an empty cache file must surface as a failure to
+        # reach the archive rather than as the empty string.
+        for poison in ("", "No EXFOR file...")
+            write(joinpath(directory, key), poison)
+            @test_throws Exception ExforFissionData.request(
+                "x4get?DatasetID=10433002&op=csv&plus=2",
+                ExforFissionData.RetrievalOptions(;
+                    cache_directory = directory,
+                    retries = 0,
+                    timeout = 0.001,
+                ),
+            )
+        end
+
+        # An unparseable body is reported as a response failure, not as a layout change: the
+        # column contract is not what went wrong, and saying so sends the reader to the wrong file.
+        for body in ("", "No EXFOR file...")
+            message = try
+                ExforFissionData.parse_dataset("40871011", body)
+                ""
+            catch exception
+                sprint(showerror, exception)
+            end
+            @test occursin("no usable data", message)
+            # Must not send the reader to src/schema.jl, which is what validate_header's
+            # message does and which is the wrong place to look for this failure.
+            @test !occursin("must be updated", message)
+        end
 
         # Cache keys stay distinct across the queries that differ only in punctuation.
         @test ExforFissionData._cache_key(
