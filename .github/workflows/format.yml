@@ -13,11 +13,11 @@ jobs:
     name: JuliaFormatter
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
       - name: Check formatting against .JuliaFormatter.toml
         shell: julia --color=yes {0}
         run: |
