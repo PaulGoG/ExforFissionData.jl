@@ -75,16 +75,19 @@ end
 
 # Platform and revision facts, so a result is attributable to a configuration, a commit and a
 # machine without relying on memory.
-function _platform()
+function _platform(record_hostname::Bool)
     cpu = Sys.cpu_info()
-    return Dict{String, Any}(
+    platform = Dict{String, Any}(
         "julia_version" => string(VERSION),
-        "hostname" => gethostname(),
         "cpu_model" => isempty(cpu) ? "unknown" : String(first(cpu).model),
         "cpu_threads" => Sys.CPU_THREADS,
         "julia_threads" => Threads.nthreads(),
         "total_memory_gb" => round(Sys.total_memory() / 2^30; digits = 2),
     )
+    # Opt-in: this record is written to be committed by whoever consumes the data, and the
+    # machine name is the one field in it that identifies a person rather than a result.
+    record_hostname && (platform["hostname"] = gethostname())
+    return platform
 end
 
 function _revision()
@@ -154,7 +157,7 @@ function write_metadata(
             "duplicate_abscissa" => "isomers resolved first (archive total preferred, else summed in \
                  quadrature), then repeats combined by an inverse-variance weighted mean",
         ),
-        "platform" => _platform(),
+        "platform" => _platform(configuration.record_hostname),
     )
 
     units = sort!(unique(String[entry.dataset.unit for entry in accepted]))

@@ -37,6 +37,10 @@ Notable changes to ExforFissionData.jl. The format follows
 - Joint `ν(A, TKE)` configurations for all four systems, and resonance-region variants for 235-U
   whose incident-energy window reaches the measurements made on a resonance beam.
 - `CITATION.cff`, and activation scripts for the `docs/` and `test/` environments.
+- `[output] record_hostname`, off by default. The run record is written to be committed by
+  whoever consumes the data, and the machine name was the one field in it that identified a
+  person rather than a result; the rest of the platform fingerprint still attributes a run to
+  its hardware.
 
 ### Fixed
 

@@ -277,6 +277,12 @@ and both dataset lists — accepted, with what the reduction did to each, and re
 reason. The rejection list is the point: a dataset missing from the output is otherwise
 indistinguishable from one the archive does not hold.
 
+It is written to be committed alongside the data, so it deliberately says nothing about who ran
+it: the configuration appears by file name rather than by the path it was read from, and the
+machine name is omitted. The platform fingerprint still attributes a run to its hardware — CPU
+model, core counts, memory, Julia version. Set `record_hostname = true` under `[output]` to name
+the machine as well, which is useful when the records stay yours.
+
 ## Status
 
 | Component | State |

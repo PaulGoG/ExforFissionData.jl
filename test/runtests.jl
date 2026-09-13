@@ -1,4 +1,5 @@
 using Test
+using TOML
 using DataFrames: nrow
 using ExforFissionData
 using ExforFissionData:
@@ -20,6 +21,7 @@ using ExforFissionData:
     unused_path,
     validate_header,
     write_dataset,
+    write_metadata,
     EXFOR_HEADER
 
 include("fixtures.jl")
@@ -351,6 +353,48 @@ include("fixtures.jl")
         @test unused_path(path) != path
         @test unused_path(joinpath(directory, "absent.dat")) ==
               joinpath(directory, "absent.dat")
+
+        # The run record carries the platform but names the machine only when asked to, and it
+        # records the configuration by file name rather than by the path it was read from: these
+        # records get committed into the repositories that consume the data.
+        config_path = joinpath(directory, "U233_nf_yield_A.toml")
+        write(
+            config_path,
+            """
+            [query]
+            target = "U-233"
+            reaction = "n,f"
+            quantity = "FY"
+            abscissa = "A"
+            ordinate = "yield"
+            energy_max = 1.0e-7
+            """,
+        )
+        record_path = joinpath(directory, "retrieval.toml")
+        write_metadata(record_path, load_configuration(config_path), [], Rejection[])
+        record = TOML.parsefile(record_path)
+        @test record["run"]["configuration"] == "U233_nf_yield_A.toml"
+        @test haskey(record["platform"], "cpu_model")
+        @test !haskey(record["platform"], "hostname")
+
+        write(
+            config_path,
+            """
+            [query]
+            target = "U-233"
+            reaction = "n,f"
+            quantity = "FY"
+            abscissa = "A"
+            ordinate = "yield"
+            energy_max = 1.0e-7
+
+            [output]
+            record_hostname = true
+            """,
+        )
+        named_path = joinpath(directory, "named.toml")
+        write_metadata(named_path, load_configuration(config_path), [], Rejection[])
+        @test TOML.parsefile(named_path)["platform"]["hostname"] == gethostname()
     end
 
     @testset "configuration validation" begin
@@ -385,6 +429,23 @@ include("fixtures.jl")
         ordinate = "nu"
         """)
         @test load_configuration(spontaneous).query.spontaneous
+
+        # The machine name is off unless asked for: the run record is written to be committed by
+        # whoever consumes the data, and it is the one field identifying a person, not a result.
+        @test !configuration.record_hostname
+        hostnamed = write_config("""
+        [query]
+        target = "U-233"
+        reaction = "n,f"
+        quantity = "FY"
+        abscissa = "A"
+        ordinate = "yield"
+        energy_max = 1.0e-7
+
+        [output]
+        record_hostname = true
+        """)
+        @test load_configuration(hostnamed).record_hostname
 
         for (content, needle) in [
             (

@@ -41,6 +41,7 @@ A validated retrieval configuration.
 - `save_subentries::Bool`: whether to store the original EXFOR subentry text beside the data.
 - `output_directory::String`: root for retrieved data.
 - `digits::Int`: decimals in tabulated output.
+- `record_hostname::Bool`: whether to name the machine in the run record.
 - `source::String`: path of the configuration file, recorded in the run metadata.
 """
 struct Configuration
@@ -49,6 +50,7 @@ struct Configuration
     save_subentries::Bool
     output_directory::String
     digits::Int
+    record_hostname::Bool
     source::String
 end
 
@@ -228,6 +230,11 @@ function load_configuration(path::AbstractString)
     directory = _optional(output_section, "directory", "data", "output", source)
     digits = _optional(output_section, "digits", 7, "output", source)
     _in_range(digits, 1, 15, "digits", "output", source)
+    # Off by default. The run record is meant to be committed by whoever consumes the data, and
+    # the machine name is the one field in it that identifies a person rather than a result. The
+    # rest of the platform fingerprint — CPU model, core counts, memory, Julia version — still
+    # attributes a run to the hardware it came from.
+    record_hostname = _optional(output_section, "record_hostname", false, "output", source)
 
     return Configuration(
         Query(
@@ -251,6 +258,7 @@ function load_configuration(path::AbstractString)
         save_subentries,
         directory,
         digits,
+        record_hostname,
         abspath(path),
     )
 end
