@@ -69,7 +69,22 @@ Notable changes to ExforFissionData.jl. The format follows
 - Survey figures draw relative datasets in a panel of their own beneath the absolute ones,
   sharing the abscissa, and put a spectrum on a log ordinate. One pair of linear axes asserted a
   comparison the data does not support — arbitrary units against absolute ones — and collapsed
-  every spectrum but the largest onto the abscissa.
+  every spectrum but the largest onto the abscissa. A spectrum panel is labelled with the unit
+  tokens its datasets are written in rather than with an assumed one, since nothing is normalised
+  on the way out: for 252-Cf that is `1/EV` and `PC/FIS/MEV` together.
+- Spectrum configurations for 252-Cf, 233-U and 239-Pu, which the archive holds 156, 27 and 61
+  datasets for against the 125 for 235-U. The 252-Cf spontaneous-fission spectrum is a reference
+  standard and no incident-energy window narrows it; the retrieval writes 9 absolute datasets and
+  27 relative ones.
+- A third known miscoded entry, `40064031` (Kroshkin, 1970): its energy column is headed `MEV`
+  over values in keV, which the subentry's own text contradicts. Written as the archive states
+  it, and named in the README so that a consumer meets it in the documentation rather than in a
+  fit.
+- A survey of what the archive holds for the prompt-γ observables and for P(ν), recorded in the
+  README where it explains why both stay outside the observable set: `MLT` returns six
+  heterogeneous datasets across these four systems and none of them is mass-resolved, and every
+  P(ν) dataset carries the neutron number as row order alone, which is not an abscissa this
+  package is willing to invent.
 
 ### Changed
 

@@ -42,7 +42,7 @@ ExforFissionData.jl/
 ├── CITATION.cff
 ├── LICENSE
 ├── Project.toml  Manifest.toml
-├── config/                      # 16 configurations, <target>_<reaction>_<ordinate>_<abscissa>
+├── config/                      # 19 configurations, <target>_<reaction>_<ordinate>_<abscissa>
 ├── docs/                        # Documenter site
 │   ├── make.jl
 │   └── src/
@@ -77,12 +77,12 @@ immutable once published, so a configuration and this package reproduce a retrie
 
 ## Configurations
 
-| System | Y(A) | ν(A) | ν(A,TKE) |
-| :--- | :--- | :--- | :--- |
-| ²⁵²Cf(sf) | `Cf252_0f_yield_A` | `Cf252_0f_nu_A` | `Cf252_0f_nu_ATKE` |
-| ²³⁵U(n,f) | `U235_nf_yield_A` | `U235_nf_nu_A` | `U235_nf_nu_ATKE` |
-| ²³³U(n,f) | `U233_nf_yield_A` | `U233_nf_nu_A` | `U233_nf_nu_ATKE` |
-| ²³⁹Pu(n,f) | `Pu239_nf_yield_A` | `Pu239_nf_nu_A` | `Pu239_nf_nu_ATKE` |
+| System | Y(A) | ν(A) | ν(A,TKE) | N(E) |
+| :--- | :--- | :--- | :--- | :--- |
+| ²⁵²Cf(sf) | `Cf252_0f_yield_A` | `Cf252_0f_nu_A` | `Cf252_0f_nu_ATKE` | `Cf252_0f_spectrum_E` |
+| ²³⁵U(n,f) | `U235_nf_yield_A` | `U235_nf_nu_A` | `U235_nf_nu_ATKE` | `U235_nf_spectrum_E` |
+| ²³³U(n,f) | `U233_nf_yield_A` | `U233_nf_nu_A` | `U233_nf_nu_ATKE` | `U233_nf_spectrum_E` |
+| ²³⁹Pu(n,f) | `Pu239_nf_yield_A` | `Pu239_nf_nu_A` | `Pu239_nf_nu_ATKE` | `Pu239_nf_spectrum_E` |
 
 The neutron-induced configurations admit thermal incident energies. `U235_nf_nu_A_res` and
 `U235_nf_nu_ATKE_res` widen the window to 1 keV, which is what the resonance-beam measurements
@@ -92,9 +92,14 @@ The `_res` pair writes under `data/resonance/`. A label is built from target, re
 and abscissa and does not encode the energy window, so a thermal and a resonance run of the same
 observable would otherwise produce directory names differing only by a numeric suffix.
 
-For the prompt fission neutron spectrum, `U235_nf_spectrum_E` and `U235_nf_spectrumRatioMXW_E`.
-The two are separate observables, not two renderings of one: the archive codes the Maxwellian
-ratio with `MXD`, which the plain spectrum excludes.
+`U235_nf_spectrumRatioMXW_E` retrieves the 235-U spectrum as a ratio to a Maxwellian. That is a
+separate observable rather than a second rendering of `U235_nf_spectrum_E`: the archive codes the
+ratio with `MXD`, which the plain spectrum excludes. The archive holds the ratio form for 235-U
+alone among these systems.
+
+Spectra are the one observable the archive holds more of for 252-Cf than for 235-U — 156 datasets
+against 125, the spontaneous-fission spectrum being a reference standard — and none of it is
+narrowed by an incident-energy window.
 
 ## Requirements
 
@@ -211,7 +216,26 @@ a different observable under the requested name rather than nothing.
 Fragment and prompt-neutron observables only. Prompt-γ quantities — ⟨Eγ⟩(A), ⟨Nγ⟩(A) and the
 prompt fission γ-ray spectrum — are outside the observable set, as are the neutron multiplicity
 distribution P(ν) and the centre-of-mass spectrum Φ(ε), the last of which the archive does not
-carry as a quantity of its own.
+carry as a quantity of its own — with the consequence that a measurement in the centre of mass is
+compiled under the same code as a laboratory-frame one and separated from it only by free text.
+`23268009` (Göök, 2014) is such a dataset, retrieved by `Cf252_0f_spectrum_E` alongside
+laboratory spectra. The frame is the consumer's to check, in the subentry stored beside the data.
+
+For the first two, exclusion is what the archive holds rather than a preference:
+
+**Prompt-γ.** The quantity code is `MLT`, and it returns five datasets for 252-Cf and one for
+235-U, none for 233-U or 239-Pu. Not one carries `MASS`: the largest is differential in secondary
+γ energy, three are relative and miscellaneous, one is a single number, and the 235-U entry is
+resonance-region. Under `MFQ` for 235-U(n,f), none of the 125 datasets carries `GAM` or a `,G`
+branch, so the γ-ray spectrum is not there either.
+
+**P(ν).** The distribution is coded `NUM` in the branch field — `,PR/NUM,NU` and `,NUM,NU` — and
+is returned under `NU`, so the package already sees it and rejects it on tags. It cannot be
+written: of the 33 such datasets across these four systems, 31 carry no abscissa column at all,
+and the two exceptions carry one held constant over every row. In the `op=csv&plus=2` rendering
+the neutron number exists only as the order of the rows. Retrieving it would mean asserting that
+the nth row is ν = n−1 — an assumption about an entry's internal ordering that the rendering never
+states, and which a file of one row per abscissa *value* would then present as data.
 
 Spectra between two different fissioning systems — the `(A(n,f),PR,NU/DE)/(B(n,f),PR,NU/DE)`
 ratio form the archive holds a good deal of — are a distinct observable and are excluded. A
@@ -325,6 +349,15 @@ Only the one-dimensional projections are affected. The same Göök entry compile
 distribution correctly as `23268008`, `MASS,PR/FRG,NU/TKE`, which `abscissa = "ATKE"` retrieves in
 full — 2234 points of ν(A, TKE). A consumer that wants ν(A) from this measurement should take the
 joint distribution and marginalise it rather than reach for the miscoded projection.
+
+One more is known for `ordinate = "spectrum"`, and it is a mislabelled unit rather than a
+mislabelled quantity. `40064031` (Kroshkin, 1970), `98-CF-252(0,F),PR,NU/DE,,REL`, heads its
+energy column `MEV` over values running from 5.128 to 2132.8. The subentry contradicts itself:
+its own `REACTION` text gives the range as "5 keV - 2 MeV", and its comment places the structure
+it reports at 85 keV to 0.75 MeV. The column is keV. The dataset is retrieved and written as the
+archive states it, since a unit token is not something this package overrules, but its abscissa is
+a factor of 1000 too large and it is the one dataset in `Cf252_0f_spectrumE` reaching past
+40 MeV — a sanity check on the abscissa range finds it immediately.
 
 ## Retrieval
 
