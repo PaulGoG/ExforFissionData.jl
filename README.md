@@ -119,6 +119,20 @@ the kinetic energies to `E`, the spectra to `MFQ` — and the configuration is r
 disagree. The quantity decides which datasets the archive offers at all, so a mismatch retrieves
 a different observable under the requested name rather than nothing.
 
+### Not covered
+
+Fragment and prompt-neutron observables only. Prompt-γ quantities — ⟨Eγ⟩(A), ⟨Nγ⟩(A) and the
+prompt fission γ-ray spectrum — are outside the observable set, as are the neutron multiplicity
+distribution P(ν) and the centre-of-mass spectrum Φ(ε), the last of which the archive does not
+carry as a quantity of its own.
+
+Relative spectra are also absent, and that one bites: `spectrum` rejects datasets in
+`ARB-UNITS`, which for 235-U(n,f) is 54 of the 125 the archive offers against 15 accepted.
+The rule is right in that a relative spectrum has no absolute scale and cannot be combined with
+absolute data, but prompt fission neutron spectra are conventionally measured relative and
+normalised afterwards, so most published spectrum comparisons cannot be reproduced from what
+this package returns.
+
 ## Conventions
 
 **Energies are MeV**, converted from the electronvolts the archive reports.
@@ -179,6 +193,11 @@ pair data, which they are not: for 252-Cf a pair multiplicity is about 3.76 ever
 `23118006` reports 0.56 at A = 80. The tag rules are not loosened to admit them, since
 `MASS,PR,NU` is the correct code for genuine pair data and admitting it would mix the two
 quantities. Both appear in the rejection list of the run record with their reaction codes.
+
+Only the one-dimensional projections are affected. The same Göök entry compiles the joint
+distribution correctly as `23268008`, `MASS,PR/FRG,NU/TKE`, which `abscissa = "ATKE"` retrieves in
+full — 2234 points of ν(A, TKE). A consumer that wants ν(A) from this measurement should take the
+joint distribution and marginalise it rather than reach for the miscoded projection.
 
 ## Retrieval
 

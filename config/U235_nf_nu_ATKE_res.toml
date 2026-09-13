@@ -1,0 +1,26 @@
+# Prompt neutron multiplicity per fragment against fragment mass and total kinetic energy
+# jointly, 235-U(n,f), resonance region.
+#
+# See U235_nf_nu_A_res.toml for why the window reaches to 1 keV rather than stopping at
+# thermal: the GELINA measurements sit at a spectrum-averaged 580 eV.
+
+[query]
+target = "U-235"            # EXFOR nuclide symbol of the target
+reaction = "n,f"            # one of: "n,f" | "0,f"
+quantity = "NU"             # one of: "NU" | "FY" | "E" | "MFQ"
+abscissa = "ATKE"           # one of: "A" | "Ap" | "Z" | "ZAp" | "E" | "TKE" | "ATKE"
+ordinate = "nu"             # one of: "nu" | "nuPair" | "yield" | "KE" | "KEp" | "TKE" | "TKEp" | "epsE" | "spectrum" | "spectrumRatioMXW"
+energy_min = 0.0            # incident energy window, MeV, at least 0
+energy_max = 1.0e-3         # incident energy window, MeV, above energy_min
+
+[retrieval]
+concurrency = 4             # simultaneous requests, 1 to 16
+timeout = 60.0              # per-request timeout in seconds, positive
+retries = 4                 # retry attempts after a failure, 0 to 10
+backoff = 1.0               # base of the exponential backoff in seconds, positive
+use_cache = true            # read and write the on-disk response cache
+save_subentries = true      # store the original EXFOR subentry text beside the data
+
+[output]
+directory = "data"          # root for retrieved data, relative to the working directory
+digits = 7                  # decimals in tabulated output, 1 to 15
