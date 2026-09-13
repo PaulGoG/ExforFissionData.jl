@@ -18,6 +18,9 @@ using DataFrames: ncol, nrow
 """Largest number of series that still yields a readable per-dataset legend."""
 const MAX_LEGEND_ENTRIES = 12
 
+"""Ordinates that fall by orders of magnitude across their abscissa and need a log ordinate."""
+const LOG_ORDINATES = ("spectrum",)
+
 """
     survey(directory; format, output) -> String
 
@@ -26,6 +29,12 @@ Draw every dataset of one retrieval on shared axes and write the figure.
 Labels come from the run record, so the legend names the same datasets the record does. The
 figure is sized for a single journal column; with more than a dozen datasets the legend is the
 binding constraint on legibility, and the figure is a diagnostic rather than a publication panel.
+
+Datasets in arbitrary units are drawn in a panel of their own, beneath the absolute ones and
+sharing their abscissa. A relative dataset carries a shape and no scale, so it cannot share an
+ordinate axis with absolute data or with another relative dataset; a single pair of axes would
+assert a comparison that the data does not support. A spectrum is drawn on a log ordinate, where
+values at or below zero cannot be shown and are skipped.
 """
 function survey(
     directory::AbstractString;
@@ -41,32 +50,40 @@ function survey(
     ordinate = query["ordinate"]
     joint = abscissa in ("ZAp", "ATKE")
 
-    set_theme!(THEME)
-    width = 246                      # points, a single column
-    figure = Figure(; size = (width, joint ? 0.85width : 0.78width))
-    axis = Axis(
-        figure[1, 1];
-        xlabel = _axis_label(abscissa, 1),
-        ylabel = joint ? _axis_label(abscissa, 2) : _ordinate_label(ordinate),
-    )
-
-    tables = Tuple{Int, DataFrame, String}[]
+    tables = Tuple{Int, DataFrame, String, Bool}[]
     for (index, entry) in enumerate(accepted)
         file = joinpath(directory, entry["file"])
         isfile(file) || continue
         table = read_dataset(file)
         nrow(table) == 0 && continue
-        push!(tables, (index, table, string(entry["author"], " ", entry["year"])))
+        push!(
+            tables,
+            (
+                index,
+                table,
+                string(entry["author"], " ", entry["year"]),
+                get(entry, "relative", false),
+            ),
+        )
     end
     isempty(tables) && error("no dataset of the retrieval at $(directory) could be read")
 
+    set_theme!(THEME)
+    width = 246                      # points, a single column
+
     if joint
+        figure = Figure(; size = (width, 0.85width))
+        axis = Axis(
+            figure[1, 1];
+            xlabel = _axis_label(abscissa, 1),
+            ylabel = _axis_label(abscissa, 2),
+        )
         # A joint abscissa is a plane, so the ordinate cannot also be a position. Colouring by it
         # makes the figure say something; one marker per dataset would only say which archive
         # entry a point came from, which at this many datasets is not a readable question.
-        x = reduce(vcat, [table[!, 1] for (_, table, _) in tables])
-        y = reduce(vcat, [table[!, 2] for (_, table, _) in tables])
-        v = reduce(vcat, [table[!, 3] for (_, table, _) in tables])
+        x = reduce(vcat, [table[!, 1] for (_, table, _, _) in tables])
+        y = reduce(vcat, [table[!, 2] for (_, table, _, _) in tables])
+        v = reduce(vcat, [table[!, 3] for (_, table, _, _) in tables])
         finite = findall(value -> isfinite(value) && value > 0, v)
         points = scatter!(
             axis,
@@ -95,23 +112,52 @@ function survey(
         )
         colgap!(figure.layout, 6)
     else
-        for (index, table, label) in tables
-            colour, marker = series_style(index)
-            x, y = table[!, 1], table[!, 2]
-            if ncol(table) ≥ 3
-                errorbars!(axis, x, y, table[!, 3]; color = (colour, 0.5), linewidth = 0.6)
-            end
-            scatter!(axis, x, y; color = colour, marker, markersize = 4, label)
+        # Absolute and relative data are shown apart, because they cannot be put on one scale.
+        groups = Tuple{Bool, Vector{eltype(tables)}}[]
+        for relative in (false, true)
+            selected = filter(entry -> entry[4] == relative, tables)
+            isempty(selected) || push!(groups, (relative, selected))
         end
 
-        # Beyond this many series a per-dataset legend takes the figure over and stops being
-        # readable, so the count is stated instead and the record names the datasets.
+        logscale = ordinate in LOG_ORDINATES
+        figure = Figure(; size = (width, (length(groups) == 1 ? 0.78 : 1.15)width))
+        entries = Tuple{Any, String}[]
+        axes = Axis[]
+        for (row, (relative, selected)) in enumerate(groups)
+            axis = Axis(
+                figure[row, 1];
+                xlabel = row == length(groups) ? _axis_label(abscissa, 1) : "",
+                ylabel = relative ? _relative_label(ordinate) : _ordinate_label(ordinate),
+                yscale = logscale ? log10 : identity,
+            )
+            row == length(groups) || hidexdecorations!(axis; ticks = false, grid = false)
+            append!(entries, _draw_series!(axis, selected; logscale))
+            push!(axes, axis)
+
+            # Beyond this many series a per-dataset legend takes the figure over and stops being
+            # readable, so the count is stated instead and the record names the datasets. It goes
+            # in the corner the data leaves free: a spectrum falls across the axes and clears the
+            # upper right, everything else here rises towards it.
+            length(tables) ≤ MAX_LEGEND_ENTRIES && continue
+            text!(
+                axis,
+                logscale ? 0.97 : 0.03,
+                0.95;
+                text = "$(length(selected)) datasets",
+                space = :relative,
+                align = (logscale ? :right : :left, :top),
+                fontsize = 7,
+            )
+        end
+        length(axes) == 1 || linkxaxes!(axes...)
+
         if length(tables) ≤ MAX_LEGEND_ENTRIES
             Legend(
                 figure[0, 1],
-                axis;
+                first.(entries),
+                last.(entries);
                 orientation = :horizontal,
-                nbanks = cld(length(tables), 3),
+                nbanks = cld(length(entries), 3),
                 framevisible = false,
                 padding = (0, 0, 0, 0),
                 patchsize = (6, 6),
@@ -119,18 +165,8 @@ function survey(
                 rowgap = 1,
                 labelsize = 6,
             )
-            rowgap!(figure.layout, 4)
-        else
-            text!(
-                axis,
-                0.03,
-                0.95;
-                text = "$(length(tables)) datasets",
-                space = :relative,
-                align = (:left, :top),
-                fontsize = 7,
-            )
         end
+        rowgap!(figure.layout, 4)
     end
 
     path = if isempty(output)
@@ -141,6 +177,39 @@ function survey(
     save(path, figure; px_per_unit = 4)
     return path
 end
+
+"""
+    _draw_series!(axis, selected; logscale) -> Vector{Tuple{Any,String}}
+
+Draw one group of datasets and return the plot objects and labels a legend would need.
+
+On a log ordinate a point at or below zero has no position, and an uncertainty reaching past zero
+has no lower end; such points are skipped and the bar is truncated just short of the axis floor.
+"""
+function _draw_series!(axis::Axis, selected::AbstractVector; logscale::Bool = false)
+    entries = Tuple{Any, String}[]
+    for (index, table, label, _) in selected
+        colour, marker = series_style(index)
+        x, y = table[!, 1], table[!, 2]
+        keep = logscale ? findall(value -> isfinite(value) && value > 0, y) : eachindex(y)
+        isempty(keep) && continue
+        x, y = x[keep], y[keep]
+        if ncol(table) ≥ 3
+            uncertainty = table[keep, 3]
+            low = logscale ? min.(uncertainty, 0.999 .* y) : uncertainty
+            errorbars!(axis, x, y, low, uncertainty; color = (colour, 0.5), linewidth = 0.6)
+        end
+        push!(
+            entries,
+            (scatter!(axis, x, y; color = colour, marker, markersize = 4), label),
+        )
+    end
+    return entries
+end
+
+"""The ordinate label of a dataset carrying a shape and no scale."""
+_relative_label(ordinate) =
+    string(replace(_ordinate_label(ordinate), r"\s*\[[^\]]*\]$" => ""), " [arb. units]")
 
 function main(arguments::Vector{String})
     if isempty(arguments) || arguments[1] in ("-h", "--help")

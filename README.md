@@ -42,7 +42,7 @@ ExforFissionData.jl/
 ├── CITATION.cff
 ├── LICENSE
 ├── Project.toml  Manifest.toml
-├── config/                      # 18 configurations, <target>_<reaction>_<ordinate>_<abscissa>
+├── config/                      # 16 configurations, <target>_<reaction>_<ordinate>_<abscissa>
 ├── docs/                        # Documenter site
 │   ├── make.jl
 │   └── src/
@@ -220,8 +220,10 @@ spectrum expressed as a ratio to a Maxwellian is not: that is `spectrumRatioMXW`
 ## Relative data
 
 A prompt fission neutron spectrum is conventionally measured relative and normalised afterwards,
-so for 235-U(n,f) most of what the archive holds is in arbitrary units. Those datasets are
-retrieved, and **written under `relative/` rather than beside the absolute ones in `data/`**:
+so for 235-U(n,f) most of what the archive holds is in arbitrary units: of the 125 datasets
+offered under `MFQ`, 42 answer the query in arbitrary units against 15 in absolute ones, and a
+thermal window narrows both to 11 and 6. Those datasets are retrieved, and **written under
+`relative/` rather than beside the absolute ones in `data/`**:
 
 ```
 data/U235_nf_spectrumE/
@@ -244,6 +246,11 @@ units is not an energy, and a multiplicity is a count whose scale is the whole q
 ## Conventions
 
 **Energies are MeV**, converted from the electronvolts the archive reports.
+
+**Values carry seven significant digits**, set by `significant_digits` under `[output]`.
+Significant digits rather than decimal places, because the ordinates span many orders of
+magnitude: an absolute prompt fission neutron spectrum is of order 10⁻⁷ PC/FIS/MEV, which seven
+decimal places would reduce to one significant digit and eight would erase.
 
 **No normalisation is applied to ordinates.** Normalisation conventions differ between consumers
 and cannot be undone once applied, so the unit token of each dataset is recorded in the run record

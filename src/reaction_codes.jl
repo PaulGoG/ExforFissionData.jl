@@ -159,8 +159,9 @@ Ordinates for which a measurement in arbitrary units is a standard, interpretabl
 
 A prompt fission neutron spectrum is conventionally measured relative and normalised afterwards,
 and the published comparisons are ratios to a Maxwellian in which only the shape carries the
-physics. Excluding relative spectra therefore removes most of what the archive holds: for
-235-U(n,f), 54 of the 125 datasets it offers against 15 in absolute units.
+physics. Excluding relative spectra therefore removes most of what the archive holds: of the 125
+datasets it offers for 235-U(n,f) under `MFQ`, 42 answer the `spectrum` query in arbitrary units
+against 15 in absolute ones. A thermal incident-energy window narrows both, to 11 and 6.
 
 Every other ordinate is excluded from this, because a relative value there is not a form anyone
 can interpret — a kinetic energy in arbitrary units is not an energy, and a multiplicity is a
