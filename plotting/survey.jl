@@ -1,9 +1,9 @@
 # Survey figures for a retrieval.
 #
 # This module is detached from the retrieval package on purpose. Retrieval is headless and carries
-# no plotting dependency; the consuming projects own their own figure standards and should not
-# inherit a plotting stack through their data source. The figure here answers one question only —
-# what did this query actually return — and is a check on a retrieval, not a publication figure.
+# no plotting dependency: a consumer has its own figure standards and should not inherit a plotting
+# stack through its data source. The figure here answers one question only — what did this query
+# actually return — and is a check on a retrieval, not a publication figure.
 #
 #     julia plotting/survey.jl data/Cf252_0f_nuA
 #
@@ -11,57 +11,12 @@
 # clone without preparation.
 
 include(joinpath(@__DIR__, "activate.jl"))
+include(joinpath(@__DIR__, "style.jl"))
 
-using CairoMakie
-using CSV: CSV
-using DataFrames: DataFrame, ncol, nrow
-using MathTeXEngine: texfont
-using TOML: TOML
-
-const THEME = Theme(;
-    fonts = (; regular = texfont(:text), bold = texfont(:bold), italic = texfont(:italic)),
-    fontsize = 9,
-    figure_padding = 6,
-    Axis = (
-        xgridstyle = :dash,
-        ygridstyle = :dash,
-        xgridcolor = (:grey, 0.12),
-        ygridcolor = (:grey, 0.12),
-        xminorticksvisible = false,
-        yminorticksvisible = false,
-        xtickalign = 1,
-        ytickalign = 1,
-        spinewidth = 0.8,
-    ),
-)
-
-# Okabe-Ito, cycled with marker shape so that series remain separable in grayscale and to
-# colour-vision deficiency.
-const PALETTE = [
-    RGBf(0.90, 0.62, 0.00),
-    RGBf(0.34, 0.71, 0.91),
-    RGBf(0.00, 0.62, 0.45),
-    RGBf(0.94, 0.89, 0.26),
-    RGBf(0.00, 0.45, 0.70),
-    RGBf(0.84, 0.37, 0.00),
-    RGBf(0.80, 0.47, 0.65),
-    RGBf(0.35, 0.35, 0.35),
-]
-const MARKERS = [:circle, :rect, :utriangle, :diamond, :cross, :xcross, :star5, :dtriangle]
+using DataFrames: ncol, nrow
 
 """Largest number of series that still yields a readable per-dataset legend."""
 const MAX_LEGEND_ENTRIES = 12
-
-"""
-    read_record(directory) -> Dict
-
-Read the `retrieval.toml` record written beside a retrieval.
-"""
-function read_record(directory::AbstractString)
-    path = joinpath(directory, "retrieval.toml")
-    isfile(path) || error("no retrieval record at $(path)")
-    return TOML.parsefile(path)
-end
 
 """
     survey(directory; format, output) -> String
@@ -99,14 +54,7 @@ function survey(
     for (index, entry) in enumerate(accepted)
         file = joinpath(directory, entry["file"])
         isfile(file) || continue
-        table = CSV.read(
-            file,
-            DataFrame;
-            delim = ' ',
-            ignorerepeated = true,
-            header = 1,
-            silencewarnings = true,
-        )
+        table = read_dataset(file)
         nrow(table) == 0 && continue
         push!(tables, (index, table, string(entry["author"], " ", entry["year"])))
     end
@@ -148,11 +96,7 @@ function survey(
         colgap!(figure.layout, 6)
     else
         for (index, table, label) in tables
-            # The two cycles must not share a period, or the nth dataset past the palette
-            # repeats the first exactly. Advancing the marker by one extra step per completed
-            # colour cycle keeps every (colour, marker) pair distinct for 64 datasets.
-            colour = PALETTE[mod1(index, length(PALETTE))]
-            marker = MARKERS[mod1(index + (index - 1) ÷ length(PALETTE), length(MARKERS))]
+            colour, marker = series_style(index)
             x, y = table[!, 1], table[!, 2]
             if ncol(table) ≥ 3
                 errorbars!(axis, x, y, table[!, 3]; color = (colour, 0.5), linewidth = 0.6)
@@ -198,37 +142,6 @@ function survey(
     return path
 end
 
-_ordinate_label(ordinate) = get(
-    Dict(
-        "yield" => "Yield",
-        "nu" => "Prompt multiplicity ν",
-        "nuPair" => "Pair multiplicity ν",
-        "KE" => "⟨KE⟩ [MeV]",
-        "KEp" => "⟨KE'⟩ [MeV]",
-        "TKE" => "TKE [MeV]",
-        "TKEp" => "TKE' [MeV]",
-        "epsE" => "ε [MeV]",
-        "spectrum" => "Spectrum [MeV⁻¹]",
-        "spectrumRatioMXW" => "Ratio to Maxwellian",
-    ),
-    ordinate,
-    ordinate,
-)
-
-function _axis_label(abscissa, position)
-    labels = Dict(
-        "A" => ("Fragment mass A", ""),
-        "Ap" => ("Fragment mass A'", ""),
-        "Z" => ("Fragment charge Z", ""),
-        "ZAp" => ("Fragment charge Z", "Fragment mass A'"),
-        "E" => ("Energy [MeV]", ""),
-        "TKE" => ("TKE [MeV]", ""),
-        "ATKE" => ("Fragment mass A", "TKE [MeV]"),
-    )
-    pair = get(labels, abscissa, (abscissa, ""))
-    return position == 1 ? pair[1] : pair[2]
-end
-
 function main(arguments::Vector{String})
     if isempty(arguments) || arguments[1] in ("-h", "--help")
         println(
@@ -236,7 +149,7 @@ function main(arguments::Vector{String})
             usage: julia plotting/survey.jl <retrieval-directory> [--format pdf|png|svg]
 
             Draws every dataset of one retrieval on shared axes, as a check on what the query
-            returned. Publication figures belong to the projects that consume the data.
+            returned. Publication figures belong with the analysis that consumes the data.
             """,
         )
         return 0

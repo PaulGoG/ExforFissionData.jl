@@ -61,6 +61,11 @@ Notable changes to ExforFissionData.jl. The format follows
   whoever consumes the data, and the machine name was the one field in it that identified a
   person rather than a result; the rest of the platform fingerprint still attributes a run to
   its hardware.
+- `plotting/coverage.jl`, which records several retrievals of one observable accumulating on
+  shared axes: each frame advances through the datasets the archive offered for a query, in the
+  identifier order the pipeline processes them, so that what was kept is seen against what was
+  considered. The animation of the four `ν(A)` retrievals is the figure in the README. Theme,
+  palette and axis labels common to the plotting scripts moved to `plotting/style.jl`.
 
 ### Fixed
 
