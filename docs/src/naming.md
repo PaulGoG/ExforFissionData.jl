@@ -22,13 +22,19 @@ writes share the quantity table and the file layout, so a name learned here is t
 
 | Register | Spelling | Where |
 | :--- | :--- | :--- |
-| word | `total_kinetic_energy` | configuration keys and values, Julia identifiers, prose |
+| word | `total_kinetic_energy` | configuration keys and values, prose, and every Julia identifier here |
 | symbol | `TKE` | directory names, file names, column headers, figure labels |
 
 A configuration is edited by hand and has to explain itself, so it spells a quantity out. A path
 and a header are read at a glance and are the field's own nomenclature, so they carry the symbol.
 `nu_vs_A_TKE` says exactly what `multiplicity_vs_mass_total_kinetic_energy` says, and a directory
 listing stays readable.
+
+An identifier standing for a symbol of a governing equation carries that symbol — `Δt`, `ρ²` — so
+that the code reads as the equation is written. This package solves nothing: it retrieves
+tabulated measurements and reduces them, and no identifier in it names a term of an equation.
+That is why every identifier here falls on the word side and not because the symbol register
+stops at the source tree.
 
 ## The quantities
 
@@ -109,11 +115,14 @@ figure label key:
 
 with the channel spelled as the field spells it and not as EXFOR codes it: `Cf252_sf`,
 `U235_nth`, `U235_nres`, and `nfast` for a fast-neutron channel. `0f` is an EXFOR reaction code,
-not a name, and it belongs in the run record where the reaction code already is.
+not a name, and the run record already carries the reaction code the archive returned for each
+dataset it accepted.
 
 The channel is what distinguishes a thermal from a resonance run of one observable. Before it
 existed, the two differed only by a numeric suffix and one of them had to be given an output
-directory of its own to keep them apart.
+directory of its own to keep them apart. Nothing else in the record can draw that line: `n,f` is
+the reaction code of a thermal run and of a resonance run alike, which is why the channel, and
+not the code, is what a figure label is keyed on.
 
 ## Directories, files and headers
 
@@ -153,4 +162,3 @@ having to know the file name to know what it is holding.
 
 Readers take columns **by position**, not by header text. That is what makes a header rename a
 no-op for code, and it must stay that way: nothing downstream may be coupled to the header text.
-```

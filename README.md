@@ -56,7 +56,8 @@ ExforFissionData.jl/
 │   ├── Project.toml
 │   ├── style.jl                 #   theme, palette and labels shared by the scripts
 │   ├── survey.jl                #   one figure per retrieval, as a check on what it returned
-│   └── coverage.jl              #   several retrievals accumulating, as an animation
+│   ├── coverage.jl              #   several retrievals accumulating, as an animation
+│   └── runtests.jl              #   tests for the helpers in style.jl
 ├── scripts/
 │   └── retrieve.jl              # entry point
 ├── src/
@@ -157,6 +158,7 @@ julia --project scripts/retrieve.jl config/U233_nth_Y_vs_A.toml ~/data  # elsewh
 julia plotting/survey.jl data/Cf252_sf/nu_vs_A --format png             # check what it returned
 julia plotting/coverage.jl data/{Cf252_sf,U235_nth,U233_nth,Pu239_nth}/nu_vs_A   # the animation
 julia --project -e 'using Pkg; Pkg.test()'                              # test suite
+julia plotting/runtests.jl                                              # figure-helper tests
 julia check.jl                                                          # format, then test
 julia check.jl --check                                                  # fail on formatting diffs
 julia --project=docs docs/make.jl                                       # build the documentation

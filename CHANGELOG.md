@@ -121,6 +121,18 @@ Notable changes to ExforFissionData.jl. The format follows
   entrance channel and the quantity code from the ordinate; both were keys that could only be
   redundant or wrong. The ordinate–quantity pairing in particular was validated and refused, which
   is one way of saying it should never have been written down twice.
+- **The run record drops the same keys, and `[query] spontaneous` with them.** The rule that
+  emptied the configuration applies to what the configuration is recorded as: spontaneity is the
+  channel being `sf`, and a record cannot state it and the channel and have them agree only by
+  luck. `[query] channel` is what remains, and it is the field a consumer keys on — `n,f` is the
+  reaction code of a thermal run and of a resonance run alike, so nothing else in the record
+  separates the two. The reaction code the archive actually returned is not derivable from
+  anything and stays where it was, on each entry of `[[accepted]]`. Records written before this
+  change carry the three keys; nothing reads them, and deleting those three lines migrates a
+  record in place.
+- Figure labels are typeset from the channel: `²³³U(nth,f)`, `²⁵²Cf(sf)`, with the channel spelled
+  as the field spells it. They were formed from the reaction code, which gave every 235-U figure
+  the same label whether it came from the thermal or the resonance window.
 - A configuration is refused if its ordinate repeats a quantity of its abscissa, which would write
   two columns under one name.
 - `[output] digits` is now `[output] significant_digits`, and rounds to significant digits. The

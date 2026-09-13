@@ -153,18 +153,19 @@ function write_metadata(
             "system" => system_label(query),
             "observable" => observable_label(query),
         ),
+        # The same rule the configuration follows: a key that can only be redundant or wrong is
+        # not written down. The EXFOR reaction code follows from the channel, the quantity code
+        # from the ordinate, and spontaneity is the channel being `sf`. The reaction code of each
+        # dataset, which is what the archive actually returned, stays under `accepted`.
         "query" => Dict{String, Any}(
             "target_Z" => query.target_Z,
             "target_A" => query.target_A,
             "target_symbol" => target_symbol(query),
             "channel" => query.channel,
-            "reaction" => query.reaction,
-            "quantity" => query.quantity,
             "abscissa" => query.abscissa,
             "ordinate" => query.ordinate,
             "energy_min_mev" => query.energy_min,
             "energy_max_mev" => query.energy_max,
-            "spontaneous" => query.spontaneous,
         ),
         "conventions" => Dict{String, Any}(
             "energies" => "MeV; converted from the electronvolts EXFOR reports",

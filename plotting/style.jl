@@ -121,7 +121,11 @@ end
 """
     system_notation(query) -> LaTeXString
 
-The fissioning system of a query, in the notation of the literature: `²⁵²Cf(sf)`, `²³⁵U(n,f)`.
+The fissioning system of a query, in the notation of the literature: `²³³U(nth,f)`, `²⁵²Cf(sf)`.
+
+Keyed on the entrance channel, which is the only field that separates a thermal run from a
+resonance run of one target; the EXFOR reaction code is `n,f` for both and cannot tell them
+apart. The channel is spelled as the field spells it and sits inside the reaction parentheses.
 
 Distinct from `system_label` in the retrieval package, which is the same system as the ASCII
 token that names its directory, `Cf252_sf`.
@@ -133,12 +137,10 @@ function system_notation(query::AbstractDict)
         parts = split(element, '-')
         element, mass = parts[1], parts[end]
     end
-    # The inducing particle and the exit channel stay italic, as they are written in the
-    # literature; "sf" is an abbreviation and is therefore upright.
-    reaction = if get(query, "spontaneous", false) || String(query["reaction"]) == "0,f"
-        "(\\mathrm{sf})"
-    else
-        "($(String(query["reaction"])))"
-    end
+    # The exit channel stays italic, as it is written in the literature; the entrance channel is
+    # an abbreviation — "nth" carries the word "thermal" — and is therefore upright. Spontaneous
+    # fission has no entrance channel, so "sf" stands alone in the parentheses.
+    channel = String(query["channel"])
+    reaction = channel == "sf" ? "(\\mathrm{sf})" : "(\\mathrm{$(channel)},f)"
     return latexstring("^{$(mass)}\\mathrm{$(element)}$(reaction)")
 end

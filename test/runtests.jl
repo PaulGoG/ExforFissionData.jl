@@ -3,6 +3,7 @@ using TOML
 using DataFrames: nrow
 using ExforFissionData
 using ExforFissionData:
+    AcceptedDataset,
     Dataset,
     Query,
     Rejection,
@@ -429,7 +430,9 @@ include("fixtures.jl")
             """,
         )
         record_path = joinpath(directory, "retrieval.toml")
-        write_metadata(record_path, load_configuration(config_path), [], Rejection[])
+        dataset = select_dataset("10", body, query)
+        accepted = [AcceptedDataset(dataset, reduce_dataset(dataset, query), "with.dat")]
+        write_metadata(record_path, load_configuration(config_path), accepted, Rejection[])
         record = TOML.parsefile(record_path)
         @test record["run"]["configuration"] == "U233_nth_Y_vs_A.toml"
         # System and observable are recorded apart, as they are written apart on disk.
@@ -439,6 +442,18 @@ include("fixtures.jl")
         @test record["query"]["abscissa"] == ["mass"]
         @test haskey(record["platform"], "cpu_model")
         @test !haskey(record["platform"], "hostname")
+
+        # The record follows the same rule as the configuration: a key that can only be redundant
+        # or wrong is not written. The reaction code follows from the channel, the quantity code
+        # from the ordinate, and spontaneity is the channel being `sf`.
+        for key in ("reaction", "quantity", "spontaneous")
+            @test !haskey(record["query"], key)
+        end
+        # The channel is what remains, and it is the only field that separates a thermal run from
+        # a resonance run of one target: both are `n,f`. A figure label is keyed on it.
+        @test record["query"]["channel"] == "nth"
+        # The reaction code the archive returned is not derivable and stays per dataset.
+        @test all(dataset -> haskey(dataset, "reaction_code"), record["accepted"])
 
         write(
             config_path,
