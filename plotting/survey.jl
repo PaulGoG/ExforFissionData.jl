@@ -50,7 +50,10 @@ function survey(
     ordinate = query["ordinate"]
     joint = abscissa in ("ZAp", "ATKE")
 
-    tables = Tuple{Int, DataFrame, String, Bool}[]
+    tables = NamedTuple{
+        (:index, :table, :label, :relative, :unit),
+        Tuple{Int, DataFrame, String, Bool, String},
+    }[]
     for (index, entry) in enumerate(accepted)
         file = joinpath(directory, entry["file"])
         isfile(file) || continue
@@ -58,11 +61,12 @@ function survey(
         nrow(table) == 0 && continue
         push!(
             tables,
-            (
+            (;
                 index,
                 table,
-                string(entry["author"], " ", entry["year"]),
-                get(entry, "relative", false),
+                label = string(entry["author"], " ", entry["year"]),
+                relative = get(entry, "relative", false),
+                unit = String(get(entry, "unit_written", "")),
             ),
         )
     end
@@ -81,9 +85,9 @@ function survey(
         # A joint abscissa is a plane, so the ordinate cannot also be a position. Colouring by it
         # makes the figure say something; one marker per dataset would only say which archive
         # entry a point came from, which at this many datasets is not a readable question.
-        x = reduce(vcat, [table[!, 1] for (_, table, _, _) in tables])
-        y = reduce(vcat, [table[!, 2] for (_, table, _, _) in tables])
-        v = reduce(vcat, [table[!, 3] for (_, table, _, _) in tables])
+        x = reduce(vcat, [entry.table[!, 1] for entry in tables])
+        y = reduce(vcat, [entry.table[!, 2] for entry in tables])
+        v = reduce(vcat, [entry.table[!, 3] for entry in tables])
         finite = findall(value -> isfinite(value) && value > 0, v)
         points = scatter!(
             axis,
@@ -115,7 +119,7 @@ function survey(
         # Absolute and relative data are shown apart, because they cannot be put on one scale.
         groups = Tuple{Bool, Vector{eltype(tables)}}[]
         for relative in (false, true)
-            selected = filter(entry -> entry[4] == relative, tables)
+            selected = filter(entry -> entry.relative == relative, tables)
             isempty(selected) || push!(groups, (relative, selected))
         end
 
@@ -127,7 +131,7 @@ function survey(
             axis = Axis(
                 figure[row, 1];
                 xlabel = row == length(groups) ? _axis_label(abscissa, 1) : "",
-                ylabel = relative ? _relative_label(ordinate) : _ordinate_label(ordinate),
+                ylabel = _panel_label(ordinate, selected),
                 yscale = logscale ? log10 : identity,
             )
             row == length(groups) || hidexdecorations!(axis; ticks = false, grid = false)
@@ -188,7 +192,7 @@ has no lower end; such points are skipped and the bar is truncated just short of
 """
 function _draw_series!(axis::Axis, selected::AbstractVector; logscale::Bool = false)
     entries = Tuple{Any, String}[]
-    for (index, table, label, _) in selected
+    for (index, table, label, _, _) in selected
         colour, marker = series_style(index)
         x, y = table[!, 1], table[!, 2]
         keep = logscale ? findall(value -> isfinite(value) && value > 0, y) : eachindex(y)
@@ -207,9 +211,24 @@ function _draw_series!(axis::Axis, selected::AbstractVector; logscale::Bool = fa
     return entries
 end
 
-"""The ordinate label of a dataset carrying a shape and no scale."""
-_relative_label(ordinate) =
-    string(replace(_ordinate_label(ordinate), r"\s*\[[^\]]*\]$" => ""), " [arb. units]")
+"""
+    _panel_label(ordinate, selected) -> String
+
+The ordinate label of one panel, carrying the unit its datasets are actually written in.
+
+The curated label of an ordinate states the unit this package guarantees — MeV for an energy,
+none for a multiplicity. A spectrum has no such guarantee: nothing is normalised on the way out,
+so the archive's own token stands, and a query returning more than one is labelled with all of
+them rather than with a unit that is right for only some of the data.
+"""
+function _panel_label(ordinate, selected::AbstractVector)
+    base = replace(_ordinate_label(ordinate), r"\s*\[[^\]]*\]$" => "")
+    first(selected).relative && return string(base, " [arb. units]")
+    ordinate in LOG_ORDINATES || return _ordinate_label(ordinate)
+    units = sort!(unique(String[entry.unit for entry in selected if !isempty(entry.unit)]))
+    isempty(units) && return base
+    return string(base, " [", join(units, ", "), "]")
+end
 
 function main(arguments::Vector{String})
     if isempty(arguments) || arguments[1] in ("-h", "--help")
