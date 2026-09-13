@@ -638,6 +638,23 @@ include("fixtures.jl")
         @test ExforFissionData.request("x4get?DatasetID=10433002&op=csv&plus=2", options) ==
               "cached body"
 
+        # Requests identify the client. The archive is a shared public service, and this
+        # package asks its users to be considerate of it, so it names itself and its version
+        # rather than arriving anonymously.
+        @test occursin("ExforFissionData.jl/", ExforFissionData.USER_AGENT)
+        @test occursin(
+            "github.com/PaulGoG/ExforFissionData.jl",
+            ExforFissionData.USER_AGENT,
+        )
+        @test occursin(string(pkgversion(ExforFissionData)), ExforFissionData.USER_AGENT)
+
+        # Reaching a written value goes through these, so they are part of the result rather
+        # than internals and must be exported; a user should not have to name an unexported
+        # type to read what a retrieval produced.
+        for name in (:AcceptedEntry, :Reduced, :RetrievalResult, :Dataset)
+            @test name in names(ExforFissionData)
+        end
+
         # The archive answers some requests with HTTP 200 and a short message instead of data,
         # and a transient failure gives an empty body under the same status. Caching either one
         # removes that dataset from every later run, because an entry is fetched at most once.

@@ -13,6 +13,22 @@
 const EXFOR_BASE = "https://nds.iaea.org/exfor/"
 
 """
+Value of the `User-Agent` header sent with every request.
+
+Identifying the client is the courtesy owed a shared public service: it lets whoever runs the
+archive see what its automated traffic actually is, and gives them somebody to contact if a
+client misbehaves. The version is read from the project file, so a report names something that
+can be looked up rather than "some Julia script".
+"""
+const USER_AGENT = let version = pkgversion(@__MODULE__)
+    string(
+        "ExforFissionData.jl/",
+        version === nothing ? "unknown" : version,
+        " (+https://github.com/PaulGoG/ExforFissionData.jl)",
+    )
+end
+
+"""
     RetrievalOptions(; kwargs...)
 
 Transport settings for EXFOR retrieval.
@@ -100,6 +116,7 @@ function request(query::AbstractString, options::RetrievalOptions)
         try
             response = HTTP.get(
                 url;
+                headers = ["User-Agent" => USER_AGENT],
                 request_timeout = options.timeout,
                 connect_timeout = options.timeout,
                 retry = false,

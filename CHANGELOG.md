@@ -47,6 +47,13 @@ Notable changes to ExforFissionData.jl. The format follows
   Arbitrary units remain fatal for every other ordinate. For 235-U(n,f) this recovers 42 datasets
   against the 15 in absolute units.
 - Configurations for the 235-U spectrum and its Maxwellian-ratio form.
+- Requests identify the client and its version in a `User-Agent` header. The archive is a shared
+  public service and this package asks its users to treat it as one; arriving anonymously while
+  saying so was inconsistent, and an identified client gives whoever runs the archive something
+  to look up and somebody to contact.
+- `AcceptedEntry` and `Reduced` are exported. Reaching a written value goes through both, so they
+  were part of the result rather than internals, and a user should not have to name an unexported
+  type to read what a retrieval produced.
 - `[output] record_hostname`, off by default. The run record is written to be committed by
   whoever consumes the data, and the machine name was the one field in it that identified a
   person rather than a result; the rest of the platform fingerprint still attributes a run to

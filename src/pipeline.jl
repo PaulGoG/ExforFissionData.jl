@@ -4,6 +4,12 @@
     AcceptedEntry
 
 One dataset that survived selection, with its reduction and the file it was written to.
+
+# Fields
+- `dataset::Dataset`: what the archive returned, after unit, tag and energy selection.
+- `reduced::Reduced`: the projection onto the requested abscissa, one row per value.
+- `file::String`: the written file, relative to the retrieval directory. Datasets in arbitrary
+  units are written under `relative/` rather than `data/`; see [`is_relative_unit`](@ref).
 """
 struct AcceptedEntry
     dataset::Dataset
@@ -21,6 +27,15 @@ What a retrieval produced.
 - `accepted::Vector{AcceptedEntry}`: datasets written, in dataset-identifier order.
 - `rejected::Vector{Rejection}`: datasets excluded, each with its reason.
 - `metadata_file::String`: path of the run record.
+
+Reaching a written value goes through [`AcceptedEntry`](@ref) and [`Reduced`](@ref) — both
+exported, since they are part of this result rather than internals:
+
+```julia
+entry = first(result.accepted)
+entry.dataset.identifier, entry.dataset.unit    # provenance and scale
+entry.reduced.table, entry.reduced.columns      # the rows as written
+```
 """
 struct RetrievalResult
     directory::String
