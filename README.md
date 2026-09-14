@@ -424,7 +424,7 @@ the machine as well, which is useful when the records stay yours.
 | Retrieval: cache, backoff, bounded concurrency | in use; order independence and the concurrency bound tested under 1, 4 and 8 threads |
 | Export and run record | in use |
 | `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
-| Static QA | Aqua and JET in the suite; formatting gated against a pinned JuliaFormatter |
+| Static QA | Aqua, JET and ExplicitImports in the suite; formatting gated against a pinned JuliaFormatter |
 
 Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against
 `["total_kinetic_energy"]` is reported as a pair quantity, so it needs

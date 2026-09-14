@@ -35,7 +35,7 @@ julia --project scripts/retrieve.jl config/U233_nth_Y_vs_A.toml
 module ExforFissionData
 
 using CSV: CSV
-using DataFrames: DataFrame, eachrow, nrow, sort!
+using DataFrames: DataFrame, nrow
 using Dates: now
 using HTTP: HTTP
 using Scratch: @get_scratch!
