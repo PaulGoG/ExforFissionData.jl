@@ -1,9 +1,8 @@
 # Element symbols.
 #
-# The configuration names the fissioning target by its charge and mass numbers, which is how the
-# consumers of this data name a nucleus, and the EXFOR nuclide symbol is formed from them here.
-# A symbol written into a configuration could disagree with the numbers beside it; one derived
-# from them cannot.
+# The configuration names the fissioning target by its charge and mass numbers, which identify a
+# nuclide unambiguously, and the EXFOR nuclide symbol is formed from them here. A symbol written
+# into a configuration could disagree with the numbers beside it; one derived from them cannot.
 
 """
 Chemical symbols indexed by atomic number, Z = 1 to 118.

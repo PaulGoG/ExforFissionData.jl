@@ -15,8 +15,9 @@ was convenient to type.** `Y_A_TKE` names three symbols and no relation between 
 is a statement. `Data` as a suffix carries nothing. `err` names a different concept from the one
 it was used for — an error is not an uncertainty.
 
-This page is the vocabulary as this package applies it. The analyses that consume the data it
-writes share the quantity table and the file layout, so a name learned here is the name there.
+This page is the vocabulary as this package applies it: the source, the configurations, the output
+layout and the figures. Anything reading the retrieved data meets the same names, because the
+directory names, the file names and the column headers are written from the table below.
 
 ## Two registers
 
@@ -30,11 +31,9 @@ and a header are read at a glance and are the field's own nomenclature, so they 
 `nu_vs_A_TKE` says exactly what `multiplicity_vs_mass_total_kinetic_energy` says, and a directory
 listing stays readable.
 
-An identifier standing for a symbol of a governing equation carries that symbol — `Δt`, `ρ²` — so
-that the code reads as the equation is written. This package solves nothing: it retrieves
-tabulated measurements and reduces them, and no identifier in it names a term of an equation.
-That is why every identifier here falls on the word side and not because the symbol register
-stops at the source tree.
+Every Julia identifier in this package is word-register. The package retrieves tabulated
+measurements and reduces them; it evaluates nothing, so no identifier here stands for a symbol in
+an equation and none is spelled as one.
 
 ## The quantities
 

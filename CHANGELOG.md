@@ -87,9 +87,8 @@ Notable changes to ExforFissionData.jl. The format follows
 ### Changed
 
 - **One name per quantity, everywhere it appears.** The configuration vocabulary, the output
-  layout, the file names and the column headers now draw on a single table of quantities, shared
-  with the two analyses that consume this data, so a name learned in one place is the name
-  everywhere.
+  layout, the file names and the column headers now draw on a single table of quantities, so a
+  name learned in one place is the name everywhere.
   - Configurations spell a quantity out — `multiplicity`, `total_kinetic_energy`,
     `spectrum_maxwellian_ratio` — where they carried symbols and camelCase (`nu`, `TKE`,
     `spectrumRatioMXW`). Paths, file names and column headers carry the symbol the literature
@@ -114,9 +113,9 @@ Notable changes to ExforFissionData.jl. The format follows
     quantity rather than `value`.
   - `AcceptedEntry` is `AcceptedDataset` and `Reduced` is `ReducedDataset`; `query_label` is
     replaced by `system_label` and `observable_label`, one for each directory it now names.
-- **The target is named by charge and mass**, `target_Z` and `target_A`, as the analyses that
-  consume this data name a nucleus. The EXFOR nuclide symbol is formed from them, so the symbol
-  and the numbers beside it cannot disagree. `element_symbol` is exported.
+- **The target is named by charge and mass**, `target_Z` and `target_A`, which identify a nuclide
+  unambiguously. The EXFOR nuclide symbol is formed from them, so the symbol and the numbers
+  beside it cannot disagree. `element_symbol` is exported.
 - **`[query] reaction` and `[query] quantity` are gone.** The reaction code follows from the
   entrance channel and the quantity code from the ordinate; both were keys that could only be
   redundant or wrong. The ordinate–quantity pairing in particular was validated and refused, which
