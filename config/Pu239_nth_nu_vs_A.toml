@@ -1,5 +1,4 @@
-# Prompt neutron multiplicity per fragment against fragment mass,
-# thermal-neutron-induced fission of 239-Pu.
+# Prompt neutron multiplicity per fragment against fragment mass, thermal-neutron-induced fission of 239-Pu.
 
 [query]
 target_Z = 94           # atomic number of the target, 1 to 118
@@ -28,5 +27,5 @@ use_cache = true        # read and write the on-disk response cache
 save_subentries = true  # store the original EXFOR subentry text beside the data
 
 [output]
-directory = "data"      # root for retrieved data, relative to the working directory
+directory = "data"      # root for retrieved data, relative to the output root
 significant_digits = 7  # significant digits in tabulated output, 1 to 15

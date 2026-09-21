@@ -1,8 +1,4 @@
-# Pre-neutron total kinetic energy against pre-neutron fragment mass,
-# thermal-neutron-induced fission of 233-U.
-#
-# The mass dependence of <TKE> is what a Y(A, TKE) carries and a single mean does not. No
-# Y(A, TKE) exists for this system, so this is the closest the archive comes.
+# Pre-neutron total kinetic energy against pre-neutron fragment mass, thermal-neutron-induced fission of 233-U.
 
 [query]
 target_Z = 92           # atomic number of the target, 1 to 118
@@ -31,5 +27,5 @@ use_cache = true        # read and write the on-disk response cache
 save_subentries = true  # store the original EXFOR subentry text beside the data
 
 [output]
-directory = "data"      # root for retrieved data, relative to the working directory
+directory = "data"      # root for retrieved data, relative to the output root
 significant_digits = 7  # significant digits in tabulated output, 1 to 15

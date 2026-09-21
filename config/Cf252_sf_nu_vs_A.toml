@@ -1,5 +1,4 @@
-# Prompt neutron multiplicity per fragment against fragment mass, spontaneous fission
-# of 252-Cf. The incident-energy window is not applied to spontaneous fission.
+# Prompt neutron multiplicity per fragment against fragment mass, spontaneous fission of 252-Cf.
 
 [query]
 target_Z = 98           # atomic number of the target, 1 to 118
@@ -26,5 +25,5 @@ use_cache = true        # read and write the on-disk response cache
 save_subentries = true  # store the original EXFOR subentry text beside the data
 
 [output]
-directory = "data"      # root for retrieved data, relative to the working directory
+directory = "data"      # root for retrieved data, relative to the output root
 significant_digits = 7  # significant digits in tabulated output, 1 to 15

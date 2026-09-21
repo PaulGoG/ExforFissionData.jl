@@ -1,3 +1,5 @@
+include(joinpath(@__DIR__, "activate.jl"))
+
 using ExforFissionData
 using Documenter
 
@@ -14,6 +16,7 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
+        "Configurations" => "configurations.md",
         "Naming" => "naming.md",
     ],
 )

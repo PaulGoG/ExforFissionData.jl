@@ -1,11 +1,4 @@
-# Prompt neutron multiplicity per fragment against fragment mass, 235-U(n,f), resonance
-# region.
-#
-# The companion U235_nth_nu_vs_A.toml admits thermal incident neutrons only. The GELINA
-# measurements are made on a resonance-neutron beam whose spectrum-averaged energy is
-# about 580 eV, so a thermal window excludes them by their own terms. Widening the window
-# to 1 keV admits those and nothing else. The `nres` channel is what keeps the two runs
-# apart, so neither has to be written under a directory of its own.
+# Prompt neutron multiplicity per fragment against fragment mass, 235-U(n,f), resonance region.
 
 [query]
 target_Z = 92           # atomic number of the target, 1 to 118
@@ -34,5 +27,5 @@ use_cache = true        # read and write the on-disk response cache
 save_subentries = true  # store the original EXFOR subentry text beside the data
 
 [output]
-directory = "data"      # root for retrieved data, relative to the working directory
+directory = "data"      # root for retrieved data, relative to the output root
 significant_digits = 7  # significant digits in tabulated output, 1 to 15
