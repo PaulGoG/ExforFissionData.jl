@@ -1,6 +1,6 @@
 # Entry point: retrieve one configured observable from EXFOR.
 #
-#     julia --project scripts/retrieve.jl config/U233_nth_Y_vs_A.toml [output-root]
+#     julia scripts/retrieve.jl config/U233_nth_Y_vs_A.toml [output-root]
 #
 # The output root defaults to the repository, so data lands in `data/<system>/<observable>/`.
 
@@ -12,7 +12,7 @@ function main(arguments::Vector{String})
     if isempty(arguments) || arguments[1] in ("-h", "--help")
         println(
             """
-            usage: julia --project scripts/retrieve.jl <configuration.toml> [output-root]
+            usage: julia scripts/retrieve.jl <configuration.toml> [output-root]
 
             Retrieves the observable described by the configuration from the IAEA EXFOR
             archive and writes it under

@@ -32,7 +32,7 @@ length(result.accepted), length(result.rejected)
 or from a shell,
 
 ```
-julia --project scripts/retrieve.jl config/Cf252_sf_nu_vs_A.toml
+julia scripts/retrieve.jl config/Cf252_sf_nu_vs_A.toml
 ```
 
 ## Observables

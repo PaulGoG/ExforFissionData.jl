@@ -11,6 +11,91 @@
 Retrieval of experimental fission observables from the IAEA EXFOR archive, as tabulated data
 files with a record of everything the query considered.
 
+```
+ExforFissionData.jl/
+├── activate.jl        # silent activation of the package environment
+├── check.jl           # pre-commit gate: format, then test
+├── config/            # 21 retrieval configurations, <system>_<observable>.toml
+├── scripts/
+│   └── retrieve.jl    # entry point
+├── src/               # the package: selection, reduction, export, run record
+├── plotting/          # survey figures; an environment of its own
+├── test/  docs/  formatter/
+└── Project.toml  CHANGELOG.md  CITATION.cff  LICENSE
+```
+
+The full tree is [further down](#full-file-tree).
+
+## Requirements
+
+Julia 1.12 or later through [juliaup](https://github.com/JuliaLang/juliaup). Retrieval needs
+network access to `nds.iaea.org`; a cached query does not.
+
+## Installation
+
+This is **not a registered package** — `Pkg.add("ExforFissionData")` will not find it. Either
+clone it and work in the repository, which is what the configurations and scripts assume,
+
+```bash
+git clone https://github.com/PaulGoG/ExforFissionData.jl
+cd ExforFissionData.jl
+julia -e 'include("activate.jl")'
+```
+
+or add it to another environment by URL,
+
+```julia
+using Pkg
+Pkg.add(url = "https://github.com/PaulGoG/ExforFissionData.jl")
+```
+
+Documentation: <https://PaulGoG.github.io/ExforFissionData.jl>
+
+## Entry points
+
+```bash
+julia scripts/retrieve.jl config/Cf252_sf_nu_vs_A.toml             # retrieve one observable
+julia scripts/retrieve.jl config/U233_nth_Y_vs_A.toml ~/data       # elsewhere
+julia plotting/survey.jl data/Cf252_sf/nu_vs_A --format png        # check what it returned
+julia plotting/coverage.jl data/{Cf252_sf,U235_nth,U233_nth,Pu239_nth}/nu_vs_A   # the animation
+julia -e 'include("activate.jl"); Pkg.test()'                      # test suite
+julia plotting/runtests.jl                                         # figure-helper tests
+julia check.jl                                                     # format, then test
+julia check.jl --check                                             # fail on formatting diffs
+julia docs/make.jl                                                 # build the documentation
+julia -i activate.jl                                               # REPL in the environment
+```
+
+Every environment — the package, `test/`, `docs/`, `formatter/` and `plotting/` — carries an
+`activate.jl` that activates and instantiates it silently, so a fresh clone needs no preparation.
+The auxiliary ones take the package by path, so they always run against the local source. No
+invocation needs `--project`: every script activates the environment it belongs to as its first
+statement.
+
+```julia
+using ExforFissionData
+result = retrieve(load_configuration("config/Cf252_sf_nu_vs_A.toml"))
+length(result.accepted), length(result.rejected)
+```
+
+## Status
+
+| Component | State |
+| :--- | :--- |
+| Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f) |
+| Reduction: isomers, duplicates, energy windows | tested on fixtures and on live datasets exhibiting all three causes |
+| Retrieval: cache, backoff, bounded concurrency | in use; order independence and the concurrency bound tested under 1, 4 and 8 threads |
+| Export and run record | in use |
+| `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
+| Static QA | Aqua, JET and ExplicitImports in the suite; formatting gated against a JuliaFormatter pinned in `formatter/Project.toml` |
+
+Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against
+`["total_kinetic_energy"]` is reported as a pair quantity, so it needs
+`multiplicity_per_fission`; 252-Cf carries no mass-resolved post-neutron kinetic energy, and no
+`Y(A, TKE)` under any quantity code.
+
+## What it is for
+
 A query names a fissioning system — target charge, target mass and entrance channel — and the
 observable wanted as an abscissa and an ordinate. The package finds the datasets that answer it,
 reduces each to one row per abscissa value, and writes them beside a run record naming every
@@ -33,51 +118,6 @@ for that query in the order the pipeline processes them; a dataset enters the ax
 reaction code answers the query, and otherwise advances the tally alone. Thirty datasets kept of
 824 considered — the remainder are other quantities filed under the same target and reaction, and
 the run record names every one of them with the reason it was left out.
-
-```
-ExforFissionData.jl/
-├── activate.jl                  # silent activation of the package environment
-├── check.jl                     # pre-commit: format with formatter/, then test
-├── CHANGELOG.md
-├── CITATION.cff
-├── LICENSE
-├── Project.toml  Manifest.toml
-├── config/                      # 21 configurations, <system>_<observable>.toml
-├── docs/                        # Documenter site
-│   ├── make.jl
-│   └── src/
-│       ├── index.md
-│       ├── naming.md            #   the naming convention, in full
-│       └── assets/coverage.gif  #   the figure above, as plotting/coverage.jl writes it
-├── formatter/                   # pinned JuliaFormatter environment
-│   └── activate.jl
-├── plotting/                    # detached figures; not a dependency of retrieval
-│   ├── activate.jl              #   silent activation of the plotting environment
-│   ├── Project.toml
-│   ├── style.jl                 #   theme, palette and labels shared by the scripts
-│   ├── survey.jl                #   one figure per retrieval, as a check on what it returned
-│   ├── coverage.jl              #   several retrievals accumulating, as an animation
-│   └── runtests.jl              #   tests for the helpers in style.jl
-├── scripts/
-│   └── retrieve.jl              # entry point
-├── src/
-│   ├── ExforFissionData.jl      # module
-│   ├── elements.jl              # chemical symbols, for naming a target by Z and A
-│   ├── schema.jl                # the 39-column contract of the csv rendering
-│   ├── reaction_codes.jl        # the tag grammar, as data
-│   ├── client.jl                # retrieval: timeout, backoff, bounded concurrency, cache
-│   ├── configuration.jl         # TOML loading and validation
-│   ├── selection.jl             # what answers the query, and why the rest does not
-│   ├── reduction.jl             # projection, isomers, duplicates
-│   ├── export.jl                # data files and the run record
-│   └── pipeline.jl              # orchestration
-├── test/
-└── .github/workflows/CI.yml
-```
-
-Retrieved data lands in `data/<system>/<observable>/` and is not version-controlled: EXFOR
-entries are immutable once published, so a configuration and this package reproduce a retrieval
-exactly.
 
 ## Configurations
 
@@ -111,30 +151,7 @@ Spectra are the one observable the archive holds more of for 252-Cf than for 235
 against 125, the spontaneous-fission spectrum being a reference standard — and none of it is
 narrowed by an incident-energy window.
 
-## Requirements
-
-Julia 1.12 or later through [juliaup](https://github.com/JuliaLang/juliaup). Retrieval needs
-network access to `nds.iaea.org`; a cached query does not.
-
-## Installation
-
-This is **not a registered package** — `Pkg.add("ExforFissionData")` will not find it. Either
-clone it and work in the repository, which is what the configurations and scripts assume,
-
-```bash
-git clone https://github.com/PaulGoG/ExforFissionData.jl
-cd ExforFissionData.jl
-julia -e 'include("activate.jl")'
-```
-
-or add it to another environment by URL,
-
-```julia
-using Pkg
-Pkg.develop(url = "https://github.com/PaulGoG/ExforFissionData.jl")
-```
-
-Documentation: <https://PaulGoG.github.io/ExforFissionData.jl>
+Every configuration, key by key, is in [the documentation](https://PaulGoG.github.io/ExforFissionData.jl/dev/configurations/).
 
 ## The data, and using the archive politely
 
@@ -150,32 +167,9 @@ EXFOR is a shared public service. Responses are cached on disk and an entry is f
 once, so a re-run costs the archive nothing — please leave that caching enabled, and keep the
 configured concurrency modest.
 
-## Entry points
-
-```bash
-julia --project scripts/retrieve.jl config/Cf252_sf_nu_vs_A.toml        # retrieve one observable
-julia --project scripts/retrieve.jl config/U233_nth_Y_vs_A.toml ~/data  # elsewhere
-julia plotting/survey.jl data/Cf252_sf/nu_vs_A --format png             # check what it returned
-julia plotting/coverage.jl data/{Cf252_sf,U235_nth,U233_nth,Pu239_nth}/nu_vs_A   # the animation
-julia --project -e 'using Pkg; Pkg.test()'                              # test suite
-julia plotting/runtests.jl                                              # figure-helper tests
-julia check.jl                                                          # format, then test
-julia check.jl --check                                                  # fail on formatting diffs
-julia --project=docs docs/make.jl                                       # build the documentation
-julia -e 'include("activate.jl")' -i                                    # REPL in the environment
-```
-
-Every environment — the package, `test/`, `docs/`, `formatter/` and `plotting/` — carries an
-`activate.jl` that activates and instantiates it silently, so a fresh clone needs no preparation.
-The auxiliary ones take the package by path, so they always run against the local source.
-
-```julia
-using ExforFissionData
-result = retrieve(load_configuration("config/Cf252_sf_nu_vs_A.toml"))
-length(result.accepted), length(result.rejected)
-```
-
 ## What a retrieval writes
+
+Retrieved data lands in `data/<system>/<observable>/` and is not version-controlled.
 
 One directory per fissioning system, one subdirectory per observable, one file per measurement:
 
@@ -415,18 +409,52 @@ machine name is omitted. The platform fingerprint still attributes a run to its 
 model, core counts, memory, Julia version. Set `record_hostname = true` under `[output]` to name
 the machine as well, which is useful when the records stay yours.
 
-## Status
+## Full file tree
 
-| Component | State |
-| :--- | :--- |
-| Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f) |
-| Reduction: isomers, duplicates, energy windows | tested on fixtures and on live datasets exhibiting all three causes |
-| Retrieval: cache, backoff, bounded concurrency | in use; order independence and the concurrency bound tested under 1, 4 and 8 threads |
-| Export and run record | in use |
-| `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
-| Static QA | Aqua, JET and ExplicitImports in the suite; formatting gated against a pinned JuliaFormatter |
+<details>
+<summary>Every tracked directory and file</summary>
 
-Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against
-`["total_kinetic_energy"]` is reported as a pair quantity, so it needs
-`multiplicity_per_fission`; 252-Cf carries no mass-resolved post-neutron kinetic energy, and no
-`Y(A, TKE)` under any quantity code.
+```
+ExforFissionData.jl/
+├── activate.jl                  # silent activation of the package environment
+├── check.jl                     # pre-commit: format with formatter/, then test
+├── CHANGELOG.md
+├── CITATION.cff
+├── LICENSE
+├── Project.toml
+├── config/                      # 21 configurations, <system>_<observable>.toml
+├── docs/                        # Documenter site
+│   ├── make.jl
+│   └── src/
+│       ├── index.md
+│       ├── configurations.md    #   every shipped configuration, key by key
+│       ├── naming.md            #   the naming convention, in full
+│       └── assets/coverage.gif  #   the figure above, as plotting/coverage.jl writes it
+├── formatter/                   # pinned JuliaFormatter environment
+│   ├── activate.jl
+│   └── Project.toml             #   the pin, as an equality bound
+├── plotting/                    # detached figures; not a dependency of retrieval
+│   ├── activate.jl              #   silent activation of the plotting environment
+│   ├── Project.toml
+│   ├── style.jl                 #   theme, palette and labels shared by the scripts
+│   ├── survey.jl                #   one figure per retrieval, as a check on what it returned
+│   ├── coverage.jl              #   several retrievals accumulating, as an animation
+│   └── runtests.jl              #   tests for the helpers in style.jl
+├── scripts/
+│   └── retrieve.jl              # entry point
+├── src/
+│   ├── ExforFissionData.jl      # module
+│   ├── elements.jl              # chemical symbols, for naming a target by Z and A
+│   ├── schema.jl                # the 39-column contract of the csv rendering
+│   ├── reaction_codes.jl        # the tag grammar, as data
+│   ├── client.jl                # retrieval: timeout, backoff, bounded concurrency, cache
+│   ├── configuration.jl         # TOML loading and validation
+│   ├── selection.jl             # what answers the query, and why the rest does not
+│   ├── reduction.jl             # projection, isomers, duplicates
+│   ├── export.jl                # data files and the run record
+│   └── pipeline.jl              # orchestration
+├── test/
+└── .github/workflows/CI.yml
+```
+
+</details>

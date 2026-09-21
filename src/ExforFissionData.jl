@@ -29,7 +29,7 @@ result = retrieve(configuration)
 or from a shell,
 
 ```
-julia --project scripts/retrieve.jl config/U233_nth_Y_vs_A.toml
+julia scripts/retrieve.jl config/U233_nth_Y_vs_A.toml
 ```
 """
 module ExforFissionData
