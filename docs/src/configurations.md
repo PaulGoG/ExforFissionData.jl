@@ -8,7 +8,9 @@ A configuration is named `<system>_<observable>.toml`, the same two tokens that 
 directories its data is written to. Sections are `[query]`, `[retrieval]` and `[output]`. Every
 key is validated as the file is read: a value of the wrong type, one outside its bounds, or one
 that is not among the enumerated choices stops the run with a message naming the offending key,
-so a retrieval cannot start from a configuration it cannot honour.
+so a retrieval cannot start from a configuration it cannot honour. A section or a key the loader
+does not know is refused as well — a misspelt `energy_max` would otherwise leave the window open
+to every incident energy — and so is an energy window on `sf`, which has no incident particle.
 
 ## Keys
 
@@ -26,6 +28,7 @@ so a retrieval cannot start from a configuration it cannot honour.
 | `[retrieval]` | `retries` | retry attempts after a failure | 0 to 10 |
 | `[retrieval]` | `backoff` | base of the exponential backoff, seconds | positive |
 | `[retrieval]` | `use_cache` | read and write the on-disk response cache | boolean, default `true` |
+| `[retrieval]` | `refresh` | refetch every response and replace the cached copy; needs `use_cache` | boolean, default `false` |
 | `[retrieval]` | `save_subentries` | store the original EXFOR subentry text beside the data | boolean, default `true` |
 | `[retrieval]` | `cache_directory` | where responses are cached | string, default empty: a `Scratch.jl` space |
 | `[output]` | `directory` | root for retrieved data, relative to the output root | string, default `"data"` |

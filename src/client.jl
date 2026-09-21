@@ -4,10 +4,13 @@
 # `x4get` returns one dataset, either as the csv rendering or as the original subentry text.
 #
 # A query can name several hundred datasets. Requests are therefore issued under a bounded
-# concurrency limit with a timeout and bounded retries, and every response is cached on disk:
-# an EXFOR entry is immutable once published, so a dataset never needs fetching twice. The cache
-# is what makes a re-run cost nothing and what keeps the load on a public service proportionate
-# to the data actually being used.
+# concurrency limit with a timeout and bounded retries, and every response is cached on disk.
+# The cache is what makes a re-run cost nothing and what keeps the load on a public service
+# proportionate to the data actually being used.
+#
+# It is not a statement that the archive stands still. Entries are revised — the HISTORY of a
+# subentry records each alteration — and new ones are added to a listing, and a cached response
+# notices neither. `refresh` refetches everything a run touches and replaces what is cached.
 
 """Base URL of the IAEA EXFOR web interface."""
 const EXFOR_BASE = "https://nds.iaea.org/exfor/"
@@ -40,6 +43,8 @@ Transport settings for EXFOR retrieval.
 - `backoff::Float64 = 1.0`: base of the exponential backoff in seconds; attempt `k` waits
   `backoff · 2^(k-1)`.
 - `use_cache::Bool = true`: read and write the on-disk response cache.
+- `refresh::Bool = false`: refetch every response and replace the cached copy, which is how a
+  cache is brought up to date with entries the archive has revised or added since.
 - `cache_directory::String`: where responses are cached; defaults to a `Scratch.jl` space, which
   keeps the cache out of the package tree and out of any project directory.
 """
@@ -49,6 +54,7 @@ Base.@kwdef struct RetrievalOptions
     retries::Int = 4
     backoff::Float64 = 1.0
     use_cache::Bool = true
+    refresh::Bool = false
     cache_directory::String = ""
 end
 
@@ -103,7 +109,7 @@ attempt fails.
 """
 function request(query::AbstractString, options::RetrievalOptions)
     path = joinpath(cache_directory(options), _cache_key(query))
-    if options.use_cache && isfile(path)
+    if options.use_cache && !options.refresh && isfile(path)
         cached = read(path, String)
         # An unusable entry counts as a miss rather than being served. Caches written before
         # this check existed hold empty bodies and archive error messages, and this repairs them

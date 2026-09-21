@@ -46,7 +46,7 @@ A validated retrieval configuration.
 - `output_directory::String`: root for retrieved data.
 - `significant_digits::Int`: significant digits in tabulated output.
 - `record_hostname::Bool`: whether to name the machine in the run record.
-- `source::String`: path of the configuration file, recorded in the run metadata.
+- `source::String`: path of the configuration file; the run record carries its file name.
 """
 struct Configuration
     query::Query
@@ -58,6 +58,22 @@ struct Configuration
     source::String
 end
 
+"""Sections a configuration may hold, and the keys of each. Anything else is refused."""
+const SECTIONS = ("query", "retrieval", "output")
+const QUERY_KEYS =
+    ("target_Z", "target_A", "channel", "abscissa", "ordinate", "energy_min", "energy_max")
+const RETRIEVAL_KEYS = (
+    "concurrency",
+    "timeout",
+    "retries",
+    "backoff",
+    "use_cache",
+    "refresh",
+    "cache_directory",
+    "save_subentries",
+)
+const OUTPUT_KEYS = ("directory", "significant_digits", "record_hostname")
+
 function _section(table::AbstractDict, name::AbstractString, source::AbstractString)
     haskey(table, name) ||
         throw(ArgumentError("$(source): the [$(name)] section is missing"))
@@ -65,6 +81,19 @@ function _section(table::AbstractDict, name::AbstractString, source::AbstractStr
     section isa AbstractDict ||
         throw(ArgumentError("$(source): [$(name)] must be a table of keys"))
     return section
+end
+
+# A key the loader does not know is a key it would silently ignore, and the likeliest unknown
+# key is a known one misspelt: `energy_maxx` leaves the window open to every incident energy.
+function _reject_unknown(section::AbstractDict, allowed, path, source)
+    for key in sort!(collect(keys(section)))
+        key in allowed || throw(
+            ArgumentError(
+                "$(source): $(path) has no key `$(key)`; it takes $(join(allowed, ", "))",
+            ),
+        )
+    end
+    return nothing
 end
 
 function _require(
@@ -144,7 +173,9 @@ end
 Read and validate a retrieval configuration.
 
 Throws an `ArgumentError` naming the offending key when a value is missing, of the wrong type,
-outside its documented range, or not among its documented choices. The abscissa and ordinate are
+outside its documented range, or not among its documented choices, and when a section or a key
+is not one the loader knows — a misspelt optional key would otherwise fall back to its default
+without a word. The abscissa and ordinate are
 additionally checked to form an expressible combination whose symbols stay distinct.
 
 # Example
@@ -158,7 +189,9 @@ function load_configuration(path::AbstractString)
     table = TOML.parsefile(path)
     source = basename(path)
 
+    _reject_unknown(table, SECTIONS, "the configuration", source)
     query_section = _section(table, "query", source)
+    _reject_unknown(query_section, QUERY_KEYS, "[query]", source)
     target_Z = _require(query_section, "target_Z", Integer, "query", source)
     _in_range(target_Z, 1, MAXIMUM_CHARGE, "target_Z", "query", source)
     target_A = _require(query_section, "target_A", Integer, "query", source)
@@ -185,6 +218,16 @@ function load_configuration(path::AbstractString)
         source,
     )
     spontaneous = channel == "sf"
+    if spontaneous
+        for key in ("energy_min", "energy_max")
+            haskey(query_section, key) && throw(
+                ArgumentError(
+                    "$(source): [query].$(key) does not apply to channel \"sf\", which has \
+                     no incident particle",
+                ),
+            )
+        end
+    end
     energy_min = _optional(query_section, "energy_min", 0.0, "query", source)
     energy_max = _optional(query_section, "energy_max", Inf, "query", source)
     energy_min ≥ 0 || throw(
@@ -216,6 +259,7 @@ function load_configuration(path::AbstractString)
     retrieval_section = get(table, "retrieval", Dict{String, Any}())
     retrieval_section isa AbstractDict ||
         throw(ArgumentError("$(source): [retrieval] must be a table of keys"))
+    _reject_unknown(retrieval_section, RETRIEVAL_KEYS, "[retrieval]", source)
     concurrency = _optional(retrieval_section, "concurrency", 4, "retrieval", source)
     _in_range(concurrency, 1, 16, "concurrency", "retrieval", source)
     timeout = _optional(retrieval_section, "timeout", 60.0, "retrieval", source)
@@ -229,6 +273,15 @@ function load_configuration(path::AbstractString)
         ArgumentError("$(source): [retrieval].backoff must be positive, got $(backoff)"),
     )
     use_cache = _optional(retrieval_section, "use_cache", true, "retrieval", source)
+    refresh = _optional(retrieval_section, "refresh", false, "retrieval", source)
+    refresh &&
+        !use_cache &&
+        throw(
+            ArgumentError(
+                "$(source): [retrieval].refresh replaces cached responses and needs \
+             [retrieval].use_cache = true",
+            ),
+        )
     cache_directory =
         _optional(retrieval_section, "cache_directory", "", "retrieval", source)
     save_subentries =
@@ -237,6 +290,7 @@ function load_configuration(path::AbstractString)
     output_section = get(table, "output", Dict{String, Any}())
     output_section isa AbstractDict ||
         throw(ArgumentError("$(source): [output] must be a table of keys"))
+    _reject_unknown(output_section, OUTPUT_KEYS, "[output]", source)
     directory = _optional(output_section, "directory", "data", "output", source)
     significant_digits =
         _optional(output_section, "significant_digits", 7, "output", source)
@@ -266,6 +320,7 @@ function load_configuration(path::AbstractString)
             retries = retries,
             backoff = Float64(backoff),
             use_cache = use_cache,
+            refresh = refresh,
             cache_directory = cache_directory,
         ),
         save_subentries,
