@@ -12,10 +12,9 @@ plots/
 *.png
 *.svg
 
-# the test environment regenerates its manifest; the package manifest is
-# version-controlled
-test/Manifest.toml
-/docs/Manifest*.toml
+# manifests are resolved per machine and Julia version, never version-controlled;
+# reproducibility rests on Project.toml and [compat]
+Manifest*.toml
 /docs/build/
 
 # editor and OS metadata

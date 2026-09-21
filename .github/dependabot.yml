@@ -13,6 +13,8 @@ updates:
     directories:
       - "/"
       - "/docs"
+      - "/formatter"
+      - "/plotting"
       - "/test"
     schedule:
       interval: "weekly"
