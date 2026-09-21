@@ -14,9 +14,14 @@ using TOML: TOML
 
 const THEME = Theme(;
     fonts = (; regular = texfont(:text), bold = texfont(:bold), italic = texfont(:italic)),
-    fontsize = 9,
-    figure_padding = 6,
+    fontsize = 26,
+    figure_padding = 10,
+    linewidth = 3,
+    markersize = 14,
     Axis = (
+        spinewidth = 1.5,
+        xticklabelsize = 22,
+        yticklabelsize = 22,
         xgridstyle = :dash,
         ygridstyle = :dash,
         xgridcolor = (:grey, 0.12),
@@ -25,9 +30,28 @@ const THEME = Theme(;
         yminorticksvisible = false,
         xtickalign = 1,
         ytickalign = 1,
-        spinewidth = 0.8,
     ),
+    Colorbar = (ticklabelsize = 22,),
+    Scatter = (strokewidth = 1.5,),
+    Legend = (framevisible = false, orientation = :horizontal, titlefont = :bold),
 )
+
+"""Canvas of a single-panel figure."""
+const CANVAS = (900, 600)
+
+"""Height each stacked main panel beyond the first adds to the canvas."""
+const PANEL_HEIGHT = 350
+
+"""Size of an in-axis annotation, 0.8 of the base size."""
+const ANNOTATION_SIZE = 21
+
+"""
+    stroke_colour(colour) -> RGBf
+
+The same hue darkened: a marker carries a stroke of its own colour, one shade darker, so that it
+stays separable where series overlap.
+"""
+stroke_colour(colour) = RGBf(0.6colour.r, 0.6colour.g, 0.6colour.b)
 
 # Okabe-Ito, cycled with marker shape so that series remain separable in grayscale and to
 # colour-vision deficiency.
@@ -88,34 +112,73 @@ end
 # Axis text, keyed by the quantity vocabulary the run record writes. One label per quantity,
 # whichever axis it appears on: the total kinetic energy is an abscissa of a yield and an
 # ordinate against mass, and it is the same quantity either way.
-const QUANTITY_LABELS = Dict(
-    "yield" => "Yield",
-    "multiplicity" => "Prompt multiplicity ν",
-    "multiplicity_per_fission" => "Pair multiplicity ν",
-    "fragment_kinetic_energy" => "⟨E_K⟩ [MeV]",
-    "product_kinetic_energy" => "⟨E_K'⟩ [MeV]",
-    "total_kinetic_energy" => "TKE [MeV]",
-    "post_neutron_total_kinetic_energy" => "TKE' [MeV]",
-    "neutron_kinetic_energy" => "ε [MeV]",
-    "spectrum" => "Spectrum [MeV⁻¹]",
-    "spectrum_maxwellian_ratio" => "Ratio to Maxwellian",
-    "mass" => "Fragment mass A",
-    "product_mass" => "Fragment mass A'",
-    "charge" => "Fragment charge Z",
-    "neutron_energy" => "Energy [MeV]",
+const QUANTITY_LABELS = Dict{String, LaTeXString}(
+    "yield" => L"Yield $Y$",
+    "multiplicity" => L"Prompt multiplicity $\nu$",
+    "multiplicity_per_fission" => L"Pair multiplicity $\bar{\nu}$",
+    "fragment_kinetic_energy" => L"$\langle E_K \rangle$ [MeV]",
+    "product_kinetic_energy" => L"$\langle E_K' \rangle$ [MeV]",
+    "total_kinetic_energy" => LaTeXString("TKE [MeV]"),
+    "post_neutron_total_kinetic_energy" => L"TKE$'$ [MeV]",
+    "neutron_kinetic_energy" => L"$\varepsilon$ [MeV]",
+    "spectrum" => L"Spectrum [MeV$^{-1}$]",
+    "spectrum_maxwellian_ratio" => LaTeXString("Ratio to Maxwellian"),
+    "mass" => L"Fragment mass $A$",
+    "product_mass" => L"Fragment mass $A'$",
+    "charge" => L"Fragment charge $Z$",
+    "neutron_energy" => L"Energy $E$ [MeV]",
 )
 
-_ordinate_label(ordinate) = get(QUANTITY_LABELS, ordinate, ordinate)
+"""
+The symbol of each ordinate as the literature writes it, in LaTeX, for a colourbar that carries
+the ordinate of a joint abscissa. A spectrum has no symbol of its own and is named.
+"""
+const QUANTITY_SYMBOLS = Dict{String, String}(
+    "yield" => "Y",
+    "multiplicity" => "\\nu",
+    "multiplicity_per_fission" => "\\bar{\\nu}",
+    "fragment_kinetic_energy" => "\\langle E_K \\rangle",
+    "product_kinetic_energy" => "\\langle E_K' \\rangle",
+    "total_kinetic_energy" => "\\mathrm{TKE}",
+    "post_neutron_total_kinetic_energy" => "\\mathrm{TKE}'",
+    "neutron_kinetic_energy" => "\\varepsilon",
+    "spectrum" => "\\mathrm{spectrum}",
+    "spectrum_maxwellian_ratio" => "\\mathrm{ratio}",
+)
 
 """
-    _axis_label(abscissa, position) -> String
+    decade_labels(values) -> Vector{LaTeXString}
+
+Tick labels of a log axis labelled at decades: `10ⁿ`, with `10⁰` written `1` and `10¹` written
+`10`, since an exponent of zero or one says nothing a plain number does not.
+"""
+function decade_labels(values)
+    return map(values) do value
+        exponent = round(Int, log10(value))
+        exponent == 0 && return L"1"
+        exponent == 1 && return L"10"
+        return latexstring("10^{", exponent, "}")
+    end
+end
+
+"""
+    _ordinate_label(quantity) -> LaTeXString
+
+The axis text of one quantity; one outside the vocabulary is set upright under its own name.
+"""
+function _ordinate_label(quantity)
+    name = String(quantity)
+    return get(QUANTITY_LABELS, name, latexstring("\\mathrm{", name, "}"))
+end
+
+"""
+    _axis_label(abscissa, position) -> LaTeXString
 
 The axis text of the `position`-th quantity of an abscissa, empty past its last.
 """
 function _axis_label(abscissa::AbstractVector, position::Integer)
-    position ≤ length(abscissa) || return ""
-    quantity = String(abscissa[position])
-    return get(QUANTITY_LABELS, quantity, quantity)
+    position ≤ length(abscissa) || return L""
+    return _ordinate_label(abscissa[position])
 end
 
 """

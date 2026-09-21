@@ -30,6 +30,14 @@ function migrated_query(target_Z, target_A, target_symbol, channel)
 end
 
 @testset "plotting" begin
+    @testset "theme" begin
+        # The standard layout: a 900×600 canvas at 26 pt, markers stroked a shade darker than
+        # their own hue.
+        @test THEME.fontsize[] == 26
+        @test CANVAS == (900, 600)
+        @test stroke_colour(RGBf(1, 0.5, 0)) == RGBf(0.6, 0.3, 0)
+    end
+
     @testset "system notation" begin
         thermal = migrated_query(92, 233, "U-233", "nth")
         spontaneous = migrated_query(98, 252, "Cf-252", "sf")

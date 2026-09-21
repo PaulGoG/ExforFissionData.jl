@@ -26,9 +26,10 @@ const LOG_ORDINATES = ("spectrum",)
 
 Draw every dataset of one retrieval on shared axes and write the figure.
 
-Labels come from the run record, so the legend names the same datasets the record does. The
-figure is sized for a single journal column; with more than a dozen datasets the legend is the
-binding constraint on legibility, and the figure is a diagnostic rather than a publication panel.
+Labels come from the run record, so the legend names the same datasets the record does. The figure
+takes the standard 900×600 canvas and grows by one panel height when relative data adds a second
+panel; with more than a dozen datasets the legend is the binding constraint on legibility, and the
+figure is a diagnostic rather than a publication panel.
 
 Datasets in arbitrary units are drawn in a panel of their own, beneath the absolute ones and
 sharing their abscissa. A relative dataset carries a shape and no scale, so it cannot share an
@@ -73,10 +74,10 @@ function survey(
     isempty(tables) && error("no dataset of the retrieval at $(directory) could be read")
 
     set_theme!(THEME)
-    width = 246                      # points, a single column
 
     if joint
-        figure = Figure(; size = (width, 0.85width))
+        # Wider than the standard canvas: the colorbar takes a column of its own.
+        figure = Figure(; size = (1000, 600))
         axis = Axis(
             figure[1, 1];
             xlabel = _axis_label(abscissa, 1),
@@ -95,15 +96,13 @@ function survey(
             y[finite];
             color = log10.(v[finite]),
             colormap = :viridis,
-            markersize = 3,
+            markersize = 7,
+            strokewidth = 0,
         )
         Colorbar(
             figure[1, 2],
             points;
-            label = string("log₁₀ ", _ordinate_label(ordinate)),
-            width = 8,
-            ticklabelsize = 7,
-            labelsize = 8,
+            label = latexstring("\\log_{10}\\,", QUANTITY_SYMBOLS[ordinate]),
         )
         text!(
             axis,
@@ -112,9 +111,9 @@ function survey(
             text = "$(length(tables)) datasets, $(length(finite)) points",
             space = :relative,
             align = (:left, :top),
-            fontsize = 7,
+            fontsize = ANNOTATION_SIZE,
         )
-        colgap!(figure.layout, 6)
+        colgap!(figure.layout, 10)
     else
         # Absolute and relative data are shown apart, because they cannot be put on one scale.
         groups = Tuple{Bool, Vector{eltype(tables)}}[]
@@ -124,7 +123,9 @@ function survey(
         end
 
         logscale = ordinate in LOG_ORDINATES
-        figure = Figure(; size = (width, (length(groups) == 1 ? 0.78 : 1.15)width))
+        figure = Figure(;
+            size = length(groups) == 1 ? CANVAS : (CANVAS[1], CANVAS[2] + PANEL_HEIGHT),
+        )
         entries = Tuple{Any, String}[]
         axes = Axis[]
         for (row, (relative, selected)) in enumerate(groups)
@@ -133,6 +134,7 @@ function survey(
                 xlabel = row == length(groups) ? _axis_label(abscissa, 1) : "",
                 ylabel = _panel_label(ordinate, selected),
                 yscale = logscale ? log10 : identity,
+                ytickformat = logscale ? decade_labels : Makie.automatic,
             )
             row == length(groups) || hidexdecorations!(axis; ticks = false, grid = false)
             append!(entries, _draw_series!(axis, selected; logscale))
@@ -150,7 +152,7 @@ function survey(
                 text = "$(length(selected)) datasets",
                 space = :relative,
                 align = (logscale ? :right : :left, :top),
-                fontsize = 7,
+                fontsize = ANNOTATION_SIZE,
             )
         end
         length(axes) == 1 || linkxaxes!(axes...)
@@ -161,16 +163,11 @@ function survey(
                 first.(entries),
                 last.(entries);
                 orientation = :horizontal,
-                nbanks = cld(length(entries), 3),
-                framevisible = false,
-                padding = (0, 0, 0, 0),
-                patchsize = (6, 6),
-                colgap = 6,
-                rowgap = 1,
-                labelsize = 6,
+                nbanks = cld(length(entries), 4),
+                labelsize = 20,
             )
         end
-        rowgap!(figure.layout, 4)
+        rowgap!(figure.layout, 10)
     end
 
     path = if isempty(output)
@@ -204,18 +201,33 @@ function _draw_series!(axis::Axis, selected::AbstractVector; logscale::Bool = fa
         if ncol(table) ≥ 3
             uncertainty = table[keep, 3]
             low = logscale ? min.(uncertainty, 0.999 .* y) : uncertainty
-            errorbars!(axis, x, y, low, uncertainty; color = (colour, 0.5), linewidth = 0.6)
+            errorbars!(
+                axis,
+                x,
+                y,
+                low,
+                uncertainty;
+                color = (colour, 0.6),
+                linewidth = 1.5,
+                whiskerwidth = 0,
+            )
         end
-        push!(
-            entries,
-            (scatter!(axis, x, y; color = colour, marker, markersize = 4), label),
+        marks = scatter!(
+            axis,
+            x,
+            y;
+            color = colour,
+            marker,
+            markersize = 12,
+            strokecolor = stroke_colour(colour),
         )
+        push!(entries, (marks, label))
     end
     return entries
 end
 
 """
-    _panel_label(ordinate, selected) -> String
+    _panel_label(ordinate, selected) -> LaTeXString
 
 The ordinate label of one panel, carrying the unit its datasets are actually written in.
 
@@ -225,12 +237,15 @@ so the archive's own token stands, and a query returning more than one is labell
 them rather than with a unit that is right for only some of the data.
 """
 function _panel_label(ordinate, selected::AbstractVector)
-    base = replace(_ordinate_label(ordinate), r"\s*\[[^\]]*\]$" => "")
-    first(selected).relative && return string(base, " [arb. units]")
+    # A curated label carries at most one bracketed unit, at its end; the pieces assembled below
+    # already hold their own dollars, so they are wrapped without going through `latexstring`.
+    text = String(_ordinate_label(ordinate))
+    base = chopsuffix(chopsuffix(text, " [MeV]"), raw" [MeV$^{-1}$]")
+    first(selected).relative && return LaTeXString(string(base, " [arb. units]"))
     ordinate in LOG_ORDINATES || return _ordinate_label(ordinate)
     units = sort!(unique(String[entry.unit for entry in selected if !isempty(entry.unit)]))
-    isempty(units) && return base
-    return string(base, " [", join(units, ", "), "]")
+    isempty(units) && return LaTeXString(string(base))
+    return LaTeXString(string(base, " [", join(units, ", "), "]"))
 end
 
 function main(arguments::Vector{String})

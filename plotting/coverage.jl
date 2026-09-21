@@ -21,8 +21,8 @@ using DataFrames: ncol, nrow
 using Statistics: quantile
 
 """Marker size of a dataset already on the axes, and of the one that just arrived."""
-const MARKERSIZE = 3.0
-const MARKERSIZE_ARRIVING = 5.5
+const MARKERSIZE = 9.0
+const MARKERSIZE_ARRIVING = 16.0
 
 """Fraction of the run spent holding the completed figure before the animation loops."""
 const HOLD = 0.22
@@ -115,7 +115,9 @@ function coverage(
     rows = cld(length(panels), columns)
 
     set_theme!(THEME)
-    figure = Figure(; size = (220columns, 150rows + 10))
+    figure = Figure(;
+        size = (columns == 1 ? CANVAS[1] : 1200, CANVAS[2] + PANEL_HEIGHT * (rows - 1)),
+    )
     axes = Axis[]
     for (index, source) in enumerate(panels)
         row, column = fldmod1(index, columns)
@@ -130,12 +132,15 @@ function coverage(
         push!(axes, axis)
     end
     linkaxes!(axes...)
-    colgap!(figure.layout, 5)
-    rowgap!(figure.layout, 5)
+    colgap!(figure.layout, 12)
+    rowgap!(figure.layout, 12)
 
     x = reduce(vcat, [table[!, 1] for source in panels for table in source.tables])
     y = reduce(vcat, [table[!, 2] for source in panels for table in source.tables])
-    limits!(axes[1], _bounds(x, 0.04)..., _bounds(y, 0.06)...)
+    # Headroom above the data for the system label and the tally, which otherwise sit on the
+    # rising flank of the sawtooth.
+    low, high = _bounds(y, 0.06)
+    limits!(axes[1], _bounds(x, 0.04)..., low, high + 0.24 * (high - low))
 
     visibility = [[Observable(false) for _ in source.tables] for source in panels]
     sizes = [[Observable(MARKERSIZE) for _ in source.tables] for source in panels]
@@ -153,7 +158,8 @@ function coverage(
                     table[!, 2],
                     table[!, 3];
                     color = (colour, 0.35),
-                    linewidth = 0.5,
+                    linewidth = 1.2,
+                    whiskerwidth = 0,
                     visible,
                 )
             end
@@ -164,6 +170,7 @@ function coverage(
                 color = colour,
                 marker,
                 markersize = sizes[index][series],
+                strokecolor = stroke_colour(colour),
                 visible,
             )
         end
@@ -174,23 +181,23 @@ function coverage(
             text = system_notation(source.query),
             space = :relative,
             align = (:left, :top),
-            fontsize = 10,
+            fontsize = 26,
         )
         text!(
             axis,
             0.035,
-            0.80;
+            0.82;
             text = tallies[index],
             space = :relative,
             align = (:left, :top),
-            fontsize = 7,
+            fontsize = ANNOTATION_SIZE,
             color = (:black, 0.7),
         )
     end
 
     mkpath(dirname(abspath(output)))
     total = frames + round(Int, HOLD * frames)
-    record(figure, output, 1:total; framerate, loop = 0, px_per_unit = 2) do frame
+    record(figure, output, 1:total; framerate, loop = 0, px_per_unit = 1) do frame
         step = min(frame, frames) / frames
         # Nothing arrives during the hold, or the last dataset in would stay emphasised for the
         # whole of it.
