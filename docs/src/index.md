@@ -104,14 +104,21 @@ Energies are restated in MeV — both an energy abscissa and an ordinate that is
 These are exact conversions of a value with the factor recorded in the run record, which is a
 different thing from a normalisation.
 
-Duplicate abscissa values are resolved rather than averaged blindly, because three different
-things cause them:
+A written file holds one row per abscissa value. Several things put more than one row on a value,
+and they are not handled alike:
 
 | Cause | Treatment |
 | :--- | :--- |
-| several incident energies | selected by the configured window, as a row filter |
+| several incident energies | the configured window selects rows; a dataset still holding more than one energy inside it is rejected rather than averaged |
+| another independent variable the rendering declares | rejected where it varies; one held at a single value is a condition of the measurement and passes |
 | isomeric states | the archive's own total where it gives one, otherwise the resolved states summed with uncertainties in quadrature |
-| genuine repeats | inverse-variance weighted mean, uncertainty ``1/\sqrt{\sum 1/\sigma^2}`` |
+| anything left | inverse-variance weighted mean, uncertainty ``1/\sqrt{\sum 1/\sigma^2}``, counted per dataset and named in a warning |
+
+What is left is not only repetition. The `op=csv` rendering reports a mass as an integer, so a
+dataset tabulated on a non-integer mass scale arrives truncated and its neighbouring points
+collapse onto one mass number; and it drops independent variables it does not recognise, so a
+grid over one of them arrives as unexplained repeats. The run record names every dataset in which
+rows were combined, and the subentry stored beside the data settles which case it is.
 
 ## Selection
 
@@ -126,7 +133,11 @@ Three checks are worth naming because they are easy to get wrong:
   measurements;
 - it also marks **arbitrary units** as `ARB-UNITS`, which carry no scale;
 - the incident-energy window applies **per row**, not to the dataset as a whole, since one
-  product is frequently reported at several energies.
+  product is frequently reported at several energies;
+- a variable the rendering declares in `indVars` and the abscissa does not hold **must not
+  vary** — a mass yield at nine kinetic-energy gates is nine yields per mass number;
+- `yield` requires the `FY` tag itself, since the quantity code `FY` also files the most probable
+  charge against mass, `MASS,PAR,ZP`, which every mass rule admits.
 
 Reaction-code qualifiers that bear on a value's scale — `MSC`, `REL`, `CHN`, `DERIV`, `FCT` — and
 those naming the inducing neutron spectrum are recorded per dataset rather than used to reject
@@ -135,9 +146,10 @@ it.
 ## Retrieval
 
 Requests run under bounded concurrency with a per-request timeout and exponential backoff, and
-every response is cached on disk. An EXFOR entry is immutable once published, so a dataset is
-fetched at most once and a re-run costs nothing. Datasets are processed and written in identifier
-order, so a re-run over an unchanged archive reproduces its output exactly.
+every response is cached on disk, so a re-run costs the archive nothing. The cache does not follow
+the archive, which revises entries and adds new ones; `refresh = true` under `[retrieval]`
+refetches what a run touches and replaces the cached copies. Datasets are processed and written in
+identifier order, so a re-run over unchanged responses reproduces its output exactly.
 
 ## API
 

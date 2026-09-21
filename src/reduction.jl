@@ -8,8 +8,14 @@
 #      configured window rather than testing the dataset as a whole.
 #   2. Isomeric states. EXFOR may report the ground state, one or more isomers, and their total,
 #      as separate rows for the same nuclide. Summing all of them double-counts.
-#   3. Genuine repeats, which remain after the first two are resolved and are combined by an
-#      inverse-variance weighted mean.
+#   3. Rows that still share an abscissa value once the first two are resolved, combined by an
+#      inverse-variance weighted mean. Some are genuine repeats — a chain yield measured through
+#      several nuclides. Many are not: the csv rendering reports a mass as an integer, so a
+#      dataset tabulated on a non-integer mass scale arrives truncated, with neighbouring points
+#      collapsed onto one mass number; and the rendering drops independent variables it does not
+#      recognise, so a grid over one of them arrives as unexplained repeats. Neither can be told
+#      from the rendering, so the count of combined values is recorded per dataset and warned
+#      about, and the subentry stored beside the data is what settles it.
 
 """
     ReducedDataset
@@ -108,8 +114,9 @@ field is absent; where it is present it is preferred, since it is the archive's 
 is absent the resolved states are summed with their uncertainties in quadrature.
 
 `outcome` is `:total`, `:summed`, `:single`, or `:ambiguous` — the last when several rows carry no
-isomer marking and therefore cannot be told apart, in which case they are left for the duplicate
-combination and the dataset is flagged.
+isomer marking and therefore cannot be told apart. Each of them is a total in its own right, so
+they are combined as repeats and the dataset is flagged; rows resolving a state are parts of
+those totals and are left out, since a mean of a part with the whole measures neither.
 """
 function resolve_isomers(values::AbstractVector, uncertainties::AbstractVector, isomers)
     length(values) == 1 && return (Float64(values[1]), Float64(uncertainties[1]), :single)
@@ -121,7 +128,7 @@ function resolve_isomers(values::AbstractVector, uncertainties::AbstractVector, 
         value, uncertainty = _sum_states(values, uncertainties)
         return (Float64(value), Float64(uncertainty), :summed)
     end
-    value, uncertainty, _ = combine_measurements(values, uncertainties)
+    value, uncertainty, _ = combine_measurements(values[unmarked], uncertainties[unmarked])
     return (value, uncertainty, :ambiguous)
 end
 

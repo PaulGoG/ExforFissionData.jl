@@ -139,8 +139,9 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      fragment)
 #   multiplicity_per_fission           prompt multiplicity per fragment pair (PR, and not per
 #                                      fragment)
-#   yield                              fission yield; carries no tags of its own, the abscissa
-#                                      rule decides
+#   yield                              fission yield (FY). The quantity code `FY` also files the
+#                                      most probable charge (ZP) against mass, which the
+#                                      abscissa rule alone admits
 #   fragment_kinetic_energy            pre-neutron fragment kinetic energy
 #   product_kinetic_energy             post-neutron fragment kinetic energy
 #   total_kinetic_energy               pre-neutron total kinetic energy (LF+HF, both fragments)
@@ -154,7 +155,7 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 const ORDINATE_RULES = Dict{String, TagRule}(
     "multiplicity" => TagRule(["PR", "FRG"], String[], ["MSC"]),
     "multiplicity_per_fission" => TagRule(["PR"], String[], ["MSC", "FRG"]),
-    "yield" => TagRule(String[], String[], String[]),
+    "yield" => TagRule(["FY"], String[], String[]),
     "fragment_kinetic_energy" => TagRule(["KE", "PRE"], String[], ["LF+HF", ",N"]),
     "product_kinetic_energy" => TagRule(["KE"], String[], ["LF+HF", ",N", "PRE"]),
     "total_kinetic_energy" => TagRule(["KE", "LF+HF", "PRE"], String[], [",N"]),
@@ -164,6 +165,18 @@ const ORDINATE_RULES = Dict{String, TagRule}(
     "spectrum" => TagRule(["PR", "DE"], String[], ["/DA", "PR/", "FRG", "MXD", "MSC"]),
     "spectrum_maxwellian_ratio" =>
         TagRule(["PR", "DE", "MXD"], String[], ["/DA", "PR/", "FRG"]),
+)
+
+"""
+The independent-variable family of [`VARIABLE_FAMILIES`](@ref) each abscissa quantity is read
+from: the reaction product for a mass or a charge, the secondary energy for an energy.
+"""
+const ABSCISSA_FAMILY = Dict(
+    "mass" => 7,
+    "product_mass" => 7,
+    "charge" => 7,
+    "neutron_energy" => 3,
+    "total_kinetic_energy" => 3,
 )
 
 """
@@ -345,9 +358,8 @@ const QUANTITIES = ("NU", "FY", "E", "MFQ")
 The EXFOR quantity code each ordinate belongs to.
 
 The quantity selects which datasets the archive offers at all; the tag rule then chooses among
-them. Several ordinates — `yield` most of all — impose no tags of their own and rely entirely on
-the abscissa rule, so an ordinate paired with the wrong quantity silently admits a different
-observable: asking for `yield` under `NU` returns prompt multiplicities, and under `E` returns
+them. Several ordinates impose few tags of their own and rely on the abscissa rule, so an
+ordinate paired with the wrong quantity silently admits a different observable: asking for `yield` under `NU` returns prompt multiplicities, and under `E` returns
 kinetic energies, both written as though they were yields. The configuration therefore names the
 ordinate alone and the quantity is read from here, which is a pairing that cannot be got wrong.
 """

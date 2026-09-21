@@ -83,9 +83,34 @@ Notable changes to ExforFissionData.jl. The format follows
   heterogeneous datasets across these four systems and none of them is mass-resolved, and every
   P(ν) dataset carries the neutron number as row order alone, which is not an abscissa this
   package is willing to invent.
+- `[retrieval] refresh`, which refetches every response a run touches and replaces the cached
+  copy. The archive revises entries and adds new ones, and a cached response notices neither.
+- The run record carries `package_version`, which identifies an installed package where no commit
+  can, and names every dataset in which rows sharing an abscissa value were combined.
+- A documentation page for the configurations, key by key.
 
 ### Changed
 
+- **A dataset tabulated against a variable the abscissa does not hold is rejected where that
+  variable varies.** The rendering declares what a dataset is tabulated against in `indVars`, and
+  that column went unread. `23591005`, a 235-U mass yield at nine fragment kinetic energies, was
+  written as one yield per mass by a mean over the nine.
+- **A dataset holding several incident energies inside the window is rejected**, naming them,
+  where its rows used to be combined across energies.
+- **`yield` requires the `FY` tag.** The quantity code `FY` also files the most probable charge
+  against mass, and six `MASS,PAR,ZP` datasets for 235-U were written among the mass yields at
+  values near 40. Of the 314 datasets the shipped configurations accepted, these rules remove
+  seven, all from `U235_nth/Y_vs_A`, and admit nothing new.
+- A configuration section or key the loader does not know is refused, as is an incident-energy
+  window on `sf`. A misspelt `energy_max` used to leave the window open to every energy.
+- A response failing the column contract raises `LayoutError`. One such dataset is still recorded
+  as a rejection; every dataset failing it stops the run, which previously ended by reporting
+  that nothing in the archive matched.
+- The manifests are no longer tracked; the formatter is pinned by an equality bound in
+  `formatter/Project.toml`, and the plotting and test environments carry `[compat]`.
+- Figures are drawn on a 900 × 600 canvas with LaTeX axis labels, where they were sized for a
+  single journal column.
+- No documented invocation passes `--project`; every script activates its own environment.
 - **One name per quantity, everywhere it appears.** The configuration vocabulary, the output
   layout, the file names and the column headers now draw on a single table of quantities, so a
   name learned in one place is the name everywhere.
@@ -140,6 +165,16 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ### Fixed
 
+- Isomer resolution averaged the archive's totals together with the states they are totals of
+  when a nuclide carried more than one unmarked row. The unmarked rows alone are combined.
+- The package revision was asked of whatever repository enclosed the package directory. For an
+  installed package that is the depot's parent, a home directory under version control for
+  instance, whose commit was then recorded as the package's.
+- The documentation called an EXFOR entry immutable once published. Entries are revised, and the
+  subentries this package stores record it in their own `HISTORY`.
+- The documentation said rows sharing an abscissa value were "genuine repeats". Most are
+  neighbouring points of a non-integer mass scale that the rendering truncates to integers, and
+  `23268002` is a Y(A, TKE) grid whose TKE column the rendering drops.
 - **Small ordinate values were written away.** Rounding to seven decimal places left an absolute
   prompt fission neutron spectrum of order 1e-7 PC/FIS/MEV with one significant digit, wrote its
   uncertainties as zero, and reduced a dataset of order 1e-8 to a column of zeros: of the six

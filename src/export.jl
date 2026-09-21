@@ -102,25 +102,31 @@ function _platform(record_hostname::Bool)
     return platform
 end
 
+# Output of a git command run in `directory`, empty when it fails.
+function _git(directory::AbstractString, arguments::Cmd)
+    command = Cmd(`git -C $(directory) $(arguments)`; ignorestatus = true)
+    return strip(read(pipeline(command; stderr = devnull), String))
+end
+
+# The commit of the package source, where the source is a working copy. A package installed by
+# Pkg sits in a depot directory that is no repository, and git then answers for whatever
+# repository encloses the depot — a home directory under version control, say. The top level
+# has to be the package directory itself before its commit means anything; an installed package
+# is identified by `package_version` instead.
 function _revision()
     directory = pkgdir(@__MODULE__)
     directory === nothing && return "unavailable"
     try
-        revision = read(
-            Cmd(`git -C $(directory) rev-parse --short HEAD`; ignorestatus = true),
-            String,
-        )
-        dirty =
-            !isempty(
-                read(
-                    Cmd(`git -C $(directory) status --porcelain`; ignorestatus = true),
-                    String,
-                ),
-            )
-        revision = strip(revision)
+        toplevel = _git(directory, `rev-parse --show-toplevel`)
+        isempty(toplevel) && return "unavailable"
+        realpath(toplevel) == realpath(directory) || return "unavailable"
+        revision = _git(directory, `rev-parse --short HEAD`)
         isempty(revision) && return "unavailable"
+        dirty = !isempty(_git(directory, `status --porcelain`))
         return dirty ? string(revision, "-dirty") : String(revision)
-    catch
+    catch exception
+        # git absent from the machine
+        exception isa Base.IOError || rethrow()
         return "unavailable"
     end
 end
@@ -145,6 +151,7 @@ function write_metadata(
     record = Dict{String, Any}(
         "run" => Dict{String, Any}(
             "timestamp" => string(now()),
+            "package_version" => string(something(pkgversion(@__MODULE__), "unknown")),
             "package_revision" => _revision(),
             # The file name, not the path it was read from. Consumers commit these records into
             # their own repositories, and an absolute path would carry the directory layout of
@@ -172,7 +179,10 @@ function write_metadata(
             "ordinate_normalisation" => "none applied; the unit token of each dataset is recorded below",
             "absent_uncertainty" => "the uncertainty column is omitted when no row of a dataset carries one",
             "duplicate_abscissa" => "isomers resolved first (archive total preferred, else summed in \
-                 quadrature), then repeats combined by an inverse-variance weighted mean",
+                 quadrature), then rows still sharing an abscissa value combined by an \
+                 inverse-variance weighted mean; `abscissae_combined` counts them per dataset",
+            "abscissa_resolution" => "mass and charge numbers are the integers the csv rendering reports; it \
+                 truncates a non-integer mass scale, which is preserved only in the subentry",
         ),
         "platform" => _platform(configuration.record_hostname),
     )
@@ -196,6 +206,18 @@ function write_metadata(
     if length(units) > 1
         record["datasets"]["units_warning"] = "this query returned more than one unit token; datasets in different units must \
              not be renormalised together"
+    end
+    combined = [
+        entry.dataset.identifier for
+        entry in accepted if entry.reduced.diagnostics["abscissae_combined"] > 0
+    ]
+    if !isempty(combined)
+        record["datasets"]["combined_warning"] =
+            "rows of these datasets shared an abscissa value and were combined. The csv \
+             rendering reports a mass as an integer and drops independent variables it does \
+             not recognise, so such rows are as likely to be neighbouring points of a \
+             non-integer mass scale, or a grid over a dropped variable, as repeat \
+             measurements. The subentry settles which: " * join(combined, ", ")
     end
     relative = [
         entry.dataset.identifier for

@@ -83,7 +83,7 @@ length(result.accepted), length(result.rejected)
 | Component | State |
 | :--- | :--- |
 | Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f) |
-| Reduction: isomers, duplicates, energy windows | tested on fixtures and on live datasets exhibiting all three causes |
+| Reduction: isomers, energy windows, other independent variables | tested on fixtures; the rejections checked against the live datasets that prompted them. Masses the rendering truncates, and variables it drops, are reported per dataset and not corrected |
 | Retrieval: cache, backoff, bounded concurrency | in use; order independence and the concurrency bound tested under 1, 4 and 8 threads |
 | Export and run record | in use |
 | `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
@@ -91,8 +91,9 @@ length(result.accepted), length(result.rejected)
 
 Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against
 `["total_kinetic_energy"]` is reported as a pair quantity, so it needs
-`multiplicity_per_fission`; 252-Cf carries no mass-resolved post-neutron kinetic energy, and no
-`Y(A, TKE)` under any quantity code.
+`multiplicity_per_fission`; 252-Cf carries no mass-resolved post-neutron kinetic energy, and its
+one `Y(A, TKE)` grid is rendered without its TKE column — see `23268002` under the known
+miscoded entries.
 
 ## What it is for
 
@@ -163,9 +164,8 @@ redistributes EXFOR data nor claims any rights over what it retrieves.
 number of each dataset into both the file name and the run record, which is what makes those
 citations recoverable. A reference for the archive itself is in `CITATION.cff`.
 
-EXFOR is a shared public service. Responses are cached on disk and an entry is fetched at most
-once, so a re-run costs the archive nothing — please leave that caching enabled, and keep the
-configured concurrency modest.
+EXFOR is a shared public service. Responses are cached on disk, so a re-run costs the archive
+nothing — please leave that caching enabled, and keep the configured concurrency modest.
 
 ## What a retrieval writes
 
@@ -313,17 +313,25 @@ project that can justify them.
 **The uncertainty column is omitted** when no row of a dataset carries one, rather than written
 as a column of zeros.
 
-**Duplicate abscissa values are resolved, never averaged blindly.** Three different things cause
-them, and each is handled on its own terms:
+**One row per abscissa value.** Several things put more than one row on an abscissa value, and
+they are not handled alike:
 
 | Cause | Treatment |
 | :--- | :--- |
-| several incident energies | selected by the configured window, as a row filter |
+| several incident energies | the configured window selects rows; a dataset still holding more than one energy inside it is rejected, naming them, rather than averaged |
+| another independent variable — a kinetic-energy gate, an angle | rejected where the variable varies: a mean over gates is not the observable asked for. One held at a single value is a condition of the measurement and passes |
 | isomeric states | the archive's own total where it gives one, otherwise the resolved states summed with uncertainties in quadrature |
-| genuine repeats | inverse-variance weighted mean, uncertainty `1/√(Σ1/σ²)` |
+| anything left | inverse-variance weighted mean, uncertainty `1/√(Σ1/σ²)`, counted per dataset as `abscissae_combined` and named in a warning |
 
-What the reduction had to do is recorded per dataset in the run record, including groups it could
-not disambiguate.
+The last row deserves suspicion. Some of what reaches it is genuine repetition — a chain yield
+measured through several nuclides of one mass. Much of it is an artefact of the `op=csv`
+rendering, which reports a mass as an integer: a dataset tabulated on a non-integer mass scale
+arrives **truncated**, 63.51 and 64.91 as 63 and 64, and neighbouring points collapse onto one
+mass number. The abscissa of such a dataset is low by half a mass unit on average, and its true
+scale survives only in the subentry stored beside the data. The rendering also drops independent
+variables it does not recognise, and a grid over one of them then arrives as unexplained repeats;
+`23268002` below is the worst case. Neither can be told from the rendering, so every dataset in
+which rows were combined is named in the run record, and the subentry is what settles it.
 
 ## Selection
 
@@ -341,7 +349,14 @@ Three checks are worth naming because they are easy to get wrong:
   with absolute data;
 - the incident-energy window is applied **per row**, not to the dataset as a whole. An EXFOR
   dataset frequently reports one product at several energies, and admitting all of them collapses
-  an excitation function into a single number.
+  an excitation function into a single number;
+- the rendering declares what a dataset is tabulated against, in its `indVars` column, and a
+  declared variable that the abscissa does not hold **must not vary**. `23591005` (Straede, 1987)
+  is a mass yield at nine fragment kinetic energies, and projected onto mass it is nine yields
+  per mass number;
+- the quantity code `FY` files more than yields. `MASS,PAR,ZP` is the most probable charge against
+  mass, which satisfies every mass rule, so `yield` requires the `FY` tag itself: six such
+  datasets for 235-U would otherwise sit among the mass yields at values near 40.
 
 ### Known miscoded entries
 
@@ -378,6 +393,15 @@ distribution correctly as `23268008`, `MASS,PR/FRG,NU/TKE`, which
 full — 2234 points of ν(A, TKE). A consumer that wants ν(A) from this measurement should take the
 joint distribution and marginalise it rather than reach for the miscoded projection.
 
+One is known for `ordinate = "yield"`, and it is the rendering that misstates it. `23268002`
+(Göök, 2014), `98-CF-252(0,F)MASS,PRE,FY,,MSC`, is the joint distribution Y(A, TKE): 30 000 rows
+of counts on a 150 × 200 grid, which its subentry heads `TKE`, `MASS`, `DATA` in `ARB-UNITS`. The
+`op=csv` rendering drops the TKE column, declares mass the only independent variable, and gives
+the unit as `PART/FIS`. Nothing in the response distinguishes it from a mass yield measured 200
+times over, so it is retrieved by `Cf252_sf_Y_vs_A`, reduced to 150 rows by a weighted mean that
+means nothing, and written. It carries `MSC` and is named in the run record's scale warning and
+among the combined datasets; it is not a mass yield, and the subentry is where its content is.
+
 One more is known for `ordinate = "spectrum"`, and it is a mislabelled unit rather than a
 mislabelled quantity. `40064031` (Kroshkin, 1970), `98-CF-252(0,F),PR,NU/DE,,REL`, heads its
 energy column `MEV` over values running from 5.128 to 2132.8. The subentry contradicts itself:
@@ -390,16 +414,21 @@ a factor of 1000 too large and it is the one dataset in `Cf252_sf/spectrum_vs_E`
 ## Retrieval
 
 Requests run under a bounded concurrency limit with a per-request timeout and exponential
-backoff, and every response is cached on disk in a `Scratch.jl` space. An EXFOR entry is immutable
-once published, so a dataset is fetched at most once and a re-run costs nothing.
+backoff, and every response is cached on disk in a `Scratch.jl` space, so a re-run costs the
+archive nothing.
+
+The cache does not follow the archive. EXFOR revises entries — the `HISTORY` of a subentry records
+each alteration, and many of those retrieved here carry one — and adds new ones to a listing; a
+cached response notices neither. `refresh = true` under `[retrieval]` refetches everything a run
+touches and replaces the cached copies, and is what brings a retrieval up to date.
 
 Datasets are processed and written in identifier order, so a re-run over an unchanged archive
 reproduces its output exactly.
 
 ## The run record
 
-`retrieval.toml` holds the query, the conventions applied, the package revision, the platform,
-and both dataset lists — accepted, with what the reduction did to each, and rejected, with the
+`retrieval.toml` holds the query, the conventions applied, the package version and — where the
+package runs from a working copy — its commit, the platform, and both dataset lists — accepted, with what the reduction did to each, and rejected, with the
 reason. The rejection list is the point: a dataset missing from the output is otherwise
 indistinguishable from one the archive does not hold.
 

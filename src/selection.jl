@@ -55,9 +55,9 @@ end
 
 Parse the csv rendering of one dataset, validating the column layout.
 
-Throws an `ArgumentError` naming the dataset when the header does not match
-[`EXFOR_HEADER`](@ref), or when the archive returned no data at all — which is a different
-failure and must not be reported as a changed layout.
+Throws a [`LayoutError`](@ref) naming the dataset when the header does not match
+[`EXFOR_HEADER`](@ref), and an `ArgumentError` when the archive returned no data at all — which
+is a different failure and must not be reported as a changed layout.
 """
 function parse_dataset(identifier::AbstractString, body::AbstractString)
     # Distinguished from a layout change deliberately. An empty body or an application-level
@@ -83,6 +83,49 @@ function parse_dataset(identifier::AbstractString, body::AbstractString)
 end
 
 """
+    declared_variables(table) -> Vector{Int}
+
+The independent-variable families the rendering declares for a dataset, read from its `indVars`
+column as the digits of [`VARIABLE_FAMILIES`](@ref); empty when the column is blank.
+"""
+function declared_variables(table::DataFrame)
+    families = Set{Int}()
+    for value in skipmissing(table[!, COL_INDEPENDENT_VARIABLES])
+        text = value isa Real ? string(round(Int, value)) : string(value)
+        for character in text
+            family = isdigit(character) ? parse(Int, character) : 0
+            haskey(VARIABLE_FAMILIES, family) && push!(families, family)
+        end
+    end
+    return sort!(collect(families))
+end
+
+"""
+    varying_variables(table, abscissa) -> Vector{String}
+
+The declared independent variables that `abscissa` does not account for and that take more than
+one value over `table`, each as its heading and the number of values.
+
+Projecting a dataset onto an abscissa asserts that nothing else varies. A variable held at one
+value is a condition of the measurement and leaves the projection meaningful; one that varies
+makes every abscissa value a family of rows, and no combination of them is the observable asked
+for — a mean over kinetic-energy gates is not a mass yield. The incident energy is left to the
+window and to the check that follows it.
+"""
+function varying_variables(table::DataFrame, abscissa::AbstractVector{<:AbstractString})
+    accounted = Set(ABSCISSA_FAMILY[quantity] for quantity in abscissa)
+    push!(accounted, INCIDENT_ENERGY_FAMILY)
+    varying = String[]
+    for family in declared_variables(table)
+        family in accounted && continue
+        heading, column = VARIABLE_FAMILIES[family]
+        count = length(unique(skipmissing(table[!, column])))
+        count > 1 && push!(varying, "$(heading) ($(count) values)")
+    end
+    return varying
+end
+
+"""
     select_dataset(identifier, body, query) -> Union{Dataset,Rejection}
 
 Decide whether one retrieved dataset answers `query`, and reduce it to the rows that do.
@@ -93,14 +136,18 @@ Selection proceeds in the order below, and the first failure is reported:
 2. the `y:Value` column marks measurements rather than limits, and is not in arbitrary units;
 3. the reaction code satisfies the composed tag rule of the abscissa and ordinate;
 4. for induced fission, at least one row lies within the configured incident-energy window —
-   and only those rows are retained;
-5. the product identification is consistent with the abscissa: present and mass-coded for the
+   and only those rows are retained — and the retained rows share one incident energy;
+5. no independent variable the rendering declares, other than the abscissa's own, varies over
+   the retained rows; see [`varying_variables`](@ref);
+6. the product identification is consistent with the abscissa: present and mass-coded for the
    fragment-mass abscissae, present and charge-coded for the charge abscissae, and absent for
    the energy abscissae.
 
 Step 4 is a row filter rather than a whole-dataset test. An EXFOR dataset frequently reports the
 same product at several incident energies; admitting all of them and combining them later would
-average an excitation function into a single number.
+average an excitation function into a single number. For the same reason a window that still
+holds several energies of one dataset rejects it: the rows are different measurements, and the
+rejection names the energies so that the window can be narrowed to the one wanted.
 """
 function select_dataset(identifier::AbstractString, body::AbstractString, query)
     table = parse_dataset(identifier, body)
@@ -167,6 +214,27 @@ function select_dataset(identifier::AbstractString, body::AbstractString, query)
             )
         end
         table = table[keep, :]
+        retained = sort!(unique(Float64.(skipmissing(table[!, COL_INCIDENT_ENERGY]))))
+        if length(retained) > 1
+            return Rejection(
+                identifier,
+                code,
+                "$(length(retained)) incident energies, $(retained[begin] * EV_TO_MEV) to \
+                 $(retained[end] * EV_TO_MEV) MeV, lie inside the window; rows at different \
+                 energies are different measurements and are not combined — narrow the \
+                 window to one of them",
+            )
+        end
+    end
+
+    varying = varying_variables(table, query.abscissa)
+    if !isempty(varying)
+        return Rejection(
+            identifier,
+            code,
+            "also tabulated against $(join(varying, ", ")), which abscissa \
+             $(query.abscissa) does not include; projecting it out would average over it",
+        )
     end
 
     product = collect(skipmissing(table[!, COL_PRODUCT_ZA]))

@@ -5,6 +5,7 @@ using ExforFissionData
 using ExforFissionData:
     AcceptedDataset,
     Dataset,
+    LayoutError,
     Query,
     Rejection,
     TagRule,
@@ -24,6 +25,7 @@ using ExforFissionData:
     tag_rule,
     unused_path,
     validate_header,
+    varying_variables,
     write_dataset,
     write_metadata,
     EXFOR_HEADER
@@ -36,7 +38,7 @@ include("fixtures.jl")
         @test validate_header(collect(EXFOR_HEADER), "reference") === nothing
 
         short = collect(EXFOR_HEADER)[1:38]
-        @test_throws ArgumentError validate_header(short, "short")
+        @test_throws LayoutError validate_header(short, "short")
         try
             validate_header(short, "short")
         catch exception
@@ -141,6 +143,17 @@ include("fixtures.jl")
         # Several unmarked rows cannot be told apart and must be flagged, not silently summed.
         _, _, outcome = resolve_isomers([1.0, 2.0], [0.1, 0.1], [missing, missing])
         @test outcome == :ambiguous
+
+        # Two totals beside the states they are totals of. The totals are repeats of one
+        # another; the states are parts of them and must not enter the mean.
+        value, uncertainty, outcome = resolve_isomers(
+            [1.0, 2.0, 0.4, 0.6],
+            [0.1, 0.1, 0.05, 0.05],
+            [missing, missing, 0, 1],
+        )
+        @test outcome == :ambiguous
+        @test value ≈ 1.5
+        @test uncertainty ≈ 0.1 / sqrt(2)
     end
 
     @testset "selection" begin
@@ -537,6 +550,73 @@ include("fixtures.jl")
         @test element_symbol(92) == "U"
         @test_throws ArgumentError element_symbol(0)
 
+        # A key the loader does not know is refused, not ignored. The misspelt window is the
+        # case that matters: it would fall back to every incident energy the archive holds.
+        misspelt = write_config("""
+        [query]
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
+        ordinate = "yield"
+        energy_maxx = 1.0e-7
+        """)
+        @test_throws ArgumentError load_configuration(misspelt)
+        try
+            load_configuration(misspelt)
+        catch exception
+            @test occursin("`energy_maxx`", exception.msg)
+            @test occursin("[query]", exception.msg)
+        end
+        @test_throws ArgumentError load_configuration(write_config("""
+        [query]
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
+        ordinate = "yield"
+
+        [reduction]
+        weighting = "none"
+        """))
+        # Refreshing replaces cached responses, so it has nothing to act on without a cache.
+        refreshed = load_configuration(write_config("""
+        [query]
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
+        ordinate = "yield"
+
+        [retrieval]
+        refresh = true
+        """))
+        @test refreshed.retrieval.refresh
+        @test !configuration.retrieval.refresh
+        @test_throws ArgumentError load_configuration(write_config("""
+        [query]
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
+        ordinate = "yield"
+
+        [retrieval]
+        use_cache = false
+        refresh = true
+        """))
+
+        # Spontaneous fission has no incident particle, so a window on it cannot be honoured.
+        @test_throws ArgumentError load_configuration(write_config("""
+        [query]
+        target_Z = 98
+        target_A = 252
+        channel = "sf"
+        abscissa = ["mass"]
+        ordinate = "yield"
+        energy_max = 1.0e-7
+        """))
+
         # Arbitrary units are fatal for most observables and normal for a spectrum, which is
         # conventionally measured relative. The unit predicate takes the bare token, unlike
         # has_absolute_scale, which needs the Data(...) wrapper and would call any bare unit
@@ -803,6 +883,146 @@ include("fixtures.jl")
         ) != ExforFissionData._cache_key(
             "x4list?Target=U-233&Reaction=n,f&Quantity=FY&txt",
         )
+    end
+
+    @testset "a yield carries the yield tag" begin
+        # The quantity code FY also files the most probable charge against mass, which the
+        # mass rule alone admits: Z_p ≈ 40 written into a directory of yields.
+        rule = tag_rule(["mass"], "yield")
+        @test matches(rule, "92-U-235(N,F)MASS,PRE,FY")
+        @test !matches(rule, "92-U-235(N,F)MASS,PAR,ZP,,MXW")
+        @test rejection_reason(rule, "92-U-235(N,F)MASS,PAR,ZP,,MXW") ==
+              "missing required tag \"FY\""
+    end
+
+    @testset "a projection needs every other variable held fixed" begin
+        query = test_query()
+        gated(energy) = exfor_row(;
+            product_za = 100,
+            y = 1.0,
+            incident_ev = 0.0253,
+            secondary_ev = energy,
+            independent_variables = 237,
+            reaction_code = "92-U-235(N,F)MASS,PAR/PRE,FY,,SPA",
+        )
+
+        # A yield at nine kinetic-energy gates is nine yields; their mean is none of them.
+        varied = select_dataset("20", exfor_csv([gated(1.00e8), gated(1.07e8)]), query)
+        @test varied isa Rejection
+        @test occursin("x3:SecEn (2 values)", varied.reason)
+
+        # The same variable held at one value is a condition of the measurement.
+        fixed = select_dataset("21", exfor_csv([gated(1.07e8)]), query)
+        @test fixed isa Dataset
+
+        # The joint abscissa accounts for the secondary energy, so nothing is left over.
+        joint = test_query(;
+            abscissa = ["mass", "total_kinetic_energy"],
+            ordinate = "multiplicity",
+        )
+        rows = [
+            exfor_row(;
+                product_za = 100,
+                y = 1.0,
+                incident_ev = 0.0253,
+                secondary_ev = energy,
+                independent_variables = 237,
+                reaction_code = "92-U-233(N,F)MASS,PR/FRG,NU/TKE",
+            ) for energy in (1.6e8, 1.7e8)
+        ]
+        @test select_dataset("22", exfor_csv(rows), joint) isa Dataset
+
+        # A rendering that declares nothing constrains nothing.
+        table = parse_dataset("23", exfor_csv([exfor_row(; product_za = 100)]))
+        @test isempty(varying_variables(table, ["mass"]))
+    end
+
+    @testset "one incident energy per dataset" begin
+        query = test_query(; channel = "nres", energy_min = 0.0, energy_max = 1.0e-3)
+        body = exfor_csv([
+            exfor_row(; product_za = 100, y = 6.0, incident_ev = 0.0253),
+            exfor_row(; product_za = 100, y = 5.0, incident_ev = 580.0),
+        ])
+        outcome = select_dataset("24", body, query)
+        @test outcome isa Rejection
+        @test occursin("2 incident energies", outcome.reason)
+        @test occursin("narrow the window", outcome.reason)
+    end
+
+    @testset "retrieval from a seeded cache" begin
+        mktempdir() do directory
+            cache = joinpath(directory, "cache")
+            mkpath(cache)
+            seed(query, body) =
+                write(joinpath(cache, ExforFissionData._cache_key(query)), body)
+            configuration_file = joinpath(directory, "U233_nth_Y_vs_A.toml")
+            write(
+                configuration_file,
+                """
+                [query]
+                target_Z = 92
+                target_A = 233
+                channel = "nth"
+                abscissa = ["mass"]
+                ordinate = "yield"
+                energy_min = 0.0
+                energy_max = 1.0e-7
+
+                [retrieval]
+                cache_directory = "$(cache)"
+                save_subentries = false
+                """,
+            )
+            configuration = load_configuration(configuration_file)
+            listing = "x4list?Target=U-233&Reaction=n,f&Quantity=FY&txt"
+            csv(identifier) = "x4get?DatasetID=$(identifier)&op=csv&plus=2"
+            thermal(; kwargs...) = exfor_row(; incident_ev = 0.0253, kwargs...)
+
+            # Two points of a non-integer mass scale, truncated onto one mass number by the
+            # rendering, beside a dataset gated on a variable the abscissa does not hold.
+            seed(listing, "10000002\n10000003\n")
+            seed(
+                csv("10000002"),
+                exfor_csv([
+                    thermal(; product_za = 100, y = 6.0, dy = 0.1),
+                    thermal(; product_za = 100, y = 6.4, dy = 0.1),
+                    thermal(; product_za = 101, y = 5.0, dy = 0.1),
+                ]),
+            )
+            seed(
+                csv("10000003"),
+                exfor_csv([
+                    thermal(;
+                        dataset_id = "10000003",
+                        product_za = 100,
+                        secondary_ev = energy,
+                        independent_variables = 237,
+                    ) for energy in (1.00e8, 1.07e8)
+                ]),
+            )
+            rerun() = retrieve(configuration; root = directory)
+            result =
+                @test_logs (:warn, r"rows sharing an abscissa") match_mode = :any rerun()
+            @test [entry.dataset.identifier for entry in result.accepted] == ["10000002"]
+            @test only(result.rejected).identifier == "10000003"
+            record = TOML.parsefile(result.metadata_file)
+            @test occursin("10000002", record["datasets"]["combined_warning"])
+            @test only(record["accepted"])["abscissae_combined"] == 1
+            @test haskey(record["run"], "package_version")
+            @test haskey(record["conventions"], "abscissa_resolution")
+
+            # Every response failing the column contract is the rendering having changed, and
+            # must stop the run instead of reporting an archive with nothing in it.
+            shifted = collect(EXFOR_HEADER)
+            shifted[26] = "ProdZAX"
+            for identifier in ("10000002", "10000003")
+                seed(
+                    csv(identifier),
+                    exfor_csv([thermal(; product_za = 100)]; header = shifted),
+                )
+            end
+            @test_throws LayoutError rerun()
+        end
     end
 
     @testset "quality" begin

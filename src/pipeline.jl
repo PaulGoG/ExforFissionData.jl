@@ -92,6 +92,8 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
 
     accepted_datasets = Dataset[]
     rejected = Rejection[]
+    parsed = 0
+    layout_failures = String[]
     for (identifier, body) in zip(identifiers, bodies)
         if body isa Exception
             push!(
@@ -101,11 +103,26 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             continue
         end
         outcome = try
-            select_dataset(identifier, body, query)
+            selected = select_dataset(identifier, body, query)
+            parsed += 1
+            selected
         catch exception
+            # A response that cannot be read is a property of that response and is recorded;
+            # anything else is a defect of this package and must not be filed as a rejection.
+            exception isa Union{LayoutError, ArgumentError, CSV.Error} || rethrow()
+            exception isa LayoutError && push!(layout_failures, exception.msg)
             Rejection(identifier, "", "parse failed: $(sprint(showerror, exception))")
         end
         outcome isa Rejection ? push!(rejected, outcome) : push!(accepted_datasets, outcome)
+    end
+    if parsed == 0 && !isempty(layout_failures)
+        throw(
+            LayoutError(
+                "none of the $(length(identifiers)) datasets retrieved matches the recorded \
+                 column layout, so the rendering itself has changed. First failure: \
+                 $(first(layout_failures))",
+            ),
+        )
     end
     @info "selection complete" accepted = length(accepted_datasets) rejected =
         length(rejected)
@@ -184,6 +201,13 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     else
         @info "retrieval written" directory = directory written = length(accepted) rejected =
             length(rejected)
+        combined = String[
+            entry.dataset.identifier for
+            entry in accepted if entry.reduced.diagnostics["abscissae_combined"] > 0
+        ]
+        if !isempty(combined)
+            @warn "rows sharing an abscissa value were combined; the csv rendering truncates non-integer masses and drops variables it does not recognise, so check the subentry of each before use" combined
+        end
         units = unique(String[entry.dataset.unit for entry in accepted])
         if length(units) > 1
             @warn "datasets carry more than one unit token; they must not be renormalised together" units

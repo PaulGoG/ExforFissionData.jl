@@ -61,12 +61,38 @@ const COL_AUTHOR = 3
 const COL_VALUE_KIND = 4      # e.g. "Data(PART/FIS)", "Max(NO-DIM)" — datum type and unit
 const COL_Y = 5
 const COL_DY = 6
+const COL_RESONANCE_ENERGY = 8    # x1(eV)
 const COL_INCIDENT_ENERGY = 11    # x2(eV)
 const COL_SECONDARY_ENERGY = 14   # x3(eV)
+const COL_ANGLE = 17              # x4(deg)
+const COL_NUMBER = 20             # x5
+const COL_OTHER = 23              # x6
 const COL_PRODUCT = 25            # x7:Prod, e.g. "48-Cd-115-m1"
 const COL_PRODUCT_ZA = 26         # 1000·Z + A of the reaction product
 const COL_PRODUCT_ISOMER = 27     # ProdM: 0 ground, 1 first isomer, …; missing means "total"
+const COL_INDEPENDENT_VARIABLES = 38   # indVars: the x-families tabulated against, as digits
 const COL_REACTION_CODE = 39      # Reacode, e.g. "92-U-233(N,F)ELEM/MASS,CUM,FY"
+
+"""
+The independent-variable families of the csv rendering, keyed by the digit under which the
+`indVars` column names them, each with its heading and the column holding its value.
+
+`indVars = 237` says a dataset is tabulated against incident energy, secondary energy and
+product. It is the rendering's own statement of what varies, and the only one: the reaction code
+names the quantity, not the grid it was measured on.
+"""
+const VARIABLE_FAMILIES = Dict(
+    1 => ("x1:ResEn", COL_RESONANCE_ENERGY),
+    2 => ("x2:IncEn", COL_INCIDENT_ENERGY),
+    3 => ("x3:SecEn", COL_SECONDARY_ENERGY),
+    4 => ("x4:Angle", COL_ANGLE),
+    5 => ("x5:Num", COL_NUMBER),
+    6 => ("x6:Other", COL_OTHER),
+    7 => ("x7:Prod", COL_PRODUCT_ZA),
+)
+
+"""The family of [`VARIABLE_FAMILIES`](@ref) that holds the incident energy."""
+const INCIDENT_ENERGY_FAMILY = 2
 
 """
 Conversion from the electronvolts EXFOR reports energies in to the megaelectronvolts fission
@@ -100,19 +126,35 @@ const MINIMUM_FRAGMENT_MASS = 10
 const MAXIMUM_TARGET_MASS = 300
 
 """
+    LayoutError(message)
+
+A response whose header is not [`EXFOR_HEADER`](@ref).
+
+A type of its own because the two ways it arises need telling apart. One dataset failing the
+contract is an anomaly of that dataset — the archive renders a few with no columns at all — and
+is recorded as a rejection. Every dataset failing it is the rendering having changed, and
+[`retrieve`](@ref) stops rather than report an archive with nothing in it.
+"""
+struct LayoutError <: Exception
+    msg::String
+end
+
+Base.showerror(io::IO, exception::LayoutError) = print(io, "LayoutError: ", exception.msg)
+
+"""
     validate_header(header, source) -> Nothing
 
 Check a retrieved CSV header against [`EXFOR_HEADER`](@ref).
 
-Throws an `ArgumentError` naming `source` and the first disagreeing column when the layout has
-changed. This is deliberately fatal: every column accessor in this package is positional, so a
-shifted layout would otherwise corrupt output silently rather than fail.
+Throws a [`LayoutError`](@ref) naming `source` and the first disagreeing column. Every column
+accessor in this package is positional, so a shifted layout would otherwise corrupt output
+silently rather than fail.
 """
 function validate_header(header::AbstractVector, source::AbstractString)
     names = String.(strip.(string.(header)))
     if length(names) != length(EXFOR_HEADER)
         throw(
-            ArgumentError(
+            LayoutError(
                 "$(source): expected $(length(EXFOR_HEADER)) columns from the EXFOR csv \
                  rendering, got $(length(names)). The `plus=2` layout this package is written \
                  against has changed; src/schema.jl must be updated before the data can be \
@@ -122,7 +164,7 @@ function validate_header(header::AbstractVector, source::AbstractString)
     end
     for (index, (got, want)) in enumerate(zip(names, EXFOR_HEADER))
         got == want || throw(
-            ArgumentError(
+            LayoutError(
                 "$(source): column $(index) of the EXFOR csv rendering is \"$(got)\", expected \
                  \"$(want)\". The `plus=2` layout this package is written against has changed; \
                  src/schema.jl must be updated before the data can be trusted.",
