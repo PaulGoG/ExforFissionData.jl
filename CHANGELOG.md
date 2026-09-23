@@ -6,6 +6,8 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-23
+
 ### Added
 
 - Retrieval of fission observables from the IAEA EXFOR archive, driven by a validated TOML
@@ -103,6 +105,7 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ### Changed
 
+- CSV.jl 1 is required.
 - **The abscissa is read from the subentry DATA table, aligned row by row with the csv
   rendering.** The rendering truncates a non-integer mass: `23175002` tabulates 63.51, 64.91,
   66.08 and 66.79, which arrived as 63, 64, 66 and 66, two points collapsing onto one mass number
