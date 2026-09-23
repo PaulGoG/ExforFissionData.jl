@@ -245,7 +245,7 @@ function fetch_response(
             end
             if !is_usable_response(body) && usable
                 @warn(
-                    "the archive could not be reached; serving the cached response",
+                    "the archive returned no usable body; serving the cached response",
                     query,
                     retrieved = cached_at,
                 )
@@ -253,6 +253,8 @@ function fetch_response(
             end
             return Response(body, Dates.now(Dates.UTC), false)
         catch exception
+            # Only transport failures are retried; anything else is a defect and propagates.
+            exception isa Union{HTTP.HTTPError, Base.IOError} || rethrow()
             # A 4xx will not succeed on repetition; the last attempt has nothing left to try.
             if (exception isa HTTP.StatusError && 400 ≤ exception.status < 500) ||
                attempt > options.retries
@@ -270,15 +272,6 @@ function fetch_response(
     end
     # The final iteration either returns or rethrows, so control never reaches here.
     error("unreachable: retrieval of $(url) neither returned nor threw")
-end
-
-"""
-    request(query, options) -> String
-
-The body of [`fetch_response`](@ref), for callers that need no provenance.
-"""
-function request(query::AbstractString, options::RetrievalOptions)
-    return fetch_response(query, options).body
 end
 
 """
@@ -340,17 +333,24 @@ function subentry_text(identifier::AbstractString, options::RetrievalOptions)
     return fetch_response("x4get?sub=$(subentry_identifier(identifier))", options)
 end
 
+"""Batch size from which [`map_bounded`](@ref) logs its progress."""
+const PROGRESS_MINIMUM = 100
+
 """
     map_bounded(f, items, options) -> Vector
 
 Apply `f` to each element of `items` with at most `options.concurrency` tasks in flight.
 
 Results are returned in the order of `items`, never in completion order, so that a run is
-reproducible regardless of how the network behaves. An exception in any task propagates once
-every task has been awaited.
+reproducible regardless of how the network behaves. An exception in a task propagates when that
+task is fetched, in input order; the tasks after it still run to completion but are not awaited.
 """
 function map_bounded(f, items::AbstractVector, options::RetrievalOptions)
     semaphore = Base.Semaphore(max(1, options.concurrency))
+    total = length(items)
+    completed = Threads.Atomic{Int}(0)
+    # One line per tenth of a batch large enough to keep a user waiting; small batches stay quiet.
+    stride = total ≥ PROGRESS_MINIMUM ? max(1, total ÷ 10) : 0
     tasks = map(items) do item
         Threads.@spawn begin
             Base.acquire(semaphore)
@@ -358,6 +358,11 @@ function map_bounded(f, items::AbstractVector, options::RetrievalOptions)
                 f(item)
             finally
                 Base.release(semaphore)
+                done = Threads.atomic_add!(completed, 1) + 1
+                stride > 0 &&
+                    done % stride == 0 &&
+                    done < total &&
+                    @info "requests completed" completed = done of = total
             end
         end
     end

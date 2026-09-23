@@ -1,8 +1,8 @@
 # Reducing an accepted dataset to the tabulated observable.
 #
 # Three distinct things cause an EXFOR dataset to report the same abscissa value more than once,
-# and they need different treatment. Conflating them is what the original script did, with one
-# unweighted mean applied to all three.
+# and they need different treatment. Conflating them under one unweighted mean is the error this
+# stage exists to avoid.
 #
 #   1. Several incident energies. Handled upstream in `select_dataset`, which filters rows to the
 #      configured window rather than testing the dataset as a whole.
@@ -76,7 +76,7 @@ function combine_measurements(
         return (sum(values) / length(values), 0.0, 0)
     end
     weights = Vector{Float64}(undef, length(values))
-    reference = _median_of(1 ./ (Float64.(uncertainties[positive]) .^ 2))
+    reference = median(1 ./ (Float64.(uncertainties[positive]) .^ 2))
     imputed = 0
     for index in eachindex(values)
         if uncertainties[index] > 0
@@ -90,14 +90,6 @@ function combine_measurements(
     return (sum(weights .* values) / total, 1 / sqrt(total), imputed)
 end
 
-# A median without a Statistics dependency for a handful of values.
-function _median_of(values::AbstractVector{<:Real})
-    sorted = sort(collect(Float64, values))
-    n = length(sorted)
-    isodd(n) && return sorted[(n + 1) ÷ 2]
-    return (sorted[n ÷ 2] + sorted[n ÷ 2 + 1]) / 2
-end
-
 # Sum resolved isomeric states, combining uncertainties in quadrature. This is a marginalisation
 # over an unreported degree of freedom, not a combination of repeat measurements, so the
 # uncertainties add in quadrature without division.
@@ -106,9 +98,13 @@ function _sum_states(values::AbstractVector, uncertainties::AbstractVector)
 end
 
 """
-    resolve_isomers(rows) -> (value, uncertainty, outcome)
+    resolve_isomers(values, uncertainties, isomers) -> (value, uncertainty, outcome, imputed)
 
 Reduce the rows reporting one nuclide at one incident energy to a single value.
+
+# Arguments
+- `values`, `uncertainties`: the datum and its uncertainty of each row, as `Float64`.
+- `isomers`: the `ProdM` field of each row; `missing` marks a total.
 
 EXFOR may give the ground state, its isomers, and their total. The total is the row whose `ProdM`
 field is absent; where it is present it is preferred, since it is the archive's own sum. Where it
@@ -118,19 +114,23 @@ is absent the resolved states are summed with their uncertainties in quadrature.
 isomer marking and therefore cannot be told apart. Each of them is a total in its own right, so
 they are combined as repeats and the dataset is flagged; rows resolving a state are parts of
 those totals and are left out, since a mean of a part with the whole measures neither.
+`imputed` counts the rows whose weight was imputed by [`combine_measurements`](@ref), non-zero
+only for `:ambiguous`.
 """
 function resolve_isomers(values::AbstractVector, uncertainties::AbstractVector, isomers)
-    length(values) == 1 && return (Float64(values[1]), Float64(uncertainties[1]), :single)
+    length(values) == 1 &&
+        return (Float64(values[1]), Float64(uncertainties[1]), :single, 0)
     unmarked = findall(ismissing, isomers)
     if length(unmarked) == 1
         index = only(unmarked)
-        return (Float64(values[index]), Float64(uncertainties[index]), :total)
+        return (Float64(values[index]), Float64(uncertainties[index]), :total, 0)
     elseif isempty(unmarked)
         value, uncertainty = _sum_states(values, uncertainties)
-        return (Float64(value), Float64(uncertainty), :summed)
+        return (Float64(value), Float64(uncertainty), :summed, 0)
     end
-    value, uncertainty, _ = combine_measurements(values[unmarked], uncertainties[unmarked])
-    return (value, uncertainty, :ambiguous)
+    value, uncertainty, imputed =
+        combine_measurements(values[unmarked], uncertainties[unmarked])
+    return (value, uncertainty, :ambiguous, imputed)
 end
 
 # The values of the subentry column headed `heading` of every row, an energy converted to MeV,
@@ -151,7 +151,7 @@ end
 # bin pair; and whether the bin pair was used. See `ABSCISSA_HEADINGS`.
 function _quantity_values(dataset::Dataset, quantity::AbstractString)
     value_headings, bin_headings = ABSCISSA_HEADINGS[quantity]
-    is_energy = quantity in ("neutron_energy", "total_kinetic_energy")
+    is_energy = quantity in ENERGY_ABSCISSAE
     for heading in value_headings
         values = _heading_values(dataset, heading, is_energy)
         values === nothing || return (values, false)
@@ -262,6 +262,7 @@ function reduce_dataset(dataset::Dataset, query)
     end
 
     outcomes = Dict(:total => 0, :summed => 0, :single => 0, :ambiguous => 0)
+    imputed = 0
     stage_keys = Any[]
     stage_rows = Vector{Int}[]
     stage_values = Float64[]
@@ -273,9 +274,10 @@ function reduce_dataset(dataset::Dataset, query)
             ismissing(raw_uncertainties[i]) ? 0.0 : abs(Float64(raw_uncertainties[i]))
             for i in indices
         ]
-        value, uncertainty, outcome =
+        value, uncertainty, outcome, points =
             resolve_isomers(values, uncertainties, [isomers[i] for i in indices])
         outcomes[outcome] += 1
+        imputed += points
         push!(stage_keys, keys_of_row[first(indices)])
         push!(stage_rows, indices)
         push!(stage_values, value)
@@ -298,7 +300,6 @@ function reduce_dataset(dataset::Dataset, query)
     end
     combined_over = Set{String}()
     combined = 0
-    imputed = 0
     final_keys = Any[]
     final_values = Float64[]
     final_uncertainties = Float64[]
@@ -326,8 +327,9 @@ function reduce_dataset(dataset::Dataset, query)
     # it is left alone: rescaling one would change the distribution, not restate it.
     unit_written = dataset.unit
     factor = 1.0
-    if query.ordinate in ENERGY_ORDINATES && haskey(ORDINATE_ENERGY_FACTORS, dataset.unit)
-        factor = ORDINATE_ENERGY_FACTORS[dataset.unit]
+    ordinate_factor = energy_factor(dataset.unit)
+    if query.ordinate in ENERGY_ORDINATES && ordinate_factor !== nothing
+        factor = ordinate_factor
         if factor != 1.0
             final_values .*= factor
             final_uncertainties .*= factor

@@ -3,16 +3,13 @@
 # Fixtures are built rather than committed: the layout is the thing under test, so writing it out
 # here keeps the expectation visible, and no archive data needs to enter the repository.
 
-using ExforFissionData: EXFOR_HEADER
-
 """
     exfor_row(; kwargs...) -> Vector{String}
 
 One row of the csv rendering, with every field empty unless named.
 
 Recognised keywords mirror the column names: `dataset_id`, `year`, `author`, `value_kind`, `y`,
-`dy`, `incident_ev`, `secondary_ev`, `product`, `product_za`, `isomer`, `reaction_code`, and
-`independent_variables` for the `indVars` column.
+`dy`, `incident_ev`, `secondary_ev`, `product_za`, `isomer` and `reaction_code`.
 """
 function exfor_row(;
     dataset_id = "10000002",
@@ -23,10 +20,8 @@ function exfor_row(;
     dy = missing,
     incident_ev = missing,
     secondary_ev = missing,
-    product = missing,
     product_za = missing,
     isomer = missing,
-    independent_variables = missing,
     reaction_code = "92-U-233(N,F)MASS,CHN,FY",
 )
     fields = fill("", length(EXFOR_HEADER))
@@ -39,10 +34,8 @@ function exfor_row(;
     fields[6] = show_or_blank(dy)
     fields[11] = show_or_blank(incident_ev)
     fields[14] = show_or_blank(secondary_ev)
-    fields[25] = show_or_blank(product)
     fields[26] = show_or_blank(product_za)
     fields[27] = show_or_blank(isomer)
-    fields[38] = show_or_blank(independent_variables)
     fields[39] = string('"', reaction_code, '"')
     return fields
 end

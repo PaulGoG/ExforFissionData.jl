@@ -59,10 +59,27 @@ struct Configuration
     source::String
 end
 
-"""Sections a configuration may hold, and the keys of each. Anything else is refused."""
+"""Defaults of the `[retrieval]` keys: those of [`RetrievalOptions`](@ref)."""
+const DEFAULT_RETRIEVAL = RetrievalOptions()
+
+"""Inclusive bounds of `[retrieval].concurrency`."""
+const CONCURRENCY_BOUNDS = (1, 16)
+
+"""Inclusive bounds of `[retrieval].retries`."""
+const RETRIES_BOUNDS = (0, 10)
+
+"""Default of `[output].significant_digits`."""
+const DEFAULT_SIGNIFICANT_DIGITS = 7
+
+"""Inclusive bounds of `[output].significant_digits`."""
+const SIGNIFICANT_DIGITS_BOUNDS = (1, 15)
+
+"""Sections a configuration may hold; any other section is refused."""
 const SECTIONS = ("query", "retrieval", "output")
+"""Keys of `[query]`; any other key is refused."""
 const QUERY_KEYS =
     ("target_Z", "target_A", "channel", "abscissa", "ordinate", "energy_min", "energy_max")
+"""Keys of `[retrieval]`; any other key is refused."""
 const RETRIEVAL_KEYS = (
     "concurrency",
     "timeout",
@@ -75,6 +92,7 @@ const RETRIEVAL_KEYS = (
     "max_age_days",
     "save_subentries",
 )
+"""Keys of `[output]`; any other key is refused."""
 const OUTPUT_KEYS = ("directory", "significant_digits", "record_hostname")
 
 function _section(table::AbstractDict, name::AbstractString, source::AbstractString)
@@ -242,13 +260,15 @@ function load_configuration(path::AbstractString)
         energy_min ≥ channel_floor || throw(
             ArgumentError(
                 "$(source): [query].energy_min ($(energy_min) MeV) lies below channel \
-                 \"$(channel)\", whose incident energies span $(channel_floor) to $(channel_ceiling) MeV",
+                 \"$(channel)\", whose incident energies span $(channel_floor) to \
+                 $(channel_ceiling) MeV",
             ),
         )
         energy_max ≤ channel_ceiling || throw(
             ArgumentError(
                 "$(source): [query].energy_max ($(energy_max) MeV) lies above channel \
-                 \"$(channel)\", whose incident energies span $(channel_floor) to $(channel_ceiling) MeV",
+                 \"$(channel)\", whose incident energies span $(channel_floor) to \
+                 $(channel_ceiling) MeV",
             ),
         )
         energy_max > energy_min || throw(
@@ -277,20 +297,56 @@ function load_configuration(path::AbstractString)
     retrieval_section isa AbstractDict ||
         throw(ArgumentError("$(source): [retrieval] must be a table of keys"))
     _reject_unknown(retrieval_section, RETRIEVAL_KEYS, "[retrieval]", source)
-    concurrency = _optional(retrieval_section, "concurrency", 4, "retrieval", source)
-    _in_range(concurrency, 1, 16, "concurrency", "retrieval", source)
-    timeout = _optional(retrieval_section, "timeout", 60.0, "retrieval", source)
+    concurrency = _optional(
+        retrieval_section,
+        "concurrency",
+        DEFAULT_RETRIEVAL.concurrency,
+        "retrieval",
+        source,
+    )
+    _in_range(concurrency, CONCURRENCY_BOUNDS..., "concurrency", "retrieval", source)
+    timeout = _optional(
+        retrieval_section,
+        "timeout",
+        DEFAULT_RETRIEVAL.timeout,
+        "retrieval",
+        source,
+    )
     timeout > 0 || throw(
         ArgumentError("$(source): [retrieval].timeout must be positive, got $(timeout)"),
     )
-    retries = _optional(retrieval_section, "retries", 4, "retrieval", source)
-    _in_range(retries, 0, 10, "retries", "retrieval", source)
-    backoff = _optional(retrieval_section, "backoff", 1.0, "retrieval", source)
+    retries = _optional(
+        retrieval_section,
+        "retries",
+        DEFAULT_RETRIEVAL.retries,
+        "retrieval",
+        source,
+    )
+    _in_range(retries, RETRIES_BOUNDS..., "retries", "retrieval", source)
+    backoff = _optional(
+        retrieval_section,
+        "backoff",
+        DEFAULT_RETRIEVAL.backoff,
+        "retrieval",
+        source,
+    )
     backoff > 0 || throw(
         ArgumentError("$(source): [retrieval].backoff must be positive, got $(backoff)"),
     )
-    use_cache = _optional(retrieval_section, "use_cache", true, "retrieval", source)
-    refresh = _optional(retrieval_section, "refresh", false, "retrieval", source)
+    use_cache = _optional(
+        retrieval_section,
+        "use_cache",
+        DEFAULT_RETRIEVAL.use_cache,
+        "retrieval",
+        source,
+    )
+    refresh = _optional(
+        retrieval_section,
+        "refresh",
+        DEFAULT_RETRIEVAL.refresh,
+        "retrieval",
+        source,
+    )
     refresh &&
         !use_cache &&
         throw(
@@ -299,7 +355,13 @@ function load_configuration(path::AbstractString)
              [retrieval].use_cache = true",
             ),
         )
-    offline = _optional(retrieval_section, "offline", false, "retrieval", source)
+    offline = _optional(
+        retrieval_section,
+        "offline",
+        DEFAULT_RETRIEVAL.offline,
+        "retrieval",
+        source,
+    )
     offline &&
         !use_cache &&
         throw(
@@ -314,14 +376,25 @@ function load_configuration(path::AbstractString)
             ArgumentError("$(source): [retrieval].offline never contacts the archive and \
                  [retrieval].refresh always does; set one of them"),
         )
-    max_age_days = _optional(retrieval_section, "max_age_days", Inf, "retrieval", source)
+    max_age_days = _optional(
+        retrieval_section,
+        "max_age_days",
+        DEFAULT_RETRIEVAL.max_age_days,
+        "retrieval",
+        source,
+    )
     max_age_days > 0 || throw(
         ArgumentError(
             "$(source): [retrieval].max_age_days must be positive, got $(max_age_days)",
         ),
     )
-    cache_directory =
-        _optional(retrieval_section, "cache_directory", "", "retrieval", source)
+    cache_directory = _optional(
+        retrieval_section,
+        "cache_directory",
+        DEFAULT_RETRIEVAL.cache_directory,
+        "retrieval",
+        source,
+    )
     save_subentries =
         _optional(retrieval_section, "save_subentries", true, "retrieval", source)
 
@@ -330,9 +403,20 @@ function load_configuration(path::AbstractString)
         throw(ArgumentError("$(source): [output] must be a table of keys"))
     _reject_unknown(output_section, OUTPUT_KEYS, "[output]", source)
     directory = _optional(output_section, "directory", "data", "output", source)
-    significant_digits =
-        _optional(output_section, "significant_digits", 7, "output", source)
-    _in_range(significant_digits, 1, 15, "significant_digits", "output", source)
+    significant_digits = _optional(
+        output_section,
+        "significant_digits",
+        DEFAULT_SIGNIFICANT_DIGITS,
+        "output",
+        source,
+    )
+    _in_range(
+        significant_digits,
+        SIGNIFICANT_DIGITS_BOUNDS...,
+        "significant_digits",
+        "output",
+        source,
+    )
     # Off by default. The run record is meant to be committed by whoever consumes the data, and
     # the machine name is the one field in it that identifies a person rather than a result. The
     # rest of the platform fingerprint — CPU model, core counts, memory, Julia version — still

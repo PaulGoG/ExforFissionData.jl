@@ -61,60 +61,50 @@ const COL_AUTHOR = 3
 const COL_VALUE_KIND = 4      # e.g. "Data(PART/FIS)", "Max(NO-DIM)" — datum type and unit
 const COL_Y = 5
 const COL_DY = 6
-const COL_RESONANCE_ENERGY = 8    # x1(eV)
 const COL_INCIDENT_ENERGY = 11    # x2(eV)
 const COL_SECONDARY_ENERGY = 14   # x3(eV)
-const COL_ANGLE = 17              # x4(deg)
-const COL_NUMBER = 20             # x5
-const COL_OTHER = 23              # x6
-const COL_PRODUCT = 25            # x7:Prod, e.g. "48-Cd-115-m1"
 const COL_PRODUCT_ZA = 26         # 1000·Z + A of the reaction product
 const COL_PRODUCT_ISOMER = 27     # ProdM: 0 ground, 1 first isomer, …; missing means "total"
-const COL_INDEPENDENT_VARIABLES = 38   # indVars: the x-families tabulated against, as digits
 const COL_REACTION_CODE = 39      # Reacode, e.g. "92-U-233(N,F)ELEM/MASS,CUM,FY"
 
-"""
-The independent-variable families of the csv rendering, keyed by the digit under which the
-`indVars` column names them, each with its heading and the column holding its value.
+"""Factor of the charge in the `ProdZA` coding of a charge-resolved product, `1000·Z + A`."""
+const ZA_CHARGE_FACTOR = 1000
 
-`indVars = 237` says a dataset is tabulated against incident energy, secondary energy and
-product. It is the rendering's own statement of what varies, and the only one: the reaction code
-names the quantity, not the grid it was measured on.
 """
-const VARIABLE_FAMILIES = Dict(
-    1 => ("x1:ResEn", COL_RESONANCE_ENERGY),
-    2 => ("x2:IncEn", COL_INCIDENT_ENERGY),
-    3 => ("x3:SecEn", COL_SECONDARY_ENERGY),
-    4 => ("x4:Angle", COL_ANGLE),
-    5 => ("x5:Num", COL_NUMBER),
-    6 => ("x6:Other", COL_OTHER),
-    7 => ("x7:Prod", COL_PRODUCT_ZA),
+Smallest `ProdZA` value that is charge-coded rather than a bare mass number: `Z ≥ 10` gives
+`ProdZA ≥ 10⁴`, and no bare fission-fragment mass approaches it.
+"""
+const CHARGE_CODED_MINIMUM = 10 * ZA_CHARGE_FACTOR
+
+"""
+Factors from the energy units EXFOR heads a column or a unit token with to the megaelectronvolts
+fission observables are quoted in. Exact by definition. Applied to energy abscissae, to the
+incident-energy window and to ordinates that are themselves energies (see
+[`ENERGY_ORDINATES`](@ref)), with the factor recorded in the run record. Energy *densities*
+such as a spectrum are never rescaled, since that would change a distribution rather than
+restate a value; ordinate *normalisation* is never applied either, the unit token being recorded
+for the consumer instead.
+"""
+const ENERGY_UNIT_FACTORS = Dict(
+    "MILLI-EV" => 1.0e-9,
+    "EV" => 1.0e-6,
+    "KEV" => 1.0e-3,
+    "MEV" => 1.0,
+    "GEV" => 1.0e3,
 )
 
-"""The family of [`VARIABLE_FAMILIES`](@ref) that holds the incident energy."""
-const INCIDENT_ENERGY_FAMILY = 2
+"""The factor of [`ENERGY_UNIT_FACTORS`](@ref) for the electronvolts the csv rendering reports."""
+const EV_TO_MEV = ENERGY_UNIT_FACTORS["EV"]
 
 """
-Conversion from the electronvolts EXFOR reports energies in to the megaelectronvolts fission
-observables are quoted in. Exact by definition, applied to energy abscissae and to the
-incident-energy window, and recorded in the run metadata.
+    energy_factor(unit) -> Union{Float64,Nothing}
 
-Ordinate *normalisation* is deliberately not applied: the unit token is recorded instead and the
-consumer renormalises, because the conventions differ between consumers and a normalisation
-applied here cannot be undone.
+Factor converting an energy in `unit` to MeV, or `nothing` when the unit is not among
+[`ENERGY_UNIT_FACTORS`](@ref).
 """
-const EV_TO_MEV = 1.0e-6
-
-"""
-Factors converting an energy-valued ordinate to MeV, keyed by the unit token EXFOR reports.
-
-Applied to ordinates that *are* an energy — fragment and total kinetic energies, and
-centre-of-mass neutron energies. This is an exact unit conversion with a recorded factor, not a
-normalisation: the quantity is unchanged and the factor is written into the run record. Energy
-*densities* such as a spectrum are deliberately absent, since converting one rescales a
-distribution rather than restating a value.
-"""
-const ORDINATE_ENERGY_FACTORS = Dict("EV" => 1.0e-6, "KEV" => 1.0e-3, "MEV" => 1.0)
+function energy_factor(unit::AbstractString)
+    return get(ENERGY_UNIT_FACTORS, unit, nothing)
+end
 
 """Largest plausible bare mass number of a fission fragment."""
 const MAXIMUM_FRAGMENT_MASS = 250
@@ -229,8 +219,7 @@ is_measurement(token::AbstractString) = first(parse_value_kind(token)) in MEASUR
 
 Whether a `y:Value` token carries a usable scale, i.e. is not in arbitrary units.
 """
-has_absolute_scale(token::AbstractString) =
-    !(last(parse_value_kind(token)) in UNSCALED_UNITS)
+has_absolute_scale(token::AbstractString) = !is_relative_unit(last(parse_value_kind(token)))
 
 """
     is_relative_unit(unit) -> Bool

@@ -396,17 +396,6 @@ function line_count(columns::SubentryColumns)
     return isempty(columns.values) ? 0 : length(first(columns.values))
 end
 
-"""
-Factors from the energy units EXFOR heads a column with to MeV.
-"""
-const ENERGY_UNIT_FACTORS = Dict(
-    "MILLI-EV" => 1.0e-9,
-    "EV" => 1.0e-6,
-    "KEV" => 1.0e-3,
-    "MEV" => 1.0,
-    "GEV" => 1.0e3,
-)
-
 # Heading prefixes of the columns auxiliary to a datum: monitors, assumed values, flags,
 # miscellaneous information, and the kT of a Maxwellian average.
 const _AUXILIARY_PREFIXES = ("MONIT", "ASSUM", "FLAG", "MISC", "KT")
@@ -518,11 +507,10 @@ end
 The independent variables of a DATA table that `abscissa` does not cover and that take more
 than one value, each as `"<heading> [<unit>] (<n> values)"`.
 
-This is the subentry rule, which replaces the rule the csv rendering's `indVars` column once
-supplied. Projecting a dataset onto an abscissa asserts that nothing else varies. A variable
-held at one value is a condition of the measurement and leaves the projection meaningful; one
-that varies makes every abscissa value a family of rows, and no combination of them is the
-observable asked for. Only headings [`heading_class`](@ref) calls `:independent` count, and
+Projecting a dataset onto an abscissa asserts that nothing else varies. A variable held at one
+value is a condition of the measurement and leaves the projection meaningful; one that varies
+makes every abscissa value a family of rows, and no combination of them is the observable asked
+for. Only headings [`heading_class`](@ref) calls `:independent` count, and
 the incident energy is left to the window.
 
 # Arguments
@@ -547,16 +535,6 @@ function varying_columns(data::SubentryColumns, abscissa::AbstractVector{<:Abstr
         count > 1 && push!(varying, "$(heading) [$(unit)] ($(count) values)")
     end
     return varying
-end
-
-"""
-    energy_factor(unit) -> Union{Float64,Nothing}
-
-The factor converting a column in energy unit `unit` to MeV, or `nothing` when `unit` is not
-among [`ENERGY_UNIT_FACTORS`](@ref).
-"""
-function energy_factor(unit::AbstractString)
-    return get(ENERGY_UNIT_FACTORS, unit, nothing)
 end
 
 """

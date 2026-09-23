@@ -52,7 +52,7 @@ renaming a quantity must not be able to break anything that reads these files.
 function write_dataset(
     path::AbstractString,
     reduced::ReducedDataset;
-    significant_digits::Int = 7,
+    significant_digits::Int = DEFAULT_SIGNIFICANT_DIGITS,
 )
     table = reduced.table
     header = String[String(column) for column in reduced.abscissa_columns]
@@ -148,14 +148,14 @@ the retrieval reflects.
 function write_metadata(
     path::AbstractString,
     configuration::Configuration,
-    accepted::AbstractVector,
+    accepted::AbstractVector{AcceptedDataset},
     rejected::AbstractVector{Rejection},
     listing::Listing,
 )
     query = configuration.query
     record = Dict{String, Any}(
         "run" => Dict{String, Any}(
-            "timestamp" => string(now()),
+            "timestamp_utc" => string(now(Dates.UTC)),
             "package_version" => string(something(pkgversion(@__MODULE__), "unknown")),
             "package_revision" => _revision(),
             # The file name, not the path it was read from. Consumers commit these records into
@@ -183,17 +183,20 @@ function write_metadata(
         ),
         "conventions" => Dict{String, Any}(
             "energies" => "MeV; converted from the electronvolts EXFOR reports",
-            "ordinate_normalisation" => "none applied; the unit token of each dataset is recorded below",
-            "absent_uncertainty" => "the uncertainty column is omitted when no row of a dataset carries one",
-            "duplicate_abscissa" => "isomers resolved first (archive total preferred, else summed in \
-                 quadrature), then rows still sharing an abscissa value combined by an \
-                 inverse-variance weighted mean; `abscissae_combined` counts them per dataset",
-            "abscissa_resolution" => "mass numbers are the subentry MASS column rounded to the nearest integer, \
-                 ties up; charges are ELEM; energies are the subentry columns in MeV; a bin pair \
-                 contributes its midpoint. mass_values_non_integer, mass_rounding_max and \
-                 abscissa_binned record what that did per dataset",
-            "archive_state" => "EXFOR as of the retrieval date recorded per dataset (retrieved_utc, UTC); \
-                 the listing date is when the archive was last asked which datasets exist",
+            "ordinate_normalisation" => "none applied; the unit token of each dataset is \
+                 recorded below",
+            "absent_uncertainty" => "the uncertainty column is omitted when no row of a \
+                 dataset carries one",
+            "duplicate_abscissa" => "isomers resolved first (archive total preferred, else \
+                 summed in quadrature), then rows still sharing an abscissa value combined by \
+                 an inverse-variance weighted mean; `abscissae_combined` counts them per dataset",
+            "abscissa_resolution" => "mass numbers are the subentry MASS column rounded to the \
+                 nearest integer, ties up; charges are ELEM; energies are the subentry columns \
+                 in MeV; a bin pair contributes its midpoint. mass_values_non_integer, \
+                 mass_rounding_max and abscissa_binned record what that did per dataset",
+            "archive_state" => "EXFOR as of the retrieval date recorded per dataset \
+                 (retrieved_utc, UTC); the listing date is when the archive was last asked \
+                 which datasets exist",
         ),
         "platform" => _platform(configuration.record_hostname),
     )

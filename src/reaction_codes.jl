@@ -7,10 +7,9 @@
 # whose comma-separated fields name the measured quantity, the stage of the fission process it
 # refers to, and the averaging applied. The vocabulary is applied inconsistently across entries,
 # so selection cannot be done by parsing the code into fields: it is done by substring tests
-# tuned against the data as it actually appears. The tables below are that tuning, preserved
-# from the original script and annotated with what each tag catches. They are empirical
-# knowledge about the state of the archive, not a formal grammar, and a rule that looks
-# redundant is more likely to be guarding against a real entry than to be dead weight.
+# tuned against the data as it actually appears. The tables below are that tuning, annotated
+# with what each tag catches. They are empirical knowledge about the state of the archive, not a
+# formal grammar, and a rule that looks redundant usually guards a real entry.
 
 """
     TagRule(require_all, require_any, forbid)
@@ -86,25 +85,10 @@ Tags rejected for every observable.
 | `CUM` | cumulative rather than independent yield |
 | `RAW` | uncorrected data |
 
-`CHN` (chain yields) and `REL` (relative data) appear in this list commented out. Excluding them
-removes datasets that are wanted, so they are admitted deliberately; they remain visible here
-because that is a real decision rather than an oversight, and both are recorded per dataset
-through [`SCALE_QUALIFIERS`](@ref).
+`CHN` (chain yields) and `REL` (relative data) are deliberately absent: excluding them removes
+datasets that are wanted, and both are recorded per dataset through [`SCALE_QUALIFIERS`](@ref).
 """
-const BASE_FORBID = [
-    "RECOM",
-    # "CHN",
-    "TER",
-    "RAT",
-    # "REL",
-    ",G",
-    "-G-",
-    ")/(",
-    ")//(",
-    "DEL",
-    "CUM",
-    "RAW",
-]
+const BASE_FORBID = ["RECOM", "TER", "RAT", ",G", "-G-", ")/(", ")//(", "DEL", "CUM", "RAW"]
 
 # Abscissa rules, keyed by the `abscissa` list of the configuration. An abscissa is a joint
 # index, so the key is a list of quantities rather than a composite token: the two-quantity
@@ -340,15 +324,19 @@ const ENERGY_ORDINATES = (
     "neutron_kinetic_energy",
 )
 
-"""EXFOR quantity codes within the scope of this package."""
-const QUANTITIES = ("NU", "FY", "E", "MFQ")
+"""
+Abscissae whose values are energies, converted to MeV from the unit their subentry column is
+headed with.
+"""
+const ENERGY_ABSCISSAE = ("neutron_energy", "total_kinetic_energy")
 
 """
 The EXFOR quantity code each ordinate belongs to.
 
 The quantity selects which datasets the archive offers at all; the tag rule then chooses among
 them. Several ordinates impose few tags of their own and rely on the abscissa rule, so an
-ordinate paired with the wrong quantity silently admits a different observable: asking for `yield` under `NU` returns prompt multiplicities, and under `E` returns
+ordinate paired with the wrong quantity silently admits a different observable: asking for
+`yield` under `NU` returns prompt multiplicities, and under `E` returns
 kinetic energies, both written as though they were yields. The configuration therefore names the
 ordinate alone and the quantity is read from here, which is a pairing that cannot be got wrong.
 """
@@ -364,9 +352,6 @@ const ORDINATE_QUANTITY = Dict(
     "spectrum" => "MFQ",
     "spectrum_maxwellian_ratio" => "MFQ",
 )
-
-"""Reaction codes within the scope of this package: neutron-induced and spontaneous fission."""
-const REACTIONS = ("n,f", "0,f")
 
 """
 The EXFOR reaction code each entrance channel is queried under.
@@ -389,29 +374,14 @@ Incident-energy interval, in MeV, that the window of each neutron-induced channe
 defaults to the interval and must lie inside it, so that a dataset can only be filed under a
 channel whose physics it belongs to.
 
-`nth` spans 0 to 0.1 eV. Below the lowest resonances of the fissile actinides, 0.27 eV in ²³⁵U
-and 0.30 eV in ²³⁹Pu, the cross section follows the 1/v law, which Doppler broadening leaves
-unchanged (Bethe and Placzek 1937, doi:10.1103/PhysRev.51.450). A measurement there is thermal
-in the sense of the Westcott convention, a Maxwellian at 293.6 K (kT = 0.0253 eV) corrected by
-a g-factor, and 0.1 eV ≈ 4 kT is inside the region where that convention joins the Maxwellian
-to the 1/E slowing-down spectrum (its epithermal cut-off is about 5 kT;
-doi:10.1088/2399-6528/aba735). The cadmium cut-off of 0.5 eV that activation work uses as the
-thermal boundary lies above the first resonances (doi:10.1080/00223131.2016.1208593), and a
-measurement on one of them is a resonance measurement.
+| Channel | Interval | Region |
+| :--- | :--- | :--- |
+| `nth` | 0 to 0.1 eV | 1/v region below the first resonances; Westcott thermal convention |
+| `nres` | 0.1 eV to 100 keV | resonances; Doppler width against level spacing |
+| `nfast` | 100 keV to 20 MeV | statistical-model region to the end of the evaluated files |
 
-`nres`, 0.1 eV to 100 keV, is the region in which the cross section carries compound-nucleus
-level structure whose observed shape depends on temperature. The Doppler width
-Δ = 2√(E·kT/A) is 0.01 eV at the first resonances, equals the s-wave level spacing of ²³⁵U
-(about 0.5 eV) near 0.5 keV, and is 6.6 eV at 100 keV, an order of magnitude above the spacings
-of the fissile actinides (about 0.5 eV in ²³³U and ²³⁵U, about 2 eV in ²³⁹Pu; Mughabghab, Atlas
-of Neutron Resonances, 6th ed., 2018, doi:10.1016/C2015-0-00524-X). The evaluated libraries end
-the unresolved resonance region at 25 keV for ²³⁵U and at a few tens of keV for ²³³U and ²³⁹Pu
-(ENDF/B-VIII.0, doi:10.1016/j.nds.2018.02.001; JENDL-5, doi:10.1080/00223131.2022.2141903);
-above it only averaged cross sections remain.
-
-`nfast`, 100 keV to 20 MeV, is the fast group of reactor physics, E > 0.1 MeV: the smooth
-statistical-model region above the unresolved resonances of every actinide this package
-targets, up to the upper limit of the general-purpose evaluated files.
+The physics and the sources behind each bound are on the "Entrance channels" page of the
+documentation.
 """
 const CHANNEL_ENERGY_BOUNDS =
     Dict("nth" => (0.0, 1.0e-7), "nres" => (1.0e-7, 1.0e-1), "nfast" => (1.0e-1, 20.0))

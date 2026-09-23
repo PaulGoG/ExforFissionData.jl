@@ -39,6 +39,7 @@ using DataFrames: DataFrame, nrow
 using Dates: Dates, DateTime, now
 using HTTP: HTTP
 using Scratch: @get_scratch!
+using Statistics: median
 using TOML: TOML
 
 include("elements.jl")
@@ -49,14 +50,13 @@ include("subentry.jl")
 include("configuration.jl")
 include("selection.jl")
 include("reduction.jl")
+include("results.jl")
 include("export.jl")
 include("pipeline.jl")
 
 export ABSCISSAE,
     CHANNELS,
     ORDINATES,
-    QUANTITIES,
-    REACTIONS,
     AcceptedDataset,
     Configuration,
     Dataset,

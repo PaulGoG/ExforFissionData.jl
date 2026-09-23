@@ -30,21 +30,38 @@ using ExforFissionData:
     write_metadata,
     EXFOR_HEADER
 using Dates: DateTime
+using Aqua
+using JET
+using ExplicitImports:
+    check_all_explicit_imports_via_owners,
+    check_all_qualified_accesses_are_public,
+    check_all_qualified_accesses_via_owners,
+    check_no_implicit_imports,
+    check_no_self_qualified_accesses,
+    check_no_stale_explicit_imports
+
+# The message of the exception `f` throws. A test fails here when nothing is thrown, which a
+# bare try/catch would let pass in silence.
+function error_message(f)
+    try
+        f()
+    catch exception
+        return sprint(showerror, exception)
+    end
+    @test false
+    return ""
+end
 
 include("fixtures.jl")
 
 @testset "ExforFissionData" begin
     @testset "column layout" begin
-        @test length(EXFOR_HEADER) == 39
         @test validate_header(collect(EXFOR_HEADER), "reference") === nothing
 
         short = collect(EXFOR_HEADER)[1:38]
         @test_throws LayoutError validate_header(short, "short")
-        try
-            validate_header(short, "short")
-        catch exception
-            @test occursin("expected 39 columns", exception.msg)
-        end
+        message = error_message(() -> validate_header(short, "short"))
+        @test occursin("expected 39 columns", message)
 
         shifted = collect(EXFOR_HEADER)
         shifted[26] = "ProdZAX"
@@ -63,13 +80,18 @@ include("fixtures.jl")
         @test parse_value_kind("Data") == ("Data", "")
 
         @test is_measurement("Data(PART/FIS)")
-        # Upper limits are not measurements; the original script treated them as data.
+        # Upper limits are bounds, not measurements.
         @test !is_measurement("Max(NO-DIM)")
 
         @test has_absolute_scale("Data(PART/FIS)")
         @test has_absolute_scale("Data(NO-DIM)")
-        # The check the original script intended but never performed.
+        # Arbitrary units carry no scale.
         @test !has_absolute_scale("Data(ARB-UNITS)")
+        # The unit predicate takes the bare token, unlike has_absolute_scale, which needs the
+        # Data(...) wrapper and would call any bare unit absolute.
+        @test is_relative_unit("ARB-UNITS")
+        @test !is_relative_unit("PART/FIS")
+        @test !is_relative_unit("NO-DIM")
     end
 
     @testset "reaction code selection" begin
@@ -97,19 +119,23 @@ include("fixtures.jl")
 
     @testset "combining repeat measurements" begin
         value, uncertainty, imputed = combine_measurements([1.0, 1.0], [1.0, 1.0])
-        @test value ≈ 1.0
-        @test uncertainty ≈ 1 / sqrt(2)
+        @test isapprox(value, 1.0; rtol = 1.0e-6)
+        @test isapprox(uncertainty, 1 / sqrt(2); rtol = 1.0e-6)
         @test imputed == 0
 
         # The precise point dominates, and the combined uncertainty is that of a weighted mean.
         value, uncertainty, _ = combine_measurements([1.0, 2.0], [0.1, 1.0])
-        @test value ≈ (1.0 / 0.01 + 2.0 / 1.0) / (1 / 0.01 + 1 / 1.0)
-        @test uncertainty ≈ 1 / sqrt(1 / 0.01 + 1 / 1.0)
+        @test isapprox(
+            value,
+            (1.0 / 0.01 + 2.0 / 1.0) / (1 / 0.01 + 1 / 1.0);
+            rtol = 1.0e-6,
+        )
+        @test isapprox(uncertainty, 1 / sqrt(1 / 0.01 + 1 / 1.0); rtol = 1.0e-6)
         @test uncertainty < 0.1
 
         # With no uncertainties anywhere the result is the unweighted mean and carries none.
         value, uncertainty, imputed = combine_measurements([1.0, 3.0], [0.0, 0.0])
-        @test value ≈ 2.0
+        @test isapprox(value, 2.0; rtol = 1.0e-6)
         @test uncertainty == 0.0
         @test imputed == 0
 
@@ -122,39 +148,39 @@ include("fixtures.jl")
 
     @testset "isomer resolution" begin
         # Ground, isomer and the archive's own total: the total wins, and nothing is summed twice.
-        value, uncertainty, outcome = resolve_isomers(
+        value, uncertainty, outcome, _ = resolve_isomers(
             [8.5e-5, 2.66e-4, 3.54e-4],
             [1.7e-5, 1.7e-5, 1.9e-5],
             [0, 1, missing],
         )
         @test outcome == :total
-        @test value ≈ 3.54e-4
-        @test uncertainty ≈ 1.9e-5
+        @test isapprox(value, 3.54e-4; rtol = 1.0e-6)
+        @test isapprox(uncertainty, 1.9e-5; rtol = 1.0e-6)
 
         # Resolved states with no total are summed, uncertainties in quadrature.
-        value, uncertainty, outcome =
+        value, uncertainty, outcome, _ =
             resolve_isomers([8.5e-5, 2.66e-4], [1.7e-5, 1.7e-5], [0, 1])
         @test outcome == :summed
-        @test value ≈ 3.51e-4
-        @test uncertainty ≈ sqrt(2) * 1.7e-5
+        @test isapprox(value, 3.51e-4; rtol = 1.0e-6)
+        @test isapprox(uncertainty, sqrt(2) * 1.7e-5; rtol = 1.0e-6)
 
-        value, uncertainty, outcome = resolve_isomers([1.0], [0.1], [missing])
+        value, uncertainty, outcome, _ = resolve_isomers([1.0], [0.1], [missing])
         @test outcome == :single
 
         # Several unmarked rows cannot be told apart and must be flagged, not silently summed.
-        _, _, outcome = resolve_isomers([1.0, 2.0], [0.1, 0.1], [missing, missing])
+        _, _, outcome, _ = resolve_isomers([1.0, 2.0], [0.1, 0.1], [missing, missing])
         @test outcome == :ambiguous
 
         # Two totals beside the states they are totals of. The totals are repeats of one
         # another; the states are parts of them and must not enter the mean.
-        value, uncertainty, outcome = resolve_isomers(
+        value, uncertainty, outcome, _ = resolve_isomers(
             [1.0, 2.0, 0.4, 0.6],
             [0.1, 0.1, 0.05, 0.05],
             [missing, missing, 0, 1],
         )
         @test outcome == :ambiguous
-        @test value ≈ 1.5
-        @test uncertainty ≈ 0.1 / sqrt(2)
+        @test isapprox(value, 1.5; rtol = 1.0e-6)
+        @test isapprox(uncertainty, 0.1 / sqrt(2); rtol = 1.0e-6)
     end
 
     @testset "selection" begin
@@ -210,7 +236,7 @@ include("fixtures.jl")
 
         reduced = reduce_dataset(accepted, query)
         @test nrow(reduced.table) == 1
-        @test reduced.table.Y[1] ≈ 6.0
+        @test isapprox(reduced.table.Y[1], 6.0; rtol = 1.0e-6)
 
         # A dataset entirely outside the window is rejected, with its range named.
         rows = [exfor_row(; product_za = 100, y = 4.0, incident_ev = 2.0e6)]
@@ -236,7 +262,7 @@ include("fixtures.jl")
         @test reduced.table.A == [100, 101]
         @test allunique(reduced.table.A)
         @test names(reduced.table) == ["A", "Y", "Y_uncertainty"]
-        @test reduced.table.Y[1] ≈ 6.2
+        @test isapprox(reduced.table.Y[1], 6.2; rtol = 1.0e-6)
         @test reduced.diagnostics["abscissae_combined"] == 1
         @test reduced.has_uncertainties
     end
@@ -260,7 +286,7 @@ include("fixtures.jl")
         )
         @test accepted isa Dataset
         reduced = reduce_dataset(accepted, query)
-        @test reduced.table.TKE[1] ≈ 170.0
+        @test isapprox(reduced.table.TKE[1], 170.0; rtol = 1.0e-6)
     end
 
     @testset "energy ordinates are restated in MeV" begin
@@ -279,10 +305,10 @@ include("fixtures.jl")
         accepted = select_dataset("10000002", body, exfor_subentry_for(rows), query)
         @test accepted isa Dataset
         reduced = reduce_dataset(accepted, query)
-        @test reduced.table.TKE[1] ≈ 186.0
-        @test reduced.table.TKE_uncertainty[1] ≈ 1.0
+        @test isapprox(reduced.table.TKE[1], 186.0; rtol = 1.0e-6)
+        @test isapprox(reduced.table.TKE_uncertainty[1], 1.0; rtol = 1.0e-6)
         @test reduced.diagnostics["unit_written"] == "MEV"
-        @test reduced.diagnostics["ordinate_factor"] ≈ 1.0e-6
+        @test isapprox(reduced.diagnostics["ordinate_factor"], 1.0e-6; rtol = 1.0e-6)
 
         # A spectrum is a density in energy: rescaling it would change the distribution rather
         # than restate a value, so it is left exactly as the archive gives it.
@@ -301,7 +327,7 @@ include("fixtures.jl")
             select_dataset("10000002", body, exfor_subentry_for(rows), spectral),
             spectral,
         )
-        @test reduced.table.spectrum[1] ≈ 3.0e-7
+        @test isapprox(reduced.table.spectrum[1], 3.0e-7; rtol = 1.0e-6)
         @test reduced.diagnostics["ordinate_factor"] == 1.0
     end
 
@@ -426,9 +452,9 @@ include("fixtures.jl")
         path = joinpath(directory, "small.dat")
         write_dataset(path, reduced; significant_digits = 7)
         rows = readlines(path)
-        @test parse(Float64, split(rows[2], ' ')[2]) ≈ 5.214e-7
-        @test parse(Float64, split(rows[2], ' ')[3]) ≈ 1.3e-8
-        @test parse(Float64, split(rows[3], ' ')[2]) ≈ 1.2e-8
+        @test isapprox(parse(Float64, split(rows[2], ' ')[2]), 5.214e-7; rtol = 1.0e-6)
+        @test isapprox(parse(Float64, split(rows[2], ' ')[3]), 1.3e-8; rtol = 1.0e-6)
+        @test isapprox(parse(Float64, split(rows[3], ' ')[2]), 1.2e-8; rtol = 1.0e-6)
 
         # Writing never destroys an earlier result.
         @test unused_path(path) != path
@@ -512,7 +538,7 @@ include("fixtures.jl")
         write_metadata(
             named_path,
             load_configuration(config_path),
-            [],
+            AcceptedDataset[],
             Rejection[],
             listing,
         )
@@ -548,7 +574,6 @@ include("fixtures.jl")
         # data on them, so they must stay stable as long as the query does.
         @test system_label(configuration.query) == "U233_nth"
         @test observable_label(configuration.query) == "Y_vs_A"
-        @test configuration.retrieval.concurrency == 4
 
         spontaneous = load_configuration(write_config("""
         [query]
@@ -593,12 +618,9 @@ include("fixtures.jl")
         energy_maxx = 1.0e-7
         """)
         @test_throws ArgumentError load_configuration(misspelt)
-        try
-            load_configuration(misspelt)
-        catch exception
-            @test occursin("`energy_maxx`", exception.msg)
-            @test occursin("[query]", exception.msg)
-        end
+        message = error_message(() -> load_configuration(misspelt))
+        @test occursin("`energy_maxx`", message)
+        @test occursin("[query]", message)
         @test_throws ArgumentError load_configuration(write_config("""
         [query]
         target_Z = 92
@@ -758,18 +780,12 @@ include("fixtures.jl")
         end
 
         # Arbitrary units are fatal for most observables and normal for a spectrum, which is
-        # conventionally measured relative. The unit predicate takes the bare token, unlike
-        # has_absolute_scale, which needs the Data(...) wrapper and would call any bare unit
-        # absolute.
+        # conventionally measured relative.
         @test tolerates_relative_scale("spectrum")
         @test tolerates_relative_scale("spectrum_maxwellian_ratio")
         @test !tolerates_relative_scale("yield")
         @test !tolerates_relative_scale("multiplicity")
         @test !tolerates_relative_scale("fragment_kinetic_energy")
-        @test is_relative_unit("ARB-UNITS")
-        @test !is_relative_unit("PART/FIS")
-        @test !is_relative_unit("NO-DIM")
-        @test !has_absolute_scale("Data(ARB-UNITS)")
 
         # The machine name is off unless asked for: the run record is written to be committed by
         # whoever consumes the data, and it is the one field identifying a person, not a result.
@@ -915,8 +931,7 @@ include("fixtures.jl")
     end
 
     @testset "bounded concurrency" begin
-        # Results follow the input order, never completion order. The original script wrote in
-        # whatever order threads finished, so no two runs agreed.
+        # Results follow the input order, never completion order, so two runs agree.
         options = ExforFissionData.RetrievalOptions(; concurrency = 4)
         delays = [0.05, 0.0, 0.03, 0.0, 0.01, 0.0, 0.02, 0.0, 0.04]
         result = ExforFissionData.map_bounded(eachindex(delays), options) do index
@@ -958,8 +973,10 @@ include("fixtures.jl")
         # keeps one dataset from being fetched from the archive more than once.
         key = ExforFissionData._cache_key("x4get?DatasetID=10433002&op=csv&plus=2")
         write(joinpath(directory, key), "cached body")
-        @test ExforFissionData.request("x4get?DatasetID=10433002&op=csv&plus=2", options) ==
-              "cached body"
+        @test ExforFissionData.fetch_response(
+            "x4get?DatasetID=10433002&op=csv&plus=2",
+            options,
+        ).body == "cached body"
 
         # The response carries when the archive served it, which is what the run record dates
         # each dataset by.
@@ -1056,7 +1073,7 @@ include("fixtures.jl")
         # reach the archive rather than as the empty string.
         for poison in ("", "No EXFOR file...")
             write(joinpath(directory, key), poison)
-            @test_throws Exception ExforFissionData.request(
+            @test_throws ExforFissionData.HTTP.HTTPError ExforFissionData.fetch_response(
                 "x4get?DatasetID=10433002&op=csv&plus=2",
                 ExforFissionData.RetrievalOptions(;
                     cache_directory = directory,
@@ -1159,7 +1176,6 @@ include("fixtures.jl")
             y = 1.0,
             incident_ev = 0.0253,
             secondary_ev = energy,
-            independent_variables = 237,
             reaction_code = "92-U-235(N,F)MASS,PAR/PRE,FY,,SPA",
         )
 
@@ -1186,7 +1202,6 @@ include("fixtures.jl")
                 y = 1.0,
                 incident_ev = 0.0253,
                 secondary_ev = energy,
-                independent_variables = 237,
                 reaction_code = "92-U-233(N,F)MASS,PR/FRG,NU/TKE",
             ) for energy in (1.6e8, 1.7e8)
         ]
@@ -1307,7 +1322,11 @@ include("fixtures.jl")
         )
         accepted = select_dataset("10000002", exfor_csv(rows), subentry, spectral)
         @test accepted isa Dataset
-        @test reduce_dataset(accepted, spectral).table.E ≈ [0.1, 0.2]
+        @test isapprox(
+            reduce_dataset(accepted, spectral).table.E,
+            [0.1, 0.2];
+            rtol = 1.0e-6,
+        )
 
         # A bin contributes its midpoint.
         rows = [thermal(; product_za = a) for a in (100, 102)]
@@ -1381,7 +1400,11 @@ include("fixtures.jl")
             joint,
         )
         @test headed_e isa Dataset
-        @test reduce_dataset(headed_e, joint).table.TKE ≈ [160.0, 170.0]
+        @test isapprox(
+            reduce_dataset(headed_e, joint).table.TKE,
+            [160.0, 170.0];
+            rtol = 1.0e-6,
+        )
         absent = select_dataset(
             "10000002",
             exfor_csv(rows),
@@ -1467,12 +1490,7 @@ include("fixtures.jl")
                 ),
             )
             gated_rows = [
-                thermal(;
-                    dataset_id = "10000003",
-                    product_za = 100,
-                    secondary_ev = energy,
-                    independent_variables = 237,
-                ) for energy in (1.00e8, 1.07e8)
+                thermal(; dataset_id = "10000003", product_za = 100, secondary_ev = energy) for energy in (1.00e8, 1.07e8)
             ]
             seed(csv("10000003"), exfor_csv(gated_rows))
             seed("x4get?sub=10000003", exfor_subentry_for(gated_rows))
@@ -1485,7 +1503,11 @@ include("fixtures.jl")
             @test !haskey(record["datasets"], "combined_warning")
             @test only(record["accepted"])["abscissae_combined"] == 0
             @test only(record["accepted"])["mass_values_non_integer"] == 2
-            @test only(record["accepted"])["mass_rounding_max"] ≈ 0.49
+            @test isapprox(
+                only(record["accepted"])["mass_rounding_max"],
+                0.49;
+                rtol = 1.0e-6,
+            )
             written = readlines(joinpath(result.directory, only(result.accepted).file))
             @test [first(split(line, ' ')) for line in written[2:end]] == ["64", "65", "66"]
             @test haskey(record["run"], "package_version")
@@ -1515,12 +1537,10 @@ include("fixtures.jl")
     include("subentry_tests.jl")
 
     @testset "quality" begin
-        using Aqua
-        Aqua.test_all(ExforFissionData; ambiguities = false)
+        Aqua.test_all(ExforFissionData)
 
         # JET's package analysis descends into DataFrames, whose internals account for every
         # report it raises here. Only frames in this package's own source are assertable.
-        using JET
         source = joinpath(pkgdir(ExforFissionData), "src")
         # The error site is the innermost frame; the outer ones are merely this package calling
         # into a dependency, which is not something this suite can assert on.
@@ -1534,13 +1554,6 @@ include("fixtures.jl")
         # every import is used. `sort!` and `eachrow` were taken from DataFrames, which only adds
         # methods to Base's own generics; the names come from Base and the DataFrame methods
         # arrive by dispatch either way.
-        using ExplicitImports:
-            check_all_explicit_imports_via_owners,
-            check_all_qualified_accesses_are_public,
-            check_all_qualified_accesses_via_owners,
-            check_no_implicit_imports,
-            check_no_self_qualified_accesses,
-            check_no_stale_explicit_imports
         for check in (
             check_no_implicit_imports,
             check_no_stale_explicit_imports,

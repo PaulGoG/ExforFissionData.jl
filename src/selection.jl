@@ -261,13 +261,13 @@ function _misalignment(table::DataFrame, data::SubentryColumns)
             mass = data.values[m][i]
             charge = data.values[z][i]
             (ismissing(mass) || ismissing(charge)) && continue
-            za == 1000 * round(Int, charge) + floor(Int, mass) ||
+            za == ZA_CHARGE_FACTOR * round(Int, charge) + floor(Int, mass) ||
                 return "row $(i): csv ProdZA $(product[i]) against subentry ELEM, MASS \
                         $(charge), $(mass)"
         elseif z !== nothing
             charge = data.values[z][i]
             ismissing(charge) && continue
-            za ÷ 1000 == round(Int, charge) ||
+            za ÷ ZA_CHARGE_FACTOR == round(Int, charge) ||
                 return "row $(i): csv ProdZA $(product[i]) against subentry ELEM $(charge)"
         end
     end
@@ -304,17 +304,10 @@ end
 
 Decide whether one retrieved dataset answers `query`, and reduce it to the rows that do.
 
-The csv rendering has been screened by [`screen_dataset`](@ref), steps 1 to 5 below; the
-subentry DATA table then settles what the dataset is tabulated against. The first failure is
-reported.
+The csv rendering has been screened by [`screen_dataset`](@ref); the subentry DATA table then
+settles what the dataset is tabulated against. The first failure is reported.
 
-1. the dataset is non-empty and carries a reaction code;
-2. the `y:Value` column marks measurements rather than limits, and is not in arbitrary units;
-3. the reaction code satisfies the composed tag rule of the abscissa and ordinate;
-4. the reaction code carries no spectrum qualifier that contradicts the entrance channel; see
-   [`CHANNEL_FORBIDDEN_QUALIFIERS`](@ref);
-5. for induced fission, at least one row lies within the configured incident-energy window,
-   and the rows inside it share one incident energy;
+1–5. the csv tests of [`screen_dataset`](@ref), in its order;
 6. the subentry parses, and, for a spectrum, its energies are not in the centre-of-mass frame
    (`E-CM`, `DATA-CM`);
 7. the DATA table, restricted to the lines that carry a datum in this dataset's `DATA` column,
@@ -422,7 +415,7 @@ function select_dataset(screened::Screened, subentry_text::AbstractString, query
                  column$(pair), which the subentry DATA table does not carry",
             )
         end
-        quantity in ("neutron_energy", "total_kinetic_energy") || continue
+        quantity in ENERGY_ABSCISSAE || continue
         for index in indices
             unit = data.units[index]
             energy_factor(unit) === nothing && return Rejection(
@@ -436,11 +429,7 @@ function select_dataset(screened::Screened, subentry_text::AbstractString, query
 
     product = collect(skipmissing(table[!, COL_PRODUCT_ZA]))
     # An abscissa made of energies alone identifies no nuclide; every other one does.
-    identifies_product =
-        !all(
-            quantity -> quantity in ("neutron_energy", "total_kinetic_energy"),
-            query.abscissa,
-        )
+    identifies_product = !all(quantity -> quantity in ENERGY_ABSCISSAE, query.abscissa)
     if !identifies_product
         isempty(product) || return Rejection(
             identifier,
@@ -457,25 +446,26 @@ function select_dataset(screened::Screened, subentry_text::AbstractString, query
         )
         if !("charge" in query.abscissa)
             # A bare mass number, so it must look like one. `ProdZA` is 1000·Z + A whenever the
-            # product is charge-resolved, which for Z ≥ 10 exceeds 10⁴ — but for a light charge-
-            # resolved product it does not: an α from ternary fission is 2004, and taken as a
-            # mass number that is a fragment four times too heavy to exist. Bounding the value
-            # from above is what separates the two codings for light products, and no bare
-            # fission-fragment mass approaches the mass of the fissioning nucleus.
+            # product is charge-resolved, which for Z ≥ 10 reaches `CHARGE_CODED_MINIMUM` — but
+            # for a light charge-resolved product it does not: an α from ternary fission is 2004,
+            # and taken as a mass number that is a fragment four times too heavy to exist.
+            # Bounding the value from above is what separates the two codings for light
+            # products, and no bare fission-fragment mass approaches the mass of the fissioning
+            # nucleus.
             maximum(product) > MAXIMUM_FRAGMENT_MASS && return Rejection(
                 identifier,
                 code,
                 "abscissa $(query.abscissa) expects bare mass numbers, but the products \
                  reach $(maximum(product)), which is charge-coded rather than a mass",
             )
-            minimum(product) ≤ MINIMUM_FRAGMENT_MASS && return Rejection(
+            minimum(product) < MINIMUM_FRAGMENT_MASS && return Rejection(
                 identifier,
                 code,
                 "product mass numbers reach $(minimum(product)), too light to be a fission \
                  fragment",
             )
         else
-            minimum(product) < 1e4 && return Rejection(
+            minimum(product) < CHARGE_CODED_MINIMUM && return Rejection(
                 identifier,
                 code,
                 "abscissa $(query.abscissa) expects charge-coded products, but the \
