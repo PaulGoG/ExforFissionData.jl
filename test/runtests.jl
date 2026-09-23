@@ -1268,6 +1268,8 @@ include("fixtures.jl")
         end
     end
 
+    include("subentry_tests.jl")
+
     @testset "quality" begin
         using Aqua
         Aqua.test_all(ExforFissionData; ambiguities = false)

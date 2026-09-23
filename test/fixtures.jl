@@ -91,3 +91,95 @@ function test_query(;
         channel == "sf",
     )
 end
+
+"""
+    exfor_subentry(; kwargs...) -> String
+
+The text of an entry excerpt as `x4get?sub=` returns it, in the fixed-column layout of the EXFOR
+Formats Manual: subentry 001 of `entry`, then subentry `subentry`, each with its BIB section and
+its COMMON section or NOCOMMON, the second with its DATA section.
+
+# Keywords
+- `entry`, `subentry`: the entry number (5 characters) and the subentry identifier (8).
+- `bib`: the BIB records of `subentry`.
+- `entry_common`, `common`: the COMMON sections of subentry 001 and of `subentry`, as named
+  tuples of `headings`, `units` and `values`, optionally `pointers`; NOCOMMON when `headings`
+  is empty.
+- `headings`, `units`, `pointers`: the columns of the DATA section.
+- `rows`: the lines of the DATA section, one value per column, `missing` for a blank field.
+
+Counters are right-adjusted to end at columns 22 and 33; values are written with `string`, so
+`63.51` and `100.0` appear as such.
+"""
+function exfor_subentry(;
+    entry = "10000",
+    subentry = "10000002",
+    bib = ["REACTION   (92-U-235(N,F)MASS,PRE,FY)"],
+    entry_common = (headings = String[], units = String[], values = Float64[]),
+    common = (headings = String[], units = String[], values = Float64[]),
+    headings = ["MASS", "DATA"],
+    units = ["NO-DIM", "PC/FIS"],
+    pointers = fill(' ', length(headings)),
+    rows = [[100.0, 6.0]],
+)
+    system(keyword, counters...) =
+        rpad(keyword, 11) * join(lpad(string(counter), 11) for counter in counters)
+    # Six fields per record; a row with more continues onto further records.
+    records(fields) = [join(fields[i:min(i + 5, end)]) for i in 1:6:length(fields)]
+    function section(kind, column_headings, column_units, column_pointers, value_rows)
+        body = String[]
+        append!(
+            body,
+            records([rpad(h, 10) * p for (h, p) in zip(column_headings, column_pointers)]),
+        )
+        append!(body, records([rpad(unit, 11) for unit in column_units]))
+        for row in value_rows
+            fields = [value === missing ? " "^11 : lpad(string(value), 11) for value in row]
+            append!(body, records(fields))
+        end
+        n2 = kind == "COMMON" ? length(body) : length(value_rows)
+        return [
+            system(kind, length(column_headings), n2)
+            body
+            system("END" * kind, length(body))
+        ]
+    end
+    function common_section(section_content)
+        isempty(section_content.headings) && return [system("NOCOMMON", 0, 0)]
+        column_pointers =
+            get(section_content, :pointers, fill(' ', length(section_content.headings)))
+        return section(
+            "COMMON",
+            section_content.headings,
+            section_content.units,
+            column_pointers,
+            [section_content.values],
+        )
+    end
+    function bib_section(bib_records)
+        keywords = count(record -> !isempty(strip(first(record, 10))), bib_records)
+        return [
+            system("BIB", keywords, length(bib_records))
+            bib_records
+            system("ENDBIB", length(bib_records))
+        ]
+    end
+
+    entry_body = [bib_section(["TITLE      synthetic"]); common_section(entry_common)]
+    subentry_body = [
+        bib_section(bib)
+        common_section(common)
+        section("DATA", headings, units, pointers, rows)
+    ]
+    lines = [
+        system("ENTRY", entry)
+        system("SUBENT", entry * "001")
+        entry_body
+        system("ENDSUBENT", length(entry_body))
+        system("SUBENT", subentry)
+        subentry_body
+        system("ENDSUBENT", length(subentry_body))
+        system("ENDENTRY", 2)
+    ]
+    return join(lines, '\n') * '\n'
+end
