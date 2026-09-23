@@ -21,12 +21,10 @@ jobs:
       - name: Check formatting against .JuliaFormatter.toml
         shell: julia --color=yes {0}
         run: |
-          using Pkg
-          Pkg.activate("formatter")
-          Pkg.instantiate()
+          include(joinpath(pwd(), "formatter", "activate.jl"))
           using JuliaFormatter
-          formatted = all(format(directory; overwrite = false)
-                          for directory in ("src", "test", "scripts", "plotting"))
+          formatted = all(format(target; overwrite = false)
+                          for target in ("src", "test", "scripts", "plotting", "docs", "check.jl"))
           if !formatted
               @error "Formatting differs from .JuliaFormatter.toml. Run `julia check.jl` locally."
               exit(1)

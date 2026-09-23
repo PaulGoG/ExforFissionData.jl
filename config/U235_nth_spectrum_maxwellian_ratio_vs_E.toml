@@ -25,10 +25,13 @@ timeout = 60.0          # per-request timeout in seconds, positive
 retries = 4             # retry attempts after a failure, 0 to 10
 backoff = 1.0           # base of the exponential backoff in seconds, positive
 use_cache = true        # read and write the on-disk response cache
-refresh = false         # refetch every response and replace the cached copy
-offline = false         # serve every response from the cache and never contact the archive
+refresh = false         # refetch every response and replace the cached copy; needs use_cache, excludes offline
+offline = false         # serve every response from the cache; needs use_cache, excludes refresh
 save_subentries = true  # store the original EXFOR subentry text beside the data
+# max_age_days = 30    # refetch cached dataset responses older than this many days, positive
+# cache_directory = "" # response cache location; empty for the default scratch space
 
 [output]
 directory = "data"      # root for retrieved data, relative to the output root
 significant_digits = 7  # significant digits in tabulated output, 1 to 15
+# record_hostname = false # name the machine in the run record

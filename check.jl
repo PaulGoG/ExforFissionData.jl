@@ -6,17 +6,15 @@
 #
 # Mirrors the gate that CI applies, so a failure is reproducible locally.
 
-const DIRECTORIES = ("src", "test", "scripts", "plotting")
+const TARGETS = ("src", "test", "scripts", "plotting", "docs", "check.jl")
 
 let overwrite = !("--check" in ARGS)
     include(joinpath(@__DIR__, "formatter", "activate.jl"))
     using JuliaFormatter: format
 
     formatted = true
-    for directory in DIRECTORIES
-        path = joinpath(@__DIR__, directory)
-        isdir(path) || continue
-        formatted &= format(path; overwrite = overwrite)
+    for target in TARGETS
+        formatted &= format(joinpath(@__DIR__, target); overwrite = overwrite)
     end
 
     if !formatted
