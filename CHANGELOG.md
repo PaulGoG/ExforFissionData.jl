@@ -6,284 +6,88 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- CI runs the plotting test suite and uploads coverage.
+
+### Changed
+
+- The run record's `timestamp` is `timestamp_utc`, in UTC like every other date it carries.
+- Retrieval retries only transport failures; any other exception propagates instead of being
+  filed as a rejection.
+
+### Removed
+
+- The exported constants `QUANTITIES` and `REACTIONS`, which nothing used; the quantity and
+  reaction codes are read from `ORDINATE_QUANTITY` and `CHANNEL_REACTION`.
+
 ## [0.1.0] - 2026-09-23
 
 ### Added
 
 - Retrieval of fission observables from the IAEA EXFOR archive, driven by a validated TOML
-  configuration: seven abscissae against ten ordinates.
-- A run record, `retrieval.toml`, naming every dataset considered — those written, with what the
-  reduction did to each, and those excluded, with the reason. A dataset missing from the output
-  is otherwise indistinguishable from one the archive does not hold.
-- Reaction-code qualifiers bearing on a value's scale (`MSC`, `REL`, `CHN`, `DERIV`, `FCT`) and
-  on the inducing neutron spectrum (`MXW`, `SPA`, `FST`, `EPI`, `THR`) recorded per dataset.
-- A warning when one query returns datasets carrying more than one unit token, which must not be
-  renormalised together.
-- On-disk response caching, bounded concurrency, per-request timeouts and exponential backoff.
-- Survey figures in `plotting/`, detached from the retrieval package and carrying their own
-  environment.
-- Validation of every abscissa and ordinate combination against the live archive for
-  252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f).
-- A consistency check between the ordinate and the EXFOR quantity code. The quantity decides
-  which datasets the archive offers, and several ordinates impose no tags of their own, so asking
-  for `yield` under `NU` retrieved prompt multiplicities written as yields — fifteen such datasets
-  for 252-Cf — and under `E` retrieved kinetic energies. The pairing is now refused.
-- `check.jl`, applying the same formatting gate as CI and then the tests.
-- Configurations for 233-U, 235-U and 239-Pu alongside 252-Cf.
-- Mass yield configurations for all four systems. Validated by mass conservation: summing the
-  ordinate over a complete mass range gives 2.000 to three or four significant figures, and 1.00
-  over a single peak.
-- A note on two known miscoded 252-Cf multiplicity subentries, which the reaction code places
-  among pair data while their values are per fragment.
-- Joint `ν(A, TKE)` configurations for all four systems, and resonance-region variants for 235-U
-  whose incident-energy window reaches the measurements made on a resonance beam.
-- `CITATION.cff`, and activation scripts for the `docs/` and `test/` environments.
-- **Relative spectra are retrieved**, into a `relative/` directory of their own. The arbitrary-
-  units check rejected them, which contradicted this package's own stated policy: `REL` in the
-  reaction code is documented as a qualifier that is *recorded* rather than used to reject, and
-  every arbitrary-units spectrum carries it. Two rules disagreed about the same datasets and the
-  stricter one won silently. Since a relative dataset cannot be put on a common scale with
-  anything — not even another relative one — they are written apart from the absolute data rather
-  than mixed with it, so a reader that takes a whole directory cannot pick one up by accident.
-  Arbitrary units remain fatal for every other ordinate. For 235-U(n,f) this recovers 42 datasets
-  against the 15 in absolute units.
-- Configurations for the 235-U spectrum and its Maxwellian-ratio form.
-- Resonance-region configurations for 235-U, kept apart from the thermal ones by their entrance
-  channel.
-- Requests identify the client and its version in a `User-Agent` header. The archive is a shared
-  public service and this package asks its users to treat it as one; arriving anonymously while
-  saying so was inconsistent, and an identified client gives whoever runs the archive something
-  to look up and somebody to contact.
-- `AcceptedDataset` and `ReducedDataset` are exported. Reaching a written value goes through
-  both, so they were part of the result rather than internals, and a user should not have to name
-  an unexported type to read what a retrieval produced.
-- `[output] record_hostname`, off by default. The run record is written to be committed by
-  whoever consumes the data, and the machine name was the one field in it that identified a
-  person rather than a result; the rest of the platform fingerprint still attributes a run to
-  its hardware.
-- `plotting/coverage.jl`, which records several retrievals of one observable accumulating on
-  shared axes: each frame advances through the datasets the archive offered for a query, in the
-  identifier order the pipeline processes them, so that what was kept is seen against what was
-  considered. The animation of the four `ν(A)` retrievals is the figure in the README. Theme,
-  palette and axis labels common to the plotting scripts moved to `plotting/style.jl`.
-- Survey figures draw relative datasets in a panel of their own beneath the absolute ones,
-  sharing the abscissa, and put a spectrum on a log ordinate. One pair of linear axes asserted a
-  comparison the data does not support — arbitrary units against absolute ones — and collapsed
-  every spectrum but the largest onto the abscissa. A spectrum panel is labelled with the unit
-  tokens its datasets are written in rather than with an assumed one, since nothing is normalised
-  on the way out: for 252-Cf that is `1/EV` and `PC/FIS/MEV` together.
-- Spectrum configurations for 252-Cf, 233-U and 239-Pu, which the archive holds 156, 27 and 61
-  datasets for against the 125 for 235-U. The 252-Cf spontaneous-fission spectrum is a reference
-  standard and no incident-energy window narrows it; the retrieval writes 9 absolute datasets and
-  27 relative ones.
-- A third known miscoded entry, `40064031` (Kroshkin, 1970): its energy column is headed `MEV`
-  over values in keV, which the subentry's own text contradicts. Written as the archive states
-  it, and named in the README so that a consumer meets it in the documentation rather than in a
-  fit.
-- A survey of what the archive holds for the prompt-γ observables and for P(ν), recorded in the
-  README where it explains why both stay outside the observable set: `MLT` returns six
-  heterogeneous datasets across these four systems and none of them is mass-resolved, and every
-  P(ν) dataset carries the neutron number as row order alone, which is not an abscissa this
-  package is willing to invent.
-- `[retrieval] refresh`, which refetches every response a run touches and replaces the cached
-  copy. The archive revises entries and adds new ones, and a cached response notices neither.
-- The run record carries `package_version`, which identifies an installed package where no commit
-  can, and names every dataset in which rows sharing an abscissa value were combined.
-- A documentation page for the configurations, key by key.
-- `[retrieval] offline`, which serves every response from the cache and never contacts the
-  archive.
-- `[retrieval] max_age_days`: a cached dataset response older than this is requested again, the
-  cached copy being kept as the fallback.
-- The run record dates the listing (`listing_retrieved_utc`) and every dataset (`retrieved_utc`,
-  `from_cache`), and summarises the range under `[datasets]`, since the dates are what a consumer
-  cites as the state of the archive.
-- Rejection of a dataset whose spectrum qualifier contradicts its entrance channel. The archive
-  files a spectrum-averaged measurement under a dummy incident energy, so the window cannot catch
-  it: `326650021`, ²³⁵U independent yields from a fission-spectrum irradiation, is declared at
-  0.0253 eV and would pass a thermal window on its energy alone. `FIS`, the
-  fission-neutron-spectrum average, is among the recorded spectrum qualifiers.
+  configuration: seven abscissae, ten ordinates and four entrance channels.
+- A run record, `retrieval.toml`, naming every dataset kept or excluded with the reason, dated by
+  the listing and by each dataset.
+- Reaction-code qualifiers bearing on a value's scale or on the inducing neutron spectrum,
+  recorded per dataset.
+- The abscissa and the other independent variables read from the subentry DATA table, with
+  masses rounded to the nearest integer.
+- Relative spectra, written under `relative/` apart from the absolute data.
+- An on-disk response cache, with `offline`, `refresh` and `max_age_days` under `[retrieval]`.
+- Bounded concurrency, per-request timeouts and exponential backoff.
+- An identifying `User-Agent` header on every request.
+- `AcceptedDataset` and `ReducedDataset` exported.
+- Survey and coverage figures in `plotting/`, in an environment of their own.
+- 21 configurations for 252-Cf(sf), 235-U(n,f) thermal and resonance, 233-U(n,f) and
+  239-Pu(n,f).
+- `check.jl`, the formatting and test gate.
+- `CITATION.cff`.
 
 ### Changed
 
-- CSV.jl 1 is required.
-- **The abscissa is read from the subentry DATA table, aligned row by row with the csv
-  rendering.** The rendering truncates a non-integer mass: `23175002` tabulates 63.51, 64.91,
-  66.08 and 66.79, which arrived as 63, 64, 66 and 66, two points collapsing onto one mass number
-  and every mass low by up to a unit. It also drops the variables it does not recognise, so the
-  TKE column of `23268002` never reached the test for other variables. Masses, charges and
-  energies now come from the subentry's own columns, and whether another variable varies is
-  decided on its headings; the rendering still supplies the ordinate, its uncertainty, the unit
-  and the incident energy. What a consumer sees:
-  - masses are the subentry values rounded to the nearest integer, ties up;
-  - the run record carries, per dataset, `mass_values_non_integer`, `mass_rounding_max`,
-    `abscissa_binned`, and `combined_over`, the auxiliary columns that varied among rows
-    combined onto one abscissa value;
-  - a spectrum whose energies are in the centre-of-mass frame, `E-CM`, is rejected;
-  - a dataset whose csv rendering and subentry disagree, in row count or row by row, is
-    rejected;
-  - the subentry of every dataset that passes the csv tests is retrieved, not only of the
-    accepted ones, whether or not `save_subentries` writes it.
-
-  Impact on the shipped configurations, measured by re-running all 21 against the stored runs:
-  314 accepted datasets become 286, and nothing is newly admitted. Of the 28 no longer accepted,
-  16 are the thermal datasets the two `U235_nres` runs used to duplicate (the channel floor,
-  below), 7 are the wrong-observable acceptances of `U235_nth/Y_vs_A` that the `FY` and
-  hidden-variable rules already remove, `23268002` leaves `Cf252_sf/Y_vs_A` as tabulated
-  against TKE, and four centre-of-mass spectra leave the spectrum runs: `23764006`, `23764007`,
-  `41516007`, `41516008`. Among the 286, 28 datasets carry non-integer masses that are now
-  rounded rather than truncated, 18 take an abscissa from a bin pair, and 17 still combine rows
-  on one abscissa value, down from 21: the four Naik chain-yield sets, which are genuine repeats
-  through several nuclides; digitised curves whose neighbouring points fall within half a mass
-  unit, `23717003`, `23175002` and `21995028` among them; and `30099002`, combined over its
-  `MISC` flight-path column.
-- **The incident-energy window must lie inside its channel's interval and defaults to it.**
-  `channel = "nth"` with no `energy_max` used to validate and file every incident energy under a
-  thermal directory. The intervals are `nth` up to 0.1 eV, `nres` 0.1 eV to 100 keV and `nfast`
-  100 keV to 20 MeV, set from the physics of each region — the first resonances, the Doppler
-  width against the level spacing, the end of the unresolved resonance region — and documented
-  with their sources. The shipped `U235_nres_*` configurations now state the floor, 0.1 eV, so
-  the resonance runs no longer duplicate the thermal datasets: `U235_nres/nu_vs_A` keeps the
-  GELINA measurement alone, 1 dataset of the 11 it held, and `U235_nres/nu_vs_A_TKE` 1 of 7;
-  the thermal datasets remain in the `U235_nth` runs.
-
-- **A dataset tabulated against a variable the abscissa does not hold is rejected where that
-  variable varies.** The rendering declares what a dataset is tabulated against in `indVars`, and
-  that column went unread. `23591005`, a 235-U mass yield at nine fragment kinetic energies, was
-  written as one yield per mass by a mean over the nine.
-- **A dataset holding several incident energies inside the window is rejected**, naming them,
-  where its rows used to be combined across energies.
-- **`yield` requires the `FY` tag.** The quantity code `FY` also files the most probable charge
-  against mass, and six `MASS,PAR,ZP` datasets for 235-U were written among the mass yields at
-  values near 40. Of the 314 datasets the shipped configurations accepted, these rules remove
-  seven, all from `U235_nth/Y_vs_A`, and admit nothing new.
-- A configuration section or key the loader does not know is refused, as is an incident-energy
-  window on `sf`. A misspelt `energy_max` used to leave the window open to every energy.
-- A response failing the column contract raises `LayoutError`. One such dataset is still recorded
-  as a rejection; every dataset failing it stops the run, which previously ended by reporting
-  that nothing in the archive matched.
-- The manifests are no longer tracked; the formatter is pinned by an equality bound in
-  `formatter/Project.toml`, and the plotting and test environments carry `[compat]`.
-- Figures are drawn on a 900 × 600 canvas with LaTeX axis labels, where they were sized for a
-  single journal column.
-- No documented invocation passes `--project`; every script activates its own environment.
-- **One name per quantity, everywhere it appears.** The configuration vocabulary, the output
-  layout, the file names and the column headers now draw on a single table of quantities, so a
-  name learned in one place is the name everywhere.
-  - Configurations spell a quantity out — `multiplicity`, `total_kinetic_energy`,
-    `spectrum_maxwellian_ratio` — where they carried symbols and camelCase (`nu`, `TKE`,
-    `spectrumRatioMXW`). Paths, file names and column headers carry the symbol the literature
-    uses, `nu`, `TKE`, `Y`, `A_p`.
-  - An abscissa is a **list** of quantities, because it is a joint index:
-    `abscissa = ["mass", "total_kinetic_energy"]`. `ATKE` and `ZAp` were composite tokens naming
-    a pair with no vocabulary of their own, and now they are not vocabulary items at all.
-  - Retrievals are written to `data/<system>/<observable>/` — one directory per fissioning
-    system, one subdirectory per observable, the measurements directly inside it. The old layout
-    was `data/<target>_<reaction>_<ordinate><abscissa>/data/`, which named a path segment `data`
-    inside a `data` root and concatenated four tokens with no relation stated between them.
-  - A system is an element symbol, a mass number and an **entrance channel**: `Cf252_sf`,
-    `U235_nth`, `U235_nres`. `0f` was an EXFOR reaction code rather than a name, and the
-    resonance runs needed an output directory of their own — `data/resonance/` — precisely
-    because the old label could not tell them from the thermal ones. The channel does that now.
-  - The observable directory is the ordinate, `vs`, then the abscissa symbols: `nu_vs_A_TKE`,
-    `Y_vs_A`, `spectrum_maxwellian_ratio_vs_E`. `vs` is what makes a name a statement rather than
-    a list of symbols.
-  - An uncertainty column is `<quantity>_uncertainty`, after the quantity it belongs to, where it
-    was `err<quantity>` before. `errspectrumRatioMXW` was unreadable, and an error is not an
-    uncertainty. The same holds of `ReducedDataset.table`, whose ordinate column is named for the
-    quantity rather than `value`.
-  - `AcceptedEntry` is `AcceptedDataset` and `Reduced` is `ReducedDataset`; `query_label` is
-    replaced by `system_label` and `observable_label`, one for each directory it now names.
-- **The target is named by charge and mass**, `target_Z` and `target_A`, which identify a nuclide
-  unambiguously. The EXFOR nuclide symbol is formed from them, so the symbol and the numbers
-  beside it cannot disagree. `element_symbol` is exported.
-- **`[query] reaction` and `[query] quantity` are gone.** The reaction code follows from the
-  entrance channel and the quantity code from the ordinate; both were keys that could only be
-  redundant or wrong. The ordinate–quantity pairing in particular was validated and refused, which
-  is one way of saying it should never have been written down twice.
-- **The run record drops the same keys, and `[query] spontaneous` with them.** The rule that
-  emptied the configuration applies to what the configuration is recorded as: spontaneity is the
-  channel being `sf`, and a record cannot state it and the channel and have them agree only by
-  luck. `[query] channel` is what remains, and it is the field a consumer keys on — `n,f` is the
-  reaction code of a thermal run and of a resonance run alike, so nothing else in the record
-  separates the two. The reaction code the archive actually returned is not derivable from
-  anything and stays where it was, on each entry of `[[accepted]]`. Records written before this
-  change carry the three keys; nothing reads them, and deleting those three lines migrates a
-  record in place.
-- Figure labels are typeset from the channel: `²³³U(nth,f)`, `²⁵²Cf(sf)`, with the channel spelled
-  as the field spells it. They were formed from the reaction code, which gave every 235-U figure
-  the same label whether it came from the thermal or the resonance window.
-- A configuration is refused if its ordinate repeats a quantity of its abscissa, which would write
-  two columns under one name.
-- `[output] digits` is now `[output] significant_digits`, and rounds to significant digits. The
-  old name meant decimal places, which is a statement about the scale of a quantity rather than
-  about its precision.
-- **The dataset listing is requested from the archive on every run that is not offline.** It used
-  to be served from the cache forever, so an entry added to the archive after the first run was
-  never discovered. A response the archive cannot serve falls back to the cached copy with a
-  warning naming the copy's date.
-
-### Removed
-
-- The test for other variables read from the csv rendering's `indVars` column, superseded by the
-  same test over the headings of the subentry DATA table.
+- One quantity vocabulary throughout: output is written to `data/<system>/<observable>/`,
+  configurations name quantities in words, paths and headers carry their symbols, and an
+  uncertainty column is `<quantity>_uncertainty`.
+- The target is named by `target_Z` and `target_A`.
+- `[query] reaction`, `quantity` and `spontaneous` are no longer in configurations or run
+  records; the channel and the ordinate determine them.
+- The incident-energy window lies inside the channel's interval and defaults to it; the
+  `U235_nres` runs no longer duplicate the thermal datasets.
+- A dataset tabulated against a variable the abscissa does not hold is rejected where that
+  variable varies (`23591005`, `23268002`).
+- `yield` requires the `FY` tag, which removes six `MASS,PAR,ZP` datasets for 235-U from the mass
+  yields.
+- Centre-of-mass spectra are rejected (`23764006`, `23764007`, `41516007`, `41516008`).
+- The dataset listing is requested on every run that is not offline.
+- `[output] significant_digits` replaces `digits` and rounds to significant digits.
+- The manifests are no longer tracked.
 
 ### Fixed
 
-- Isomer resolution averaged the archive's totals together with the states they are totals of
-  when a nuclide carried more than one unmarked row. The unmarked rows alone are combined.
-- The package revision was asked of whatever repository enclosed the package directory. For an
-  installed package that is the depot's parent, a home directory under version control for
-  instance, whose commit was then recorded as the package's.
-- The documentation called an EXFOR entry immutable once published. Entries are revised, and the
-  subentries this package stores record it in their own `HISTORY`.
-- The documentation said rows sharing an abscissa value were "genuine repeats". Most are
-  neighbouring points of a non-integer mass scale that the rendering truncates to integers, and
-  `23268002` is a Y(A, TKE) grid whose TKE column the rendering drops.
-- **Small ordinate values were written away.** Rounding to seven decimal places left an absolute
-  prompt fission neutron spectrum of order 1e-7 PC/FIS/MEV with one significant digit, wrote its
-  uncertainties as zero, and reduced a dataset of order 1e-8 to a column of zeros: of the six
-  absolute 235-U(n,f) spectra the thermal window admits, one was destroyed outright and five lost
-  three digits. Rounding now follows the significant digits of the value, so the written precision
-  no longer depends on the unit the archive happens to quote a quantity in.
+- Small ordinate values written away by rounding to decimal places.
+- The cache storing failed responses and serving them indefinitely.
+- The subentry of a pointer dataset requested under its nine-character identifier.
+- Isomer totals averaged together with their resolved states.
+- The package revision taken from an enclosing repository.
+- Arbitrary-units and upper-limit rows admitted as measurements.
 
-- **The response cache stored failures and served them forever.** A transient empty body, and the
-  application-level message the archive returns with HTTP 200 when it declines a request, were
-  both written to the cache as though they were data. Since an entry is otherwise fetched at most
-  once, one unlucky moment removed that dataset from every later run — silently, because the
-  dataset then failed the column check and was reported as a change in the csv layout. Measured on
-  a cache of 4516 responses: 19 entries were poisoned, and all 19 identifiers served correct data
-  when asked again. Unusable responses are now retried, never cached, and an existing poisoned
-  entry counts as a miss, so a cache written before this repairs itself on the next run.
-- A body the archive never sent is no longer reported as a layout change. That message sends the
-  reader to `src/schema.jl` to look for a problem that is not there.
-- The run record named the configuration by the absolute path it was read from. Consumers commit
-  these records, so that carried the directory layout of whoever ran the retrieval into other
-  repositories; it now records the file name.
-- `[compat]` pinned the `Dates` and `TOML` standard libraries to patch versions, which constrains
-  nothing useful and can make a declared Julia floor unsatisfiable.
-- The subentry of a pointer dataset — an identifier with a ninth character, such as `400170021` —
-  was requested under the nine-character identifier, which the archive answers with
-  `-?-No such data in the database-`. That message was cached and written out as the subentry
-  text of 34 datasets across the shipped configurations. The subentry is now requested by its
-  eight characters, and the message is no longer taken for data.
+### Corrections relative to the `legacy` branch
 
-Corrections relative to the script this package replaces, preserved on the `legacy` branch:
-
-- The arbitrary-units rejection compared each character of the value-kind column against the
-  string `"ARB"` and so never fired. Such rows carry no scale and are now excluded; they account
-  for 20 of 1594 rows sampled across 126 datasets.
-- Upper limits, which the same column marks with a `Max(` prefix, were written as measurements.
-- The `(Z, A')` export passed a three-name header for a four-column frame when a dataset quoted
-  no uncertainties, which CSV.jl does not reject: it wrote a malformed file with the fourth value
-  on its own line.
-- The ordinate rescaling multiplied by ten until the maximum fell in a fixed interval, guessing
-  the normalisation from the data range. It threw on a missing ordinate and looped forever when
-  the maximum was zero. No normalisation is applied now.
-- The incident-energy window tested the first row and then admitted every energy in the dataset,
-  which averaged excitation functions into single numbers.
-- Duplicate abscissa values received one unweighted mean regardless of cause. Incident energy,
-  isomeric states and genuine repeats are now distinguished and treated separately.
-- Light charge-coded products passed the bare-mass test: `ProdZA` is `1000·Z + A`, so an α from
-  ternary fission is 2004, below the 10⁴ threshold and four times too heavy to be a fragment.
+- The value-kind column was misread: the arbitrary-units test compared single characters against
+  `"ARB"` and never fired, and `Max(` upper limits were written as measurements.
+- The `(Z, A')` export passed a three-name header for four columns when a dataset quoted no
+  uncertainties, and wrote a malformed file.
+- The ordinate rescaling guessed a normalisation from the data range, threw on a missing ordinate
+  and looped forever on a zero maximum; no normalisation is applied.
+- The incident-energy window tested the first row and admitted every energy in the dataset,
+  averaging excitation functions into single numbers.
+- Duplicate abscissa values received one unweighted mean regardless of cause; incident energy,
+  isomeric states and genuine repeats are treated separately.
+- Light charge-coded products passed the bare-mass test: an α from ternary fission, `ProdZA`
+  2004, fell below the 10⁴ threshold.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
+
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/PaulGoG/ExforFissionData.jl/releases/tag/v0.1.0

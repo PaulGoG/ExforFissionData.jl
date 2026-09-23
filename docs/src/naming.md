@@ -11,9 +11,9 @@ path — but the *quantity* does not, and the mapping between the two registers 
 `src/reaction_codes.jl` rather than a convention anyone has to remember.
 
 The corollary is the rule that decides the hard cases: **a name says what the thing is, not what
-was convenient to type.** `Y_A_TKE` names three symbols and no relation between them; `Y_vs_A_TKE`
-is a statement. `Data` as a suffix carries nothing. `err` names a different concept from the one
-it was used for — an error is not an uncertainty.
+is convenient to type.** `Y_A_TKE` names three symbols and no relation between them; `Y_vs_A_TKE`
+is a statement. `Data` as a suffix carries nothing. `err` names the wrong concept for an
+uncertainty column — an error is not an uncertainty.
 
 This page is the vocabulary as this package applies it: the source, the configurations, the output
 layout and the figures. Anything reading the retrieved data meets the same names, because the
@@ -73,17 +73,19 @@ leaves the reader to work out which quantity it belongs to.
 | variable, field, keyword | `lowercase_snake_case` | `abscissa_columns`, `significant_digits` |
 | constant | `SCREAMING_SNAKE_CASE` | `MAXIMUM_FRAGMENT_MASS` |
 
+The nuclide numbers keep their symbols: `target_Z` and `target_A`, as configuration keys and as
+fields.
+
 The exported API is ASCII-typeable: every public function can be called without a compose key.
 
-Verb prefixes are a small closed set — `read_`, `write_`, `build_`, `load_`, `run_`, `is_` — and
-a function that fits none of them is named for what it returns. `load_<thing>` reads *and*
-validates, which is why the configuration entry point is [`load_configuration`](@ref) and not
-`read_configuration`.
+An action is `verb_object` — `parse_dataset`, `fetch_response`, `select_dataset`,
+`reduce_dataset`, `write_dataset`; a predicate is `is_` or `has_`; anything else is named for
+what it returns. `load_` means read and validate.
 
 Type names carry no `Data` suffix and no adjective standing in for a noun: a type holding one
-reduced dataset is `ReducedDataset`, not `Reduced`; one holding an accepted dataset is
-`AcceptedDataset`, not `AcceptedEntry`. The result type of a package is `<Verb>Result`, one per
-package: here, [`RetrievalResult`](@ref).
+reduced dataset is `ReducedDataset`, and one holding an accepted dataset is `AcceptedDataset`.
+The result type of a package is `<Verb>Result`, one per package: here,
+[`RetrievalResult`](@ref).
 
 Abbreviations are permitted only where the field itself uses them — `TKE`, `TXE`, `EXFOR`,
 `AME`, `PFNS`, `sf` — and never as `err`, `param`, `calc`, `val`, `idx`, `num`, `cfg`, `pts`.
@@ -117,11 +119,10 @@ with the channel spelled as the field spells it and not as EXFOR codes it: `Cf25
 not a name, and the run record already carries the reaction code the archive returned for each
 dataset it accepted.
 
-The channel is what distinguishes a thermal from a resonance run of one observable. Before it
-existed, the two differed only by a numeric suffix and one of them had to be given an output
-directory of its own to keep them apart. Nothing else in the record can draw that line: `n,f` is
-the reaction code of a thermal run and of a resonance run alike, which is why the channel, and
-not the code, is what a figure label is keyed on.
+The channel is what distinguishes a thermal from a resonance run of one observable, and it gives
+each run a directory of its own under the same rule. Nothing else in the record can draw that
+line: `n,f` is the reaction code of a thermal run and of a resonance run alike, which is why the
+channel, and not the code, is what a figure label is keyed on.
 
 ## Directories, files and headers
 
@@ -130,15 +131,16 @@ data/
 └── <system>/                        Cf252_sf, U235_nth, …
     └── <ordinate>_vs_<abscissa>/    nu_vs_A, nu_vs_A_TKE, spectrum_maxwellian_ratio_vs_E
         ├── retrieval.toml           the run record
-        ├── <accession>_<Author>_<year>.dat
+        ├── <identifier>_<Author>_<year>.dat
         ├── relative/                arbitrary units, apart from the absolute data
         └── subentries/
-            └── <accession>_<Author>_<year>.txt
+            └── <identifier>_<Author>_<year>.txt
 ```
 
-One directory per system, one subdirectory per observable, one file per measurement. The
-directory carries the quantity and the file carries the provenance, which is what makes the
-accession number recoverable from a figure legend.
+One directory per system, one subdirectory per observable, one file per measurement, named by
+the dataset's identifier: the first eight characters of an identifier are the subentry accession
+number; a ninth character marks a pointer into it. The directory carries the quantity and the file
+carries the provenance, which is what makes the identifier recoverable from a figure legend.
 
 `vs` is what makes an observable name a statement rather than a list of symbols. An abscissa is a
 **list** of quantities, because it is a joint index, so `["mass", "total_kinetic_energy"]` needs
