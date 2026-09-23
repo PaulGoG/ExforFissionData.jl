@@ -123,7 +123,7 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         catch exception
             # A response that cannot be read is a property of that response and is recorded;
             # anything else is a defect of this package and must not be filed as a rejection.
-            exception isa Union{LayoutError, ArgumentError, CSV.Error} || rethrow()
+            exception isa Union{LayoutError, ArgumentError, CSV.ParseError} || rethrow()
             exception isa LayoutError && push!(layout_failures, exception.msg)
             Rejection(identifier, "", "parse failed: $(sprint(showerror, exception))")
         end

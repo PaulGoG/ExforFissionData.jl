@@ -9,10 +9,10 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-CSV = "0.10"
+CSV = "1"
 CairoMakie = "0.15"
 DataFrames = "1"
-LaTeXStrings = "1"
+LaTeXStrings = "1.4"
 MathTeXEngine = "0.6"
 Statistics = "1"
 TOML = "1"

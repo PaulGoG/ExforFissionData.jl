@@ -210,7 +210,7 @@ function fetch_response(
                  $(cache_directory(options))"))
     end
     if usable && !options.refresh && !listing
-        age_days = Dates.value(Dates.now(Dates.UTC) - cached_at) / 86_400_000
+        age_days = (Dates.now(Dates.UTC) - cached_at) / Dates.Day(1)
         age_days ≤ options.max_age_days && return Response(cached, cached_at, true)
     end
 

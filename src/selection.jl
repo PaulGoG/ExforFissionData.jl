@@ -114,7 +114,7 @@ function parse_dataset(identifier::AbstractString, body::AbstractString)
         DataFrame;
         header = 1,
         normalizenames = false,
-        silencewarnings = true,
+        on_error = :collect,
         stringtype = String,
     )
     validate_header(names(table), "dataset $(identifier)")

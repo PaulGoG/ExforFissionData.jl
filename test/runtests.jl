@@ -1536,6 +1536,7 @@ include("fixtures.jl")
         # arrive by dispatch either way.
         using ExplicitImports:
             check_all_explicit_imports_via_owners,
+            check_all_qualified_accesses_are_public,
             check_all_qualified_accesses_via_owners,
             check_no_implicit_imports,
             check_no_self_qualified_accesses,
@@ -1549,9 +1550,11 @@ include("fixtures.jl")
         )
             @test check(ExforFissionData) === nothing
         end
-        # `check_all_qualified_accesses_are_public` is deliberately not among them. `CSV.read` is
-        # CSV.jl's documented entry point and the owner of the name, but the module neither
-        # exports it nor declares it public, and neither does `CSV.File`. The check would report
-        # an omission upstream as a defect here.
+        # `Base.IOError` is what `run` throws when git is absent from the machine, and Base
+        # declares no public name for it.
+        @test check_all_qualified_accesses_are_public(
+            ExforFissionData;
+            ignore = (:IOError,),
+        ) === nothing
     end
 end

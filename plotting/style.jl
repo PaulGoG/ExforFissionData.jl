@@ -105,7 +105,7 @@ function read_dataset(path::AbstractString)
         delim = ' ',
         ignorerepeated = true,
         header = 1,
-        silencewarnings = true,
+        on_error = :collect,
     )
 end
 
