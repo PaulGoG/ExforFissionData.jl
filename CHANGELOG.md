@@ -88,6 +88,13 @@ Notable changes to ExforFissionData.jl. The format follows
 - The run record carries `package_version`, which identifies an installed package where no commit
   can, and names every dataset in which rows sharing an abscissa value were combined.
 - A documentation page for the configurations, key by key.
+- `[retrieval] offline`, which serves every response from the cache and never contacts the
+  archive.
+- `[retrieval] max_age_days`: a cached dataset response older than this is requested again, the
+  cached copy being kept as the fallback.
+- The run record dates the listing (`listing_retrieved_utc`) and every dataset (`retrieved_utc`,
+  `from_cache`), and summarises the range under `[datasets]`, since the dates are what a consumer
+  cites as the state of the archive.
 
 ### Changed
 
@@ -162,6 +169,10 @@ Notable changes to ExforFissionData.jl. The format follows
 - `[output] digits` is now `[output] significant_digits`, and rounds to significant digits. The
   old name meant decimal places, which is a statement about the scale of a quantity rather than
   about its precision.
+- **The dataset listing is requested from the archive on every run that is not offline.** It used
+  to be served from the cache forever, so an entry added to the archive after the first run was
+  never discovered. A response the archive cannot serve falls back to the cached copy with a
+  warning naming the copy's date.
 
 ### Fixed
 
@@ -197,6 +208,11 @@ Notable changes to ExforFissionData.jl. The format follows
   repositories; it now records the file name.
 - `[compat]` pinned the `Dates` and `TOML` standard libraries to patch versions, which constrains
   nothing useful and can make a declared Julia floor unsatisfiable.
+- The subentry of a pointer dataset — an identifier with a ninth character, such as `400170021` —
+  was requested under the nine-character identifier, which the archive answers with
+  `-?-No such data in the database-`. That message was cached and written out as the subentry
+  text of 34 datasets across the shipped configurations. The subentry is now requested by its
+  eight characters, and the message is no longer taken for data.
 
 Corrections relative to the script this package replaces, preserved on the `legacy` branch:
 

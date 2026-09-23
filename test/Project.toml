@@ -1,6 +1,7 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 ExforFissionData = "d02a33b8-3da8-4825-8b46-52714913fc73"
 ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
@@ -13,6 +14,7 @@ ExforFissionData = {path = ".."}
 [compat]
 Aqua = "0.8"
 DataFrames = "1"
+Dates = "1"
 ExplicitImports = "1"
 JET = "0.10, 0.11, 0.12"
 TOML = "1"

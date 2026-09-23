@@ -132,7 +132,7 @@ function _revision()
 end
 
 """
-    write_metadata(path, configuration, accepted, rejected) -> Nothing
+    write_metadata(path, configuration, accepted, rejected, listing) -> Nothing
 
 Write the run record: the query, the transport settings, the package revision, the platform, and
 every dataset considered — those written, with what the reduction had to do to them, and those
@@ -140,12 +140,17 @@ excluded, with the reason.
 
 The rejection list is the point of this file. A dataset missing from the output is otherwise
 indistinguishable from one the archive does not hold.
+
+The record also carries when the `listing` of datasets and each accepted dataset were obtained
+from the archive, and whether each came from the cache. Those dates are the state of the archive
+the retrieval reflects.
 """
 function write_metadata(
     path::AbstractString,
     configuration::Configuration,
     accepted::AbstractVector,
     rejected::AbstractVector{Rejection},
+    listing::Listing,
 )
     query = configuration.query
     record = Dict{String, Any}(
@@ -159,6 +164,8 @@ function write_metadata(
             "configuration" => basename(configuration.source),
             "system" => system_label(query),
             "observable" => observable_label(query),
+            "listing_retrieved_utc" => string(listing.retrieved),
+            "listing_from_cache" => listing.from_cache,
         ),
         # The same rule the configuration follows: a key that can only be redundant or wrong is
         # not written down. The EXFOR reaction code follows from the channel, the quantity code
@@ -183,6 +190,8 @@ function write_metadata(
                  inverse-variance weighted mean; `abscissae_combined` counts them per dataset",
             "abscissa_resolution" => "mass and charge numbers are the integers the csv rendering reports; it \
                  truncates a non-integer mass scale, which is preserved only in the subentry",
+            "archive_state" => "EXFOR as of the retrieval date recorded per dataset (retrieved_utc, UTC); \
+                 the listing date is when the archive was last asked which datasets exist",
         ),
         "platform" => _platform(configuration.record_hostname),
     )
@@ -193,6 +202,12 @@ function write_metadata(
         "rejected" => length(rejected),
         "units_present" => units,
     )
+    if !isempty(accepted)
+        record["datasets"]["retrieved_earliest_utc"] =
+            string(minimum(entry.retrieved for entry in accepted))
+        record["datasets"]["retrieved_latest_utc"] =
+            string(maximum(entry.retrieved for entry in accepted))
+    end
     flagged = [
         entry.dataset.identifier for entry in accepted if
         any(tag -> occursin(tag, entry.dataset.reaction_code), keys(SCALE_QUALIFIERS))
@@ -243,6 +258,8 @@ function write_metadata(
                 "relative" => is_relative_unit(entry.dataset.unit),
                 "qualifiers" => code_qualifiers(entry.dataset.reaction_code),
                 "file" => entry.file,
+                "retrieved_utc" => string(entry.retrieved),
+                "from_cache" => entry.from_cache,
             ),
             entry.reduced.diagnostics,
         ) for entry in accepted

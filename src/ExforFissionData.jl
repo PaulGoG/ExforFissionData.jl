@@ -36,7 +36,7 @@ module ExforFissionData
 
 using CSV: CSV
 using DataFrames: DataFrame, nrow
-using Dates: now
+using Dates: Dates, DateTime, now
 using HTTP: HTTP
 using Scratch: @get_scratch!
 using TOML: TOML

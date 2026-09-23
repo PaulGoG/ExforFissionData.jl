@@ -145,11 +145,15 @@ it.
 
 ## Retrieval
 
-Requests run under bounded concurrency with a per-request timeout and exponential backoff, and
-every response is cached on disk, so a re-run costs the archive nothing. The cache does not follow
-the archive, which revises entries and adds new ones; `refresh = true` under `[retrieval]`
-refetches what a run touches and replaces the cached copies. Datasets are processed and written in
-identifier order, so a re-run over unchanged responses reproduces its output exactly.
+Requests run under bounded concurrency with a per-request timeout and exponential backoff. Dataset
+responses are cached on disk and served from the cache on a re-run. The listing of datasets is
+requested on every run unless `offline = true` under `[retrieval]`, because the archive adds
+entries and a cached listing never discovers them. When the archive cannot be reached, a request
+falls back to the cached copy with a warning naming its date. `refresh = true` refetches
+everything a run touches and replaces the cached copies, and `max_age_days` expires cached dataset
+responses older than that many days. The run record dates the listing and every dataset, and
+those dates are what "EXFOR as of" means for a consumer of the data. Datasets are processed and
+written in identifier order, so a re-run over unchanged responses reproduces its output exactly.
 
 ## API
 

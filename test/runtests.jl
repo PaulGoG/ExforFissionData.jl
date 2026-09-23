@@ -22,6 +22,7 @@ using ExforFissionData:
     rejection_reason,
     resolve_isomers,
     select_dataset,
+    subentry_identifier,
     tag_rule,
     unused_path,
     validate_header,
@@ -29,6 +30,7 @@ using ExforFissionData:
     write_dataset,
     write_metadata,
     EXFOR_HEADER
+using Dates: DateTime
 
 include("fixtures.jl")
 
@@ -444,8 +446,24 @@ include("fixtures.jl")
         )
         record_path = joinpath(directory, "retrieval.toml")
         dataset = select_dataset("10", body, query)
-        accepted = [AcceptedDataset(dataset, reduce_dataset(dataset, query), "with.dat")]
-        write_metadata(record_path, load_configuration(config_path), accepted, Rejection[])
+        retrieved = DateTime(2026, 9, 23, 12)
+        accepted = [
+            AcceptedDataset(
+                dataset,
+                reduce_dataset(dataset, query),
+                "with.dat",
+                retrieved,
+                false,
+            ),
+        ]
+        listing = ExforFissionData.Listing(["10"], retrieved, false)
+        write_metadata(
+            record_path,
+            load_configuration(config_path),
+            accepted,
+            Rejection[],
+            listing,
+        )
         record = TOML.parsefile(record_path)
         @test record["run"]["configuration"] == "U233_nth_Y_vs_A.toml"
         # System and observable are recorded apart, as they are written apart on disk.
@@ -484,7 +502,13 @@ include("fixtures.jl")
             """,
         )
         named_path = joinpath(directory, "named.toml")
-        write_metadata(named_path, load_configuration(config_path), [], Rejection[])
+        write_metadata(
+            named_path,
+            load_configuration(config_path),
+            [],
+            Rejection[],
+            listing,
+        )
         @test TOML.parsefile(named_path)["platform"]["hostname"] == gethostname()
     end
 
@@ -605,6 +629,81 @@ include("fixtures.jl")
         use_cache = false
         refresh = true
         """))
+
+        # Offline serves the cache alone, so it needs one and cannot be combined with refresh,
+        # which always contacts the archive.
+        offline = load_configuration(write_config("""
+        [query]
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
+        ordinate = "yield"
+
+        [retrieval]
+        offline = true
+        """))
+        @test offline.retrieval.offline
+        @test offline.retrieval.max_age_days == Inf
+        @test !configuration.retrieval.offline
+        exception = try
+            load_configuration(write_config("""
+            [query]
+            target_Z = 92
+            target_A = 233
+            channel = "nth"
+            abscissa = ["mass"]
+            ordinate = "yield"
+
+            [retrieval]
+            use_cache = false
+            offline = true
+            """))
+            nothing
+        catch error
+            error
+        end
+        @test exception isa ArgumentError
+        @test occursin("offline", exception.msg)
+        @test_throws ArgumentError load_configuration(write_config("""
+        [query]
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
+        ordinate = "yield"
+
+        [retrieval]
+        offline = true
+        refresh = true
+        """))
+
+        # A cached dataset response expires after a positive number of days.
+        aged = load_configuration(write_config("""
+        [query]
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
+        ordinate = "yield"
+
+        [retrieval]
+        max_age_days = 30
+        """))
+        @test aged.retrieval.max_age_days === 30.0
+        for age in (0, -1)
+            @test_throws ArgumentError load_configuration(write_config("""
+            [query]
+            target_Z = 92
+            target_A = 233
+            channel = "nth"
+            abscissa = ["mass"]
+            ordinate = "yield"
+
+            [retrieval]
+            max_age_days = $(age)
+            """))
+        end
 
         # Spontaneous fission has no incident particle, so a window on it cannot be honoured.
         @test_throws ArgumentError load_configuration(write_config("""
@@ -821,6 +920,67 @@ include("fixtures.jl")
         @test ExforFissionData.request("x4get?DatasetID=10433002&op=csv&plus=2", options) ==
               "cached body"
 
+        # The response carries when the archive served it, which is what the run record dates
+        # each dataset by.
+        dataset_query = "x4get?DatasetID=10433002&op=csv&plus=2"
+        response = ExforFissionData.fetch_response(dataset_query, options)
+        @test response.from_cache
+        @test response.body == "cached body"
+        @test response.retrieved isa DateTime
+
+        # Offline serves the cache and refuses anything it does not hold.
+        offline = RetrievalOptions(; cache_directory = directory, offline = true)
+        @test ExforFissionData.fetch_response(dataset_query, offline).from_cache
+        uncached_query = "x4get?DatasetID=99999999&op=csv&plus=2"
+        message = try
+            ExforFissionData.fetch_response(uncached_query, offline)
+            ""
+        catch exception
+            @test exception isa ArgumentError
+            exception.msg
+        end
+        @test occursin("offline", message)
+
+        # The listing is always requested, since a cached listing never discovers an entry the
+        # archive adds; when the archive cannot be reached, the cached copy stands in.
+        listing_query = "x4list?Target=U-233&Reaction=n,f&Quantity=FY&txt"
+        write(joinpath(directory, ExforFissionData._cache_key(listing_query)), "10000002\n")
+        unreachable =
+            RetrievalOptions(; cache_directory = directory, retries = 0, timeout = 0.001)
+        response = @test_logs (:warn, r"cached") match_mode = :any begin
+            ExforFissionData.fetch_response(listing_query, unreachable; listing = true)
+        end
+        @test response.from_cache
+        @test response.body == "10000002\n"
+
+        # A dataset response older than max_age_days is requested again, and the cached copy
+        # is the fallback.
+        sleep(0.01)
+        expiring = RetrievalOptions(;
+            cache_directory = directory,
+            retries = 0,
+            timeout = 0.001,
+            max_age_days = 1e-9,
+        )
+        response = @test_logs (:warn, r"cached") match_mode = :any begin
+            ExforFissionData.fetch_response(dataset_query, expiring)
+        end
+        @test response.from_cache
+        @test response.body == "cached body"
+
+        listing = ExforFissionData.dataset_identifiers("U-233", "n,f", "FY", offline)
+        @test listing isa ExforFissionData.Listing
+        @test listing.identifiers == ["10000002"]
+        @test listing.from_cache
+
+        # A pointer dataset lives in a subentry shared with others, requested by the eight
+        # characters the archive knows it by.
+        @test subentry_identifier("400170021") == "40017002"
+        @test subentry_identifier("30666002I") == "30666002"
+        @test subentry_identifier("10864009") == "10864009"
+        @test_throws ArgumentError subentry_identifier("1086400")
+        @test_throws ArgumentError subentry_identifier("1086400912")
+
         # Requests identify the client. The archive is a shared public service, and this
         # package asks its users to be considerate of it, so it names itself and its version
         # rather than arriving anonymously.
@@ -845,6 +1005,9 @@ include("fixtures.jl")
         @test !is_usable_response("")
         @test !is_usable_response("   \n ")
         @test !is_usable_response("No EXFOR file...")
+        # The answer to an identifier the archive does not know, which was once cached and
+        # written out as subentry text.
+        @test !is_usable_response("-?-No such data in the database-")
 
         # A poisoned entry is a miss, not a response. Without this, a cache written before the
         # check existed would keep serving the failure forever; with it, the next run repairs
@@ -971,6 +1134,7 @@ include("fixtures.jl")
                 [retrieval]
                 cache_directory = "$(cache)"
                 save_subentries = false
+                offline = true
                 """,
             )
             configuration = load_configuration(configuration_file)
@@ -1010,6 +1174,13 @@ include("fixtures.jl")
             @test only(record["accepted"])["abscissae_combined"] == 1
             @test haskey(record["run"], "package_version")
             @test haskey(record["conventions"], "abscissa_resolution")
+            # Every response is dated, so the record states which archive it reflects.
+            @test record["run"]["listing_from_cache"] == true
+            @test haskey(record["run"], "listing_retrieved_utc")
+            @test only(record["accepted"])["from_cache"] == true
+            @test haskey(only(record["accepted"]), "retrieved_utc")
+            @test haskey(record["datasets"], "retrieved_latest_utc")
+            @test haskey(record["conventions"], "archive_state")
 
             # Every response failing the column contract is the rendering having changed, and
             # must stop the run instead of reporting an archive with nothing in it.

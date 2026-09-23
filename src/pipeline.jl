@@ -11,11 +11,16 @@ One dataset that survived selection, with its reduction and the file it was writ
 - `file::String`: the written file, relative to the retrieval directory. Datasets in arbitrary
   units are written under `relative/` rather than beside the absolute data; see
   [`is_relative_unit`](@ref).
+- `retrieved::DateTime`: when the csv response the dataset was read from was obtained from the
+  archive, in UTC.
+- `from_cache::Bool`: whether that response came from the cache.
 """
 struct AcceptedDataset
     dataset::Dataset
     reduced::ReducedDataset
     file::String
+    retrieved::DateTime
+    from_cache::Bool
 end
 
 """
@@ -77,10 +82,12 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
 
     @info "querying EXFOR" target = target reaction = query.reaction quantity =
         query.quantity abscissa = query.abscissa ordinate = query.ordinate
-    identifiers = dataset_identifiers(target, query.reaction, query.quantity, options)
-    @info "dataset identifiers returned" count = length(identifiers)
+    listing = dataset_identifiers(target, query.reaction, query.quantity, options)
+    identifiers = listing.identifiers
+    @info "dataset identifiers returned" count = length(identifiers) from_cache =
+        listing.from_cache retrieved = listing.retrieved
 
-    bodies = map_bounded(identifiers, options) do identifier
+    responses = map_bounded(identifiers, options) do identifier
         try
             dataset_csv(identifier, options)
         catch exception
@@ -91,19 +98,25 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     end
 
     accepted_datasets = Dataset[]
+    # The response each accepted dataset was read from, for the retrieval date in the record.
+    accepted_responses = Dict{String, Response}()
     rejected = Rejection[]
     parsed = 0
     layout_failures = String[]
-    for (identifier, body) in zip(identifiers, bodies)
-        if body isa Exception
+    for (identifier, response) in zip(identifiers, responses)
+        if response isa Exception
             push!(
                 rejected,
-                Rejection(identifier, "", "retrieval failed: $(sprint(showerror, body))"),
+                Rejection(
+                    identifier,
+                    "",
+                    "retrieval failed: $(sprint(showerror, response))",
+                ),
             )
             continue
         end
         outcome = try
-            selected = select_dataset(identifier, body, query)
+            selected = select_dataset(identifier, response.body, query)
             parsed += 1
             selected
         catch exception
@@ -113,7 +126,12 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             exception isa LayoutError && push!(layout_failures, exception.msg)
             Rejection(identifier, "", "parse failed: $(sprint(showerror, exception))")
         end
-        outcome isa Rejection ? push!(rejected, outcome) : push!(accepted_datasets, outcome)
+        if outcome isa Rejection
+            push!(rejected, outcome)
+        else
+            push!(accepted_datasets, outcome)
+            accepted_responses[identifier] = response
+        end
     end
     if parsed == 0 && !isempty(layout_failures)
         throw(
@@ -170,13 +188,23 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         end
         file = joinpath(destination, string(stem, ".dat"))
         write_dataset(file, reduced; significant_digits = configuration.significant_digits)
-        push!(accepted, AcceptedDataset(dataset, reduced, relpath(file, directory)))
+        response = accepted_responses[dataset.identifier]
+        push!(
+            accepted,
+            AcceptedDataset(
+                dataset,
+                reduced,
+                relpath(file, directory),
+                response.retrieved,
+                response.from_cache,
+            ),
+        )
     end
 
     if configuration.save_subentries && !isempty(accepted)
         map_bounded(accepted, options) do entry
             try
-                text = subentry_text(entry.dataset.identifier, options)
+                text = subentry_text(entry.dataset.identifier, options).body
                 write(
                     joinpath(
                         subentry_directory,
@@ -193,7 +221,7 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     end
 
     metadata_file = joinpath(directory, "retrieval.toml")
-    write_metadata(metadata_file, configuration, accepted, rejected)
+    write_metadata(metadata_file, configuration, accepted, rejected, listing)
 
     if isempty(accepted)
         @warn "no dataset in EXFOR matched this query" directory = directory record =

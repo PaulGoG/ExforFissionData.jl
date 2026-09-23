@@ -31,9 +31,16 @@ to every incident energy — and so is an energy window on `sf`, which has no in
 | `[retrieval]` | `refresh` | refetch every response and replace the cached copy; needs `use_cache` | boolean, default `false` |
 | `[retrieval]` | `save_subentries` | store the original EXFOR subentry text beside the data | boolean, default `true` |
 | `[retrieval]` | `cache_directory` | where responses are cached | string, default empty: a `Scratch.jl` space |
+| `[retrieval]` | `offline` | serve every response from the cache and never contact the archive; needs `use_cache`, excludes `refresh` | boolean, default `false` |
+| `[retrieval]` | `max_age_days` | a cached dataset response older than this is requested again, the cached copy kept as the fallback | positive number, default unlimited |
 | `[output]` | `directory` | root for retrieved data, relative to the output root | string, default `"data"` |
 | `[output]` | `significant_digits` | significant digits in tabulated output | 1 to 15 |
 | `[output]` | `record_hostname` | name the machine in the run record | boolean, default `false` |
+
+The listing of datasets is requested on every run that is not offline, because the archive adds
+entries and a cached listing never discovers them. Dataset responses are served from the cache.
+Anything the archive cannot serve falls back to the cached copy with a warning, and the run record
+carries the retrieval date of the listing and of every dataset.
 
 ## Shipped configurations
 

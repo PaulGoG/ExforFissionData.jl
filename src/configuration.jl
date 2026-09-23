@@ -70,6 +70,8 @@ const RETRIEVAL_KEYS = (
     "use_cache",
     "refresh",
     "cache_directory",
+    "offline",
+    "max_age_days",
     "save_subentries",
 )
 const OUTPUT_KEYS = ("directory", "significant_digits", "record_hostname")
@@ -282,6 +284,27 @@ function load_configuration(path::AbstractString)
              [retrieval].use_cache = true",
             ),
         )
+    offline = _optional(retrieval_section, "offline", false, "retrieval", source)
+    offline &&
+        !use_cache &&
+        throw(
+            ArgumentError(
+                "$(source): [retrieval].offline serves every response from the cache and \
+                 needs [retrieval].use_cache = true",
+            ),
+        )
+    offline &&
+        refresh &&
+        throw(
+            ArgumentError("$(source): [retrieval].offline never contacts the archive and \
+                 [retrieval].refresh always does; set one of them"),
+        )
+    max_age_days = _optional(retrieval_section, "max_age_days", Inf, "retrieval", source)
+    max_age_days > 0 || throw(
+        ArgumentError(
+            "$(source): [retrieval].max_age_days must be positive, got $(max_age_days)",
+        ),
+    )
     cache_directory =
         _optional(retrieval_section, "cache_directory", "", "retrieval", source)
     save_subentries =
@@ -322,6 +345,8 @@ function load_configuration(path::AbstractString)
             use_cache = use_cache,
             refresh = refresh,
             cache_directory = cache_directory,
+            offline = offline,
+            max_age_days = Float64(max_age_days),
         ),
         save_subentries,
         directory,

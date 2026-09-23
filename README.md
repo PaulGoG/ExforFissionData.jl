@@ -29,7 +29,8 @@ The full tree is [further down](#full-file-tree).
 ## Requirements
 
 Julia 1.12 or later through [juliaup](https://github.com/JuliaLang/juliaup). Retrieval needs
-network access to `nds.iaea.org`; a cached query does not.
+network access to `nds.iaea.org`, since every run requests the listing of datasets; a run with
+`offline = true` under `[retrieval]` needs none and works from the cache alone.
 
 ## Installation
 
@@ -164,8 +165,9 @@ redistributes EXFOR data nor claims any rights over what it retrieves.
 number of each dataset into both the file name and the run record, which is what makes those
 citations recoverable. A reference for the archive itself is in `CITATION.cff`.
 
-EXFOR is a shared public service. Responses are cached on disk, so a re-run costs the archive
-nothing — please leave that caching enabled, and keep the configured concurrency modest.
+EXFOR is a shared public service. Dataset responses are cached on disk, so a re-run costs the
+archive one listing request — please leave that caching enabled, and keep the configured
+concurrency modest.
 
 ## What a retrieval writes
 
@@ -180,6 +182,9 @@ data/Cf252_sf/nu_vs_A/
 └── subentries/
     └── 41425014_A.S.Vorobiev_2001.txt    # the original EXFOR subentry
 ```
+
+A dataset identifier with a ninth character, such as `400170021`, is a pointer into a subentry
+shared by several datasets, and the text stored beside it is that whole subentry.
 
 Data files are space-separated with a single header line — `A nu nu_uncertainty`, or `A nu` where
 the archive quotes no uncertainty:
@@ -414,13 +419,19 @@ a factor of 1000 too large and it is the one dataset in `Cf252_sf/spectrum_vs_E`
 ## Retrieval
 
 Requests run under a bounded concurrency limit with a per-request timeout and exponential
-backoff, and every response is cached on disk in a `Scratch.jl` space, so a re-run costs the
-archive nothing.
+backoff, and responses are cached on disk in a `Scratch.jl` space.
 
-The cache does not follow the archive. EXFOR revises entries — the `HISTORY` of a subentry records
-each alteration, and many of those retrieved here carry one — and adds new ones to a listing; a
-cached response notices neither. `refresh = true` under `[retrieval]` refetches everything a run
-touches and replaces the cached copies, and is what brings a retrieval up to date.
+EXFOR revises entries — the `HISTORY` of a subentry records each alteration, and many of those
+retrieved here carry one — and adds new ones. The listing of datasets is therefore requested on
+every run, since a cached listing never discovers an added entry, while dataset responses are
+served from the cache. `max_age_days` under `[retrieval]` expires cached dataset responses older
+than that many days, and `refresh = true` refetches everything a run touches and replaces the
+cached copies. A request the archive cannot serve falls back to the cached copy, with a warning
+naming its date. `offline = true` never contacts the archive and serves the cache alone.
+
+The run record carries the date of the listing, `listing_retrieved_utc`, and of every dataset,
+`retrieved_utc`, with whether each came from the cache. Those dates are what a consumer cites as
+the state of the archive the data reflects.
 
 Datasets are processed and written in identifier order, so a re-run over an unchanged archive
 reproduces its output exactly.
