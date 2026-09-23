@@ -150,15 +150,36 @@ const QUANTITY_SYMBOLS = Dict{String, String}(
     decade_labels(values) -> Vector{LaTeXString}
 
 Tick labels of a log axis labelled at decades: `10ⁿ`, with `10⁰` written `1` and `10¹` written
-`10`, since an exponent of zero or one says nothing a plain number does not.
+`10`, since an exponent of zero or one says nothing a plain number does not. A tick that is not
+a decade is written as a plain number to two significant digits.
 """
 function decade_labels(values)
     return map(values) do value
-        exponent = round(Int, log10(value))
+        exponent = log10(value)
+        if !isinteger(exponent)
+            rounded = round(value; sigdigits = 2)
+            return latexstring(isinteger(rounded) ? string(Int(rounded)) : string(rounded))
+        end
+        exponent = Int(exponent)
         exponent == 0 && return L"1"
         exponent == 1 && return L"10"
         return latexstring("10^{", exponent, "}")
     end
+end
+
+"""
+    decade_ticks(values) -> Vector{Float64}
+
+Ticks of a log axis at whole decades spanning the positive finite `values`: every decade, or
+every second or third one when a label per decade would crowd the axis.
+"""
+function decade_ticks(values)
+    positive = filter(value -> isfinite(value) && value > 0, values)
+    isempty(positive) && return [1.0]
+    low = floor(Int, log10(minimum(positive)))
+    high = ceil(Int, log10(maximum(positive)))
+    step = max(1, cld(high - low, 6))
+    return 10.0 .^ (low:step:high)
 end
 
 """

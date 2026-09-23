@@ -21,11 +21,18 @@ using DataFrames: ncol, nrow
 using Statistics: quantile
 
 """Marker size of a dataset already on the axes, and of the one that just arrived."""
-const MARKERSIZE = 9.0
-const MARKERSIZE_ARRIVING = 16.0
+const MARKERSIZE = 14.0
+const MARKERSIZE_ARRIVING = 22.0
 
 """Fraction of the run spent holding the completed figure before the animation loops."""
 const HOLD = 0.22
+
+"""Where the animation is written unless `--output` says otherwise: the README figure."""
+const DEFAULT_OUTPUT = joinpath(@__DIR__, "..", "docs", "src", "assets", "coverage.gif")
+
+"""Frames of the arrival sequence and frames per second, unless the options say otherwise."""
+const DEFAULT_FRAMES = 48
+const DEFAULT_FRAMERATE = 12
 
 """Quantile of the accumulated values that the axis limits follow, per side."""
 const LIMIT_QUANTILE = 0.995
@@ -88,16 +95,9 @@ else. Nothing is dropped from the written data on that account — this is a fig
 """
 function coverage(
     directories::AbstractVector{<:AbstractString};
-    output::AbstractString = joinpath(
-        @__DIR__,
-        "..",
-        "docs",
-        "src",
-        "assets",
-        "coverage.gif",
-    ),
-    frames::Integer = 48,
-    framerate::Integer = 12,
+    output::AbstractString = DEFAULT_OUTPUT,
+    frames::Integer = DEFAULT_FRAMES,
+    framerate::Integer = DEFAULT_FRAMERATE,
 )
     isempty(directories) && error("no retrieval directory given")
     panels = panel.(directories)
@@ -158,7 +158,7 @@ function coverage(
                     table[!, 2],
                     table[!, 3];
                     color = (colour, 0.35),
-                    linewidth = 1.2,
+                    linewidth = 1.5,
                     whiskerwidth = 0,
                     visible,
                 )
@@ -181,7 +181,6 @@ function coverage(
             text = system_notation(source.query),
             space = :relative,
             align = (:left, :top),
-            fontsize = 26,
         )
         text!(
             axis,
@@ -197,6 +196,8 @@ function coverage(
 
     mkpath(dirname(abspath(output)))
     total = frames + round(Int, HOLD * frames)
+    # One device pixel per unit: the animation is the README figure, and a raster at the
+    # publication density would run to tens of megabytes.
     record(figure, output, 1:total; framerate, loop = 0, px_per_unit = 1) do frame
         step = min(frame, frames) / frames
         # Nothing arrives during the hold, or the last dataset in would stay emphasised for the
@@ -260,13 +261,9 @@ function main(arguments::Vector{String})
     end
     path = coverage(
         directories;
-        output = get(
-            options,
-            "--output",
-            joinpath(@__DIR__, "..", "docs", "src", "assets", "coverage.gif"),
-        ),
-        frames = parse(Int, get(options, "--frames", "48")),
-        framerate = parse(Int, get(options, "--framerate", "12")),
+        output = get(options, "--output", DEFAULT_OUTPUT),
+        frames = parse(Int, get(options, "--frames", string(DEFAULT_FRAMES))),
+        framerate = parse(Int, get(options, "--framerate", string(DEFAULT_FRAMERATE))),
     )
     @info "animation written" path
     return 0

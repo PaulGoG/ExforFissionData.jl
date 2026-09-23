@@ -18,8 +18,21 @@ using DataFrames: ncol, nrow
 """Largest number of series that still yields a readable per-dataset legend."""
 const MAX_LEGEND_ENTRIES = 12
 
+"""
+Entries per legend row: three author-year labels at the theme size fill the standard canvas
+width, and the canvas grows by `LEGEND_ROW_HEIGHT` per row so the axes keep their size.
+"""
+const LEGEND_COLUMNS = 3
+const LEGEND_ROW_HEIGHT = 40
+
 """Ordinates that fall by orders of magnitude across their abscissa and need a log ordinate."""
 const LOG_ORDINATES = ("spectrum",)
+
+"""
+Marker size of a joint distribution. Thousands of points per dataset tile the plane at the theme
+size, so these markers are the one deliberate departure from it.
+"""
+const DENSE_MARKERSIZE = 7
 
 """
     survey(directory; format, output) -> String
@@ -96,7 +109,7 @@ function survey(
             y[finite];
             color = log10.(v[finite]),
             colormap = :viridis,
-            markersize = 7,
+            markersize = DENSE_MARKERSIZE,
             strokewidth = 0,
         )
         Colorbar(
@@ -123,9 +136,14 @@ function survey(
         end
 
         logscale = ordinate in LOG_ORDINATES
-        figure = Figure(;
-            size = length(groups) == 1 ? CANVAS : (CANVAS[1], CANVAS[2] + PANEL_HEIGHT),
-        )
+        legend_rows =
+            1 < length(tables) ≤ MAX_LEGEND_ENTRIES ? cld(length(tables), LEGEND_COLUMNS) :
+            0
+        height =
+            CANVAS[2] +
+            (length(groups) == 1 ? 0 : PANEL_HEIGHT) +
+            legend_rows * LEGEND_ROW_HEIGHT
+        figure = Figure(; size = (CANVAS[1], height))
         entries = Tuple{Any, String}[]
         axes = Axis[]
         for (row, (relative, selected)) in enumerate(groups)
@@ -134,6 +152,10 @@ function survey(
                 xlabel = row == length(groups) ? _axis_label(abscissa, 1) : "",
                 ylabel = _panel_label(ordinate, selected),
                 yscale = logscale ? log10 : identity,
+                yticks = logscale ?
+                         decade_ticks(
+                    reduce(vcat, [entry.table[!, 2] for entry in selected]),
+                ) : Makie.automatic,
                 ytickformat = logscale ? decade_labels : Makie.automatic,
             )
             row == length(groups) || hidexdecorations!(axis; ticks = false, grid = false)
@@ -143,13 +165,15 @@ function survey(
             # Beyond this many series a per-dataset legend takes the figure over and stops being
             # readable, so the count is stated instead and the record names the datasets. It goes
             # in the corner the data leaves free: a spectrum falls across the axes and clears the
-            # upper right, everything else here rises towards it.
-            length(tables) ≤ MAX_LEGEND_ENTRIES && continue
+            # upper right, everything else here rises towards it. A single dataset is named there
+            # too, since a legend of one entry says nothing a label does not.
+            1 < length(tables) ≤ MAX_LEGEND_ENTRIES && continue
             text!(
                 axis,
                 logscale ? 0.97 : 0.03,
                 0.95;
-                text = "$(length(selected)) datasets",
+                text = length(tables) == 1 ? last(only(entries)) :
+                       "$(length(selected)) datasets",
                 space = :relative,
                 align = (logscale ? :right : :left, :top),
                 fontsize = ANNOTATION_SIZE,
@@ -157,14 +181,13 @@ function survey(
         end
         length(axes) == 1 || linkxaxes!(axes...)
 
-        if length(tables) ≤ MAX_LEGEND_ENTRIES
+        if 1 < length(tables) ≤ MAX_LEGEND_ENTRIES
             Legend(
                 figure[0, 1],
                 first.(entries),
                 last.(entries);
                 orientation = :horizontal,
-                nbanks = cld(length(entries), 4),
-                labelsize = 20,
+                nbanks = cld(length(entries), LEGEND_COLUMNS),
             )
         end
         rowgap!(figure.layout, 10)
@@ -218,7 +241,6 @@ function _draw_series!(axis::Axis, selected::AbstractVector; logscale::Bool = fa
             y;
             color = colour,
             marker,
-            markersize = 12,
             strokecolor = stroke_colour(colour),
         )
         push!(entries, (marks, label))
