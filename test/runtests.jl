@@ -716,6 +716,40 @@ include("fixtures.jl")
         energy_max = 1.0e-7
         """))
 
+        # The window lies inside its channel's interval and defaults to it, so a thermal
+        # directory cannot hold a fast measurement.
+        channel_config(channel, window) = write_config("""
+        [query]
+        target_Z = 92
+        target_A = 235
+        channel = "$(channel)"
+        abscissa = ["mass"]
+        ordinate = "yield"
+        $(window)
+        """)
+        for (channel, window, needles) in [
+            ("nth", "energy_max = 1.0", ["nth", "1.0e-7"]),
+            ("nres", "energy_min = 0.0", ["nres"]),
+            ("nfast", "energy_max = 30.0", ["nfast"]),
+        ]
+            exception = try
+                load_configuration(channel_config(channel, window))
+                nothing
+            catch error
+                error
+            end
+            @test exception isa ArgumentError
+            for needle in needles
+                @test occursin(needle, exception.msg)
+            end
+        end
+        for (channel, bounds) in
+            [("nth", (0.0, 1.0e-7)), ("nres", (1.0e-7, 0.1)), ("nfast", (0.1, 20.0))]
+            query = load_configuration(channel_config(channel, "")).query
+            @test query.energy_min == bounds[1]
+            @test query.energy_max == bounds[2]
+        end
+
         # Arbitrary units are fatal for most observables and normal for a spectrum, which is
         # conventionally measured relative. The unit predicate takes the bare token, unlike
         # has_absolute_scale, which needs the Data(...) wrapper and would call any bare unit
@@ -1056,6 +1090,44 @@ include("fixtures.jl")
         @test !matches(rule, "92-U-235(N,F)MASS,PAR,ZP,,MXW")
         @test rejection_reason(rule, "92-U-235(N,F)MASS,PAR,ZP,,MXW") ==
               "missing required tag \"FY\""
+    end
+
+    @testset "a spectrum qualifier must agree with the channel" begin
+        conflict = ExforFissionData.channel_qualifier_conflict
+        @test conflict("nth", "92-U-235(N,F)ELEM/MASS,IND,FY,,FIS") == "FIS"
+        @test conflict("nfast", "92-U-235(N,F)ELEM/MASS,IND,FY,,MXW") === nothing
+        @test conflict("sf", "98-CF-252(0,F)MASS,PR,NU,,MXW") === nothing
+        @test conflict("nres", "92-U-235(N,F)ELEM/MASS,IND,FY,,MXW") == "MXW"
+
+        # 326650021: independent yields from a fission-spectrum irradiation, filed at the
+        # thermal energy. The window admits it on its energy alone; the qualifier does not.
+        rows(qualifier; incident_ev = 0.0253) = [
+            exfor_row(;
+                incident_ev = incident_ev,
+                product_za = za,
+                isomer = 0,
+                y = 6.0,
+                reaction_code = "92-U-235(N,F)ELEM/MASS,IND,FY,,$(qualifier)",
+            ) for za in (54133, 54134)
+        ]
+        query = test_query(; abscissa = ["charge", "product_mass"], ordinate = "yield")
+        rejected = select_dataset("q1", exfor_csv(rows("FIS")), query)
+        @test rejected isa Rejection
+        @test occursin("FIS", rejected.reason)
+        @test occursin("nth", rejected.reason)
+        @test select_dataset("q2", exfor_csv(rows("SPA")), query) isa Dataset
+
+        resonance = test_query(;
+            channel = "nres",
+            energy_min = 1.0e-7,
+            energy_max = 1.0e-3,
+            abscissa = ["charge", "product_mass"],
+            ordinate = "yield",
+        )
+        rejected =
+            select_dataset("q3", exfor_csv(rows("MXW"; incident_ev = 580.0)), resonance)
+        @test rejected isa Rejection
+        @test occursin("MXW", rejected.reason)
     end
 
     @testset "a projection needs every other variable held fixed" begin

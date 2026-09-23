@@ -136,10 +136,13 @@ that name the directories its data is written to.
 A system is an element symbol, a mass number and an **entrance channel** — `sf` spontaneous, `nth`
 thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel decides the EXFOR
 reaction code, so the configuration names the channel and never the code: the two can disagree
-only if both are written down. The window that actually selects datasets is `energy_min` and
-`energy_max`, and the channel has to agree with it.
+only if both are written down. The window that selects datasets is `energy_min` and
+`energy_max`; it defaults to the channel's interval — `nth` up to 0.1 eV, `nres` 0.1 eV to
+100 keV, `nfast` 100 keV to 20 MeV — and is refused outside it, so that a thermal directory
+cannot hold a fast measurement. The physics behind the bounds is in
+[the documentation](https://PaulGoG.github.io/ExforFissionData.jl/dev/#Entrance-channels).
 
-`U235_nres_nu_vs_A` and `U235_nres_nu_vs_A_TKE` widen the window to 1 keV, which is what the
+`U235_nres_nu_vs_A` and `U235_nres_nu_vs_A_TKE` span 0.1 eV to 1 keV, which is what the
 resonance-beam measurements need — a thermal window excludes them on their incident energy alone.
 They are a different system by name, `U235_nres` against `U235_nth`, so they land in a directory of
 their own without any special provision.
@@ -361,7 +364,12 @@ Three checks are worth naming because they are easy to get wrong:
   per mass number;
 - the quantity code `FY` files more than yields. `MASS,PAR,ZP` is the most probable charge against
   mass, which satisfies every mass rule, so `yield` requires the `FY` tag itself: six such
-  datasets for 235-U would otherwise sit among the mass yields at values near 40.
+  datasets for 235-U would otherwise sit among the mass yields at values near 40;
+- a spectrum qualifier that contradicts the channel rejects the dataset — `FST`, `FIS` and `EPI`
+  under `nth`; `MXW`, `FST` and `FIS` under `nres`; `EPI` under `nfast` — because the archive
+  files a spectrum-averaged measurement under a dummy energy. `326650021`, ²³⁵U independent
+  yields from a fission-spectrum irradiation, is declared at 0.0253 eV and would pass a thermal
+  window on its energy alone.
 
 ### Known miscoded entries
 

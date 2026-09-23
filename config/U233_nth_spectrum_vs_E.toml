@@ -15,8 +15,8 @@ ordinate = "spectrum"   # the observable; one of:
                         #   "total_kinetic_energy" | "post_neutron_total_kinetic_energy" |
                         #   "neutron_kinetic_energy" | "spectrum" |
                         #   "spectrum_maxwellian_ratio"
-energy_min = 0.0        # incident energy window, MeV, at least 0
-energy_max = 1.0e-7     # incident energy window, MeV, above energy_min
+energy_min = 0.0        # incident energy window, MeV, inside the channel interval:
+energy_max = 1.0e-7     #   nth 0 to 1.0e-7 | nres 1.0e-7 to 0.1 | nfast 0.1 to 20
 
 [retrieval]
 concurrency = 4         # simultaneous requests, 1 to 16

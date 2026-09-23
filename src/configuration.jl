@@ -17,7 +17,8 @@ What to retrieve: a fissioning system, an observable, and the incident-energy wi
 - `abscissa::Vector{String}`: the quantities the observable is tabulated against, one of
   [`ABSCISSAE`](@ref).
 - `ordinate::String`: one of [`ORDINATES`](@ref).
-- `energy_min::Float64`, `energy_max::Float64`: incident-energy window in MeV. Ignored for
+- `energy_min::Float64`, `energy_max::Float64`: incident-energy window in MeV, defaulting to
+  the channel's interval of [`CHANNEL_ENERGY_BOUNDS`](@ref) and lying inside it. Ignored for
   spontaneous fission, which has no incident particle.
 - `spontaneous::Bool`: derived from `channel`.
 """
@@ -177,8 +178,9 @@ Read and validate a retrieval configuration.
 Throws an `ArgumentError` naming the offending key when a value is missing, of the wrong type,
 outside its documented range, or not among its documented choices, and when a section or a key
 is not one the loader knows — a misspelt optional key would otherwise fall back to its default
-without a word. The abscissa and ordinate are
-additionally checked to form an expressible combination whose symbols stay distinct.
+without a word. The incident-energy window is additionally checked to lie inside the interval
+of its channel in [`CHANNEL_ENERGY_BOUNDS`](@ref), and the abscissa and ordinate to form an
+expressible combination whose symbols stay distinct.
 
 # Example
 
@@ -230,19 +232,32 @@ function load_configuration(path::AbstractString)
             )
         end
     end
-    energy_min = _optional(query_section, "energy_min", 0.0, "query", source)
-    energy_max = _optional(query_section, "energy_max", Inf, "query", source)
-    energy_min ≥ 0 || throw(
-        ArgumentError(
-            "$(source): [query].energy_min must be at least 0, got $(energy_min)",
-        ),
-    )
-    energy_max > energy_min || throw(
-        ArgumentError(
-            "$(source): [query].energy_max ($(energy_max)) must exceed [query].energy_min \
-             ($(energy_min))",
-        ),
-    )
+    if spontaneous
+        energy_min, energy_max = 0.0, Inf
+    else
+        channel_floor, channel_ceiling = CHANNEL_ENERGY_BOUNDS[channel]
+        energy_min = _optional(query_section, "energy_min", channel_floor, "query", source)
+        energy_max =
+            _optional(query_section, "energy_max", channel_ceiling, "query", source)
+        energy_min ≥ channel_floor || throw(
+            ArgumentError(
+                "$(source): [query].energy_min ($(energy_min) MeV) lies below channel \
+                 \"$(channel)\", whose incident energies span $(channel_floor) to $(channel_ceiling) MeV",
+            ),
+        )
+        energy_max ≤ channel_ceiling || throw(
+            ArgumentError(
+                "$(source): [query].energy_max ($(energy_max) MeV) lies above channel \
+                 \"$(channel)\", whose incident energies span $(channel_floor) to $(channel_ceiling) MeV",
+            ),
+        )
+        energy_max > energy_min || throw(
+            ArgumentError(
+                "$(source): [query].energy_max ($(energy_max)) must exceed [query].energy_min \
+                 ($(energy_min))",
+            ),
+        )
+    end
 
     # Rejects an abscissa and ordinate that cannot both impose alternative tags.
     tag_rule(abscissa, ordinate)

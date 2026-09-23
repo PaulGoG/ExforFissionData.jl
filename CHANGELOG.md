@@ -95,8 +95,21 @@ Notable changes to ExforFissionData.jl. The format follows
 - The run record dates the listing (`listing_retrieved_utc`) and every dataset (`retrieved_utc`,
   `from_cache`), and summarises the range under `[datasets]`, since the dates are what a consumer
   cites as the state of the archive.
+- Rejection of a dataset whose spectrum qualifier contradicts its entrance channel. The archive
+  files a spectrum-averaged measurement under a dummy incident energy, so the window cannot catch
+  it: `326650021`, ²³⁵U independent yields from a fission-spectrum irradiation, is declared at
+  0.0253 eV and would pass a thermal window on its energy alone. `FIS`, the
+  fission-neutron-spectrum average, is among the recorded spectrum qualifiers.
 
 ### Changed
+
+- **The incident-energy window must lie inside its channel's interval and defaults to it.**
+  `channel = "nth"` with no `energy_max` used to validate and file every incident energy under a
+  thermal directory. The intervals are `nth` up to 0.1 eV, `nres` 0.1 eV to 100 keV and `nfast`
+  100 keV to 20 MeV, set from the physics of each region — the first resonances, the Doppler
+  width against the level spacing, the end of the unresolved resonance region — and documented
+  with their sources. The shipped `U235_nres_*` configurations now state the floor, 0.1 eV, which
+  admits the same datasets as before.
 
 - **A dataset tabulated against a variable the abscissa does not hold is rejected where that
   variable varies.** The rendering declares what a dataset is tabulated against in `indVars`, and

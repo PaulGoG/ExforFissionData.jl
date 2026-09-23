@@ -135,15 +135,17 @@ Selection proceeds in the order below, and the first failure is reported:
 1. the dataset is non-empty and carries a reaction code;
 2. the `y:Value` column marks measurements rather than limits, and is not in arbitrary units;
 3. the reaction code satisfies the composed tag rule of the abscissa and ordinate;
-4. for induced fission, at least one row lies within the configured incident-energy window —
+4. the reaction code carries no spectrum qualifier that contradicts the entrance channel; see
+   [`CHANNEL_FORBIDDEN_QUALIFIERS`](@ref);
+5. for induced fission, at least one row lies within the configured incident-energy window —
    and only those rows are retained — and the retained rows share one incident energy;
-5. no independent variable the rendering declares, other than the abscissa's own, varies over
+6. no independent variable the rendering declares, other than the abscissa's own, varies over
    the retained rows; see [`varying_variables`](@ref);
-6. the product identification is consistent with the abscissa: present and mass-coded for the
+7. the product identification is consistent with the abscissa: present and mass-coded for the
    fragment-mass abscissae, present and charge-coded for the charge abscissae, and absent for
    the energy abscissae.
 
-Step 4 is a row filter rather than a whole-dataset test. An EXFOR dataset frequently reports the
+Step 5 is a row filter rather than a whole-dataset test. An EXFOR dataset frequently reports the
 same product at several incident energies; admitting all of them and combining them later would
 average an excitation function into a single number. For the same reason a window that still
 holds several energies of one dataset rejects it: the rows are different measurements, and the
@@ -184,6 +186,16 @@ function select_dataset(identifier::AbstractString, body::AbstractString, query)
     rule = tag_rule(query.abscissa, query.ordinate)
     reason = rejection_reason(rule, code)
     reason === nothing || return Rejection(identifier, code, reason)
+    conflict = channel_qualifier_conflict(query.channel, code)
+    if conflict !== nothing
+        return Rejection(
+            identifier,
+            code,
+            "reaction code carries \"$(conflict)\" ($(SPECTRUM_QUALIFIERS[conflict])), which \
+             names a neutron spectrum no measurement in channel \"$(query.channel)\" was made \
+             in",
+        )
+    end
 
     # Incident energy. Spontaneous fission carries no incident particle, so the window does not
     # apply; for induced fission the window selects rows.

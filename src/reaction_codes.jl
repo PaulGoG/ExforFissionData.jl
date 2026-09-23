@@ -315,8 +315,9 @@ quantity are different numbers.
 """
 const SPECTRUM_QUALIFIERS = Dict(
     "MXW" => "Maxwellian-averaged",
-    "SPA" => "fission-spectrum-averaged",
-    "FST" => "fast-neutron-induced",
+    "SPA" => "spectrum-averaged, spectrum unspecified",
+    "FIS" => "fission-neutron-spectrum-averaged",
+    "FST" => "fast-reactor-spectrum-averaged",
     "EPI" => "epithermal",
     "THR" => "thermal",
 )
@@ -384,12 +385,79 @@ The EXFOR reaction code each entrance channel is queried under.
 
 The channel names the fissioning system — `Cf252_sf`, `U235_nth`, `U235_nres` — and decides the
 reaction code, which is why the configuration carries the channel and not the code: the two can
-disagree only if both are written down. Which datasets a neutron-induced channel actually admits
-is settled by the incident-energy window, not by the channel; the channel has to agree with that
-window, and naming a system is what it is for.
+disagree only if both are written down. Which datasets a neutron-induced channel admits is
+settled by the incident-energy window, which must lie inside the channel's interval of
+[`CHANNEL_ENERGY_BOUNDS`](@ref) and defaults to it.
 """
 const CHANNEL_REACTION =
     Dict("sf" => "0,f", "nth" => "n,f", "nres" => "n,f", "nfast" => "n,f")
 
 """Entrance channels this package can retrieve, in configuration vocabulary."""
 const CHANNELS = sort!(collect(keys(CHANNEL_REACTION)))
+
+"""
+Incident-energy interval, in MeV, that the window of each neutron-induced channel may span, as
+`(floor, ceiling)`; `sf` has no incident particle and no entry. The window of a configuration
+defaults to the interval and must lie inside it, so that a dataset can only be filed under a
+channel whose physics it belongs to.
+
+`nth` spans 0 to 0.1 eV. Below the lowest resonances of the fissile actinides, 0.27 eV in ²³⁵U
+and 0.30 eV in ²³⁹Pu, the cross section follows the 1/v law, which Doppler broadening leaves
+unchanged (Bethe and Placzek 1937, doi:10.1103/PhysRev.51.450). A measurement there is thermal
+in the sense of the Westcott convention, a Maxwellian at 293.6 K (kT = 0.0253 eV) corrected by
+a g-factor, and 0.1 eV ≈ 4 kT is inside the region where that convention joins the Maxwellian
+to the 1/E slowing-down spectrum (its epithermal cut-off is about 5 kT;
+doi:10.1088/2399-6528/aba735). The cadmium cut-off of 0.5 eV that activation work uses as the
+thermal boundary lies above the first resonances (doi:10.1080/00223131.2016.1208593), and a
+measurement on one of them is a resonance measurement.
+
+`nres`, 0.1 eV to 100 keV, is the region in which the cross section carries compound-nucleus
+level structure whose observed shape depends on temperature. The Doppler width
+Δ = 2√(E·kT/A) is 0.01 eV at the first resonances, equals the s-wave level spacing of ²³⁵U
+(about 0.5 eV) near 0.5 keV, and is 6.6 eV at 100 keV, an order of magnitude above the spacings
+of the fissile actinides (about 0.5 eV in ²³³U and ²³⁵U, about 2 eV in ²³⁹Pu; Mughabghab, Atlas
+of Neutron Resonances, 6th ed., 2018, doi:10.1016/C2015-0-00524-X). The evaluated libraries end
+the unresolved resonance region at 25 keV for ²³⁵U and at a few tens of keV for ²³³U and ²³⁹Pu
+(ENDF/B-VIII.0, doi:10.1016/j.nds.2018.02.001; JENDL-5, doi:10.1080/00223131.2022.2141903);
+above it only averaged cross sections remain.
+
+`nfast`, 100 keV to 20 MeV, is the fast group of reactor physics, E > 0.1 MeV: the smooth
+statistical-model region above the unresolved resonances of every actinide this package
+targets, up to the upper limit of the general-purpose evaluated files.
+"""
+const CHANNEL_ENERGY_BOUNDS =
+    Dict("nth" => (0.0, 1.0e-7), "nres" => (1.0e-7, 1.0e-1), "nfast" => (1.0e-1, 20.0))
+
+"""
+Spectrum qualifiers of [`SPECTRUM_QUALIFIERS`](@ref) that name a neutron spectrum no
+measurement of the channel can have been made in; a dataset carrying one is rejected.
+
+The archive files a spectrum-averaged measurement under a dummy incident energy, so the energy
+window cannot catch it: `326650021`, ²³⁵U independent yields under `,,FIS` (a fission-spectrum
+irradiation), is declared at 0.0253 eV and would pass a thermal window on its energy alone.
+`SPA` names an unspecified spectrum and is admitted everywhere; `MXW` is admitted under
+`nfast`, where it denotes a fission-Maxwellian average.
+"""
+const CHANNEL_FORBIDDEN_QUALIFIERS = Dict(
+    "sf" => String[],
+    "nth" => ["FST", "FIS", "EPI"],
+    "nres" => ["MXW", "FST", "FIS"],
+    "nfast" => ["EPI"],
+)
+
+"""
+    channel_qualifier_conflict(channel, code) -> Union{String,Nothing}
+
+The first qualifier of [`CHANNEL_FORBIDDEN_QUALIFIERS`](@ref) for `channel`, in the order listed
+there, that the reaction code `code` contains; `nothing` when the code names no spectrum the
+channel excludes.
+
+The code `"92-U-235(N,F)ELEM/MASS,IND,FY,,FIS"`, for instance, gives `"FIS"` under `"nth"`, a
+fission-spectrum irradiation not being a thermal measurement, and `nothing` under `"nfast"`.
+"""
+function channel_qualifier_conflict(channel::AbstractString, code::AbstractString)
+    for tag in CHANNEL_FORBIDDEN_QUALIFIERS[channel]
+        occursin(tag, code) && return tag
+    end
+    return nothing
+end
