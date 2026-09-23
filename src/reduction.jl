@@ -9,13 +9,14 @@
 #   2. Isomeric states. EXFOR may report the ground state, one or more isomers, and their total,
 #      as separate rows for the same nuclide. Summing all of them double-counts.
 #   3. Rows that still share an abscissa value once the first two are resolved, combined by an
-#      inverse-variance weighted mean. Some are genuine repeats — a chain yield measured through
-#      several nuclides. Many are not: the csv rendering reports a mass as an integer, so a
-#      dataset tabulated on a non-integer mass scale arrives truncated, with neighbouring points
-#      collapsed onto one mass number; and the rendering drops independent variables it does not
-#      recognise, so a grid over one of them arrives as unexplained repeats. Neither can be told
-#      from the rendering, so the count of combined values is recorded per dataset and warned
-#      about, and the subentry stored beside the data is what settles it.
+#      inverse-variance weighted mean.
+#
+# The abscissa is read from the subentry DATA table, not from the csv rendering, which truncates
+# a non-integer mass and drops the variables it does not recognise. A mass is rounded to the
+# nearest integer, ties up, and what that did is recorded per dataset. What the subentry still
+# cannot settle is whether rows sharing an abscissa value are a genuine repeat — a chain yield
+# measured through several nuclides — or one measurement under different auxiliary conditions,
+# a flight path or a flag; `combined_over` names the auxiliary columns that varied among them.
 
 """
     ReducedDataset
@@ -132,44 +133,87 @@ function resolve_isomers(values::AbstractVector, uncertainties::AbstractVector, 
     return (value, uncertainty, :ambiguous)
 end
 
-# Abscissa values of every row, as a vector of tuples, plus the column names.
-function _abscissa(dataset::Dataset, abscissa::AbstractVector{<:AbstractString})
-    table = dataset.table
-    product = table[!, COL_PRODUCT_ZA]
-    secondary = table[!, COL_SECONDARY_ENERGY]
-    columns = [Symbol(ABSCISSA_TOKEN[quantity]) for quantity in abscissa]
-    if abscissa == ["mass"] || abscissa == ["product_mass"]
-        return (columns, [(ismissing(p) ? missing : round(Int, p),) for p in product])
-    elseif abscissa == ["charge"]
-        return (
-            columns,
-            [(ismissing(p) ? missing : round(Int, p) ÷ 1000,) for p in product],
-        )
-    elseif abscissa == ["charge", "product_mass"]
-        return (
-            columns,
-            [
-                ismissing(p) ? (missing, missing) :
-                (round(Int, p) ÷ 1000, round(Int, p) % 1000) for p in product
-            ],
-        )
-    elseif abscissa == ["neutron_energy"] || abscissa == ["total_kinetic_energy"]
-        return (
-            columns,
-            [(ismissing(e) ? missing : Float64(e) * EV_TO_MEV,) for e in secondary],
-        )
-    elseif abscissa == ["mass", "total_kinetic_energy"]
-        return (
-            columns,
-            [
-                (
-                    ismissing(p) ? missing : round(Int, p),
-                    ismissing(e) ? missing : Float64(e) * EV_TO_MEV,
-                ) for (p, e) in zip(product, secondary)
-            ],
-        )
+# The values of the subentry column headed `heading` of every row, an energy converted to MeV,
+# or `nothing` when the dataset carries no such column.
+function _heading_values(dataset::Dataset, heading::AbstractString, is_energy::Bool)
+    heading in names(dataset.columns) || return nothing
+    factor = is_energy ? energy_factor(dataset.units[heading]) : 1.0
+    factor === nothing && throw(
+        ArgumentError(
+            "dataset $(dataset.identifier): unit \"$(dataset.units[heading])\" of column \
+             $(heading) is not an energy unit",
+        ),
+    )
+    return Union{Missing, Float64}[value * factor for value in dataset.columns[!, heading]]
+end
+
+# The values of one abscissa quantity for every row: its own column, else the midpoint of its
+# bin pair; and whether the bin pair was used. See `ABSCISSA_HEADINGS`.
+function _quantity_values(dataset::Dataset, quantity::AbstractString)
+    value_headings, bin_headings = ABSCISSA_HEADINGS[quantity]
+    is_energy = quantity in ("neutron_energy", "total_kinetic_energy")
+    for heading in value_headings
+        values = _heading_values(dataset, heading, is_energy)
+        values === nothing || return (values, false)
     end
-    throw(ArgumentError("unsupported abscissa $(abscissa)"))
+    if length(bin_headings) == 2
+        low = _heading_values(dataset, bin_headings[1], is_energy)
+        high = _heading_values(dataset, bin_headings[2], is_energy)
+        if low !== nothing && high !== nothing
+            return (Union{Missing, Float64}[(a + b) / 2 for (a, b) in zip(low, high)], true)
+        end
+    end
+    throw(
+        ArgumentError(
+            "dataset $(dataset.identifier) carries no subentry column for abscissa quantity \
+             \"$(quantity)\"",
+        ),
+    )
+end
+
+# Abscissa values of every row, as a vector of tuples, the column names, and what reading them
+# from the subentry did: the number of non-integer masses, the largest distance a mass was moved
+# by rounding, and whether any quantity came from a bin pair.
+#
+# A mass is rounded to the nearest integer with ties up. Ties to even would collide a 1-u grid
+# centred on half-integers: 80.5 → 80, 81.5 → 82, 82.5 → 82.
+function _abscissa(dataset::Dataset, abscissa::AbstractVector{<:AbstractString})
+    String[abscissa...] in ABSCISSAE ||
+        throw(ArgumentError("unsupported abscissa $(abscissa)"))
+    columns = [Symbol(ABSCISSA_TOKEN[quantity]) for quantity in abscissa]
+    per_quantity = Vector{Vector}(undef, length(abscissa))
+    non_integer = 0
+    rounding_max = 0.0
+    binned = false
+    for (position, quantity) in enumerate(abscissa)
+        values, from_bins = _quantity_values(dataset, quantity)
+        binned |= from_bins
+        if quantity in ("mass", "product_mass")
+            masses = Vector{Union{Missing, Int}}(undef, length(values))
+            for (i, m) in enumerate(values)
+                if ismissing(m)
+                    masses[i] = missing
+                    continue
+                end
+                A = round(Int, m, RoundNearestTiesUp)
+                if !isinteger(m)
+                    non_integer += 1
+                    rounding_max = max(rounding_max, abs(m - A))
+                end
+                masses[i] = A
+            end
+            per_quantity[position] = masses
+        elseif quantity == "charge"
+            per_quantity[position] =
+                Union{Missing, Int}[ismissing(z) ? missing : round(Int, z) for z in values]
+        else
+            per_quantity[position] = values
+        end
+    end
+    keys_of_row =
+        [Tuple(values[i] for values in per_quantity) for i in 1:nrow(dataset.table)]
+    resolution = (non_integer = non_integer, rounding_max = rounding_max, binned = binned)
+    return (columns, keys_of_row, resolution)
 end
 
 """
@@ -181,14 +225,15 @@ Isomeric states are resolved per nuclide and incident energy, then any abscissa 
 carrying several measurements is combined by [`combine_measurements`](@ref). The result has one
 row per abscissa value, which is the contract the written files keep.
 
-Energy abscissae are converted from the electronvolts EXFOR reports to megaelectronvolts, and so
-is an ordinate that is itself an energy — see [`ENERGY_ORDINATES`](@ref). Both are exact
-conversions of a value with the factor recorded. No *normalisation* is ever applied: that
-convention differs between consumers and cannot be undone, so the unit token is recorded instead.
+Energy abscissae are converted to megaelectronvolts from the unit of their subentry column, and
+an ordinate that is itself an energy from its unit token — see [`ENERGY_ORDINATES`](@ref). Both
+are exact conversions of a value with the factor recorded. No *normalisation* is ever applied:
+that convention differs between consumers and cannot be undone, so the unit token is recorded
+instead.
 """
 function reduce_dataset(dataset::Dataset, query)
     table = dataset.table
-    abscissa_columns, keys_of_row = _abscissa(dataset, query.abscissa)
+    abscissa_columns, keys_of_row, resolution = _abscissa(dataset, query.abscissa)
 
     raw_values = table[!, COL_Y]
     raw_uncertainties = table[!, COL_DY]
@@ -218,6 +263,7 @@ function reduce_dataset(dataset::Dataset, query)
 
     outcomes = Dict(:total => 0, :summed => 0, :single => 0, :ambiguous => 0)
     stage_keys = Any[]
+    stage_rows = Vector{Int}[]
     stage_values = Float64[]
     stage_uncertainties = Float64[]
     for key in order
@@ -231,6 +277,7 @@ function reduce_dataset(dataset::Dataset, query)
             resolve_isomers(values, uncertainties, [isomers[i] for i in indices])
         outcomes[outcome] += 1
         push!(stage_keys, keys_of_row[first(indices)])
+        push!(stage_rows, indices)
         push!(stage_values, value)
         push!(stage_uncertainties, uncertainty)
     end
@@ -243,6 +290,13 @@ function reduce_dataset(dataset::Dataset, query)
         push!(get!(grouped, key, Int[]), i)
     end
 
+    # The auxiliary subentry columns that vary among rows combined onto one abscissa value: what
+    # tells a genuine repeat from one measurement under different conditions. The datum and its
+    # uncertainties are what is being combined, so they are left out of the scan.
+    auxiliary = filter(names(dataset.columns)) do name
+        heading_class(name) == :auxiliary && !occursin("DATA", name) && !occursin("ERR", name)
+    end
+    combined_over = Set{String}()
     combined = 0
     imputed = 0
     final_keys = Any[]
@@ -250,7 +304,14 @@ function reduce_dataset(dataset::Dataset, query)
     final_uncertainties = Float64[]
     for key in grouped_order
         indices = grouped[key]
-        length(indices) > 1 && (combined += 1)
+        if length(indices) > 1
+            combined += 1
+            rows = reduce(vcat, stage_rows[indices])
+            for name in auxiliary
+                present = skipmissing(dataset.columns[rows, name])
+                length(unique(present)) > 1 && push!(combined_over, name)
+            end
+        end
         value, uncertainty, points =
             combine_measurements(stage_values[indices], stage_uncertainties[indices])
         imputed += points
@@ -291,6 +352,10 @@ function reduce_dataset(dataset::Dataset, query)
         "isomer_states_summed" => outcomes[:summed],
         "isomer_groups_ambiguous" => outcomes[:ambiguous],
         "abscissae_combined" => combined,
+        "combined_over" => sort!(collect(combined_over)),
+        "mass_values_non_integer" => resolution.non_integer,
+        "mass_rounding_max" => resolution.rounding_max,
+        "abscissa_binned" => resolution.binned,
         "weights_imputed" => imputed,
         "incident_energies_mev" => retained_energies .* EV_TO_MEV,
         "unit_reported" => dataset.unit,

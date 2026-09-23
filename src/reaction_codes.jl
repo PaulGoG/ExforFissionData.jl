@@ -168,18 +168,6 @@ const ORDINATE_RULES = Dict{String, TagRule}(
 )
 
 """
-The independent-variable family of [`VARIABLE_FAMILIES`](@ref) each abscissa quantity is read
-from: the reaction product for a mass or a charge, the secondary energy for an energy.
-"""
-const ABSCISSA_FAMILY = Dict(
-    "mass" => 7,
-    "product_mass" => 7,
-    "charge" => 7,
-    "neutron_energy" => 3,
-    "total_kinetic_energy" => 3,
-)
-
-"""
 The ASCII symbol of each abscissa quantity, as the literature writes it.
 
 The configuration spells a quantity out, so that a file a user edits explains itself; a path and

@@ -188,8 +188,10 @@ function write_metadata(
             "duplicate_abscissa" => "isomers resolved first (archive total preferred, else summed in \
                  quadrature), then rows still sharing an abscissa value combined by an \
                  inverse-variance weighted mean; `abscissae_combined` counts them per dataset",
-            "abscissa_resolution" => "mass and charge numbers are the integers the csv rendering reports; it \
-                 truncates a non-integer mass scale, which is preserved only in the subentry",
+            "abscissa_resolution" => "mass numbers are the subentry MASS column rounded to the nearest integer, \
+                 ties up; charges are ELEM; energies are the subentry columns in MeV; a bin pair \
+                 contributes its midpoint. mass_values_non_integer, mass_rounding_max and \
+                 abscissa_binned record what that did per dataset",
             "archive_state" => "EXFOR as of the retrieval date recorded per dataset (retrieved_utc, UTC); \
                  the listing date is when the archive was last asked which datasets exist",
         ),
@@ -228,11 +230,10 @@ function write_metadata(
     ]
     if !isempty(combined)
         record["datasets"]["combined_warning"] =
-            "rows of these datasets shared an abscissa value and were combined. The csv \
-             rendering reports a mass as an integer and drops independent variables it does \
-             not recognise, so such rows are as likely to be neighbouring points of a \
-             non-integer mass scale, or a grid over a dropped variable, as repeat \
-             measurements. The subentry settles which: " * join(combined, ", ")
+            "rows of these datasets shared an abscissa value after rounding and were \
+             combined by an inverse-variance weighted mean; `combined_over` names the \
+             auxiliary columns that varied among them, and the subentry stored beside the \
+             data is the reference: " * join(combined, ", ")
     end
     relative = [
         entry.dataset.identifier for

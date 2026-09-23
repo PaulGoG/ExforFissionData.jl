@@ -395,3 +395,190 @@ The number of lines of a section: the length of its value vectors, 0 when it has
 function line_count(columns::SubentryColumns)
     return isempty(columns.values) ? 0 : length(first(columns.values))
 end
+
+"""
+Factors from the energy units EXFOR heads a column with to MeV.
+"""
+const ENERGY_UNIT_FACTORS = Dict(
+    "MILLI-EV" => 1.0e-9,
+    "EV" => 1.0e-6,
+    "KEV" => 1.0e-3,
+    "MEV" => 1.0,
+    "GEV" => 1.0e3,
+)
+
+# Heading prefixes of the columns auxiliary to a datum: monitors, assumed values, flags,
+# miscellaneous information, and the kT of a Maxwellian average.
+const _AUXILIARY_PREFIXES = ("MONIT", "ASSUM", "FLAG", "MISC", "KT")
+
+"""
+    heading_class(heading) -> Symbol
+
+The role of a data heading: `:independent`, `:incident` or `:auxiliary`.
+
+The Formats Manual makes a data heading an independent variable, a datum, or something
+auxiliary to a datum: its uncertainty, a monitor, an assumed value, a flag, a resolution, a
+normalisation, miscellaneous information explained in the BIB. Only the first kind can turn a
+projection into an average. The datum and everything auxiliary to it are `:auxiliary` here; the
+incident energy, `EN` and its variants, is `:incident`, since the window handles it. A heading
+this table does not know is treated as an independent variable, which is the conservative
+reading.
+
+# Arguments
+- `heading::AbstractString`: a data heading, as [`SubentryColumns`](@ref) holds it.
+
+# Example
+
+```julia
+julia> heading_class("DATA-ERR"), heading_class("EN-DUMMY"), heading_class("TKE")
+(:auxiliary, :incident, :independent)
+```
+"""
+function heading_class(heading::AbstractString)
+    h = strip(heading)
+    occursin("DATA", h) && return :auxiliary
+    occursin("ERR", h) && return :auxiliary
+    if any(prefix -> startswith(h, prefix), _AUXILIARY_PREFIXES) ||
+       endswith(h, "-FLAG") ||
+       occursin("-RSL", h) ||
+       occursin("-NRM", h) ||
+       endswith(h, "-DIG")
+        return :auxiliary
+    end
+    startswith(h, "EN") && return :incident
+    return :independent
+end
+
+"""
+For each abscissa quantity, the subentry headings that carry it, in order of preference, and
+the pair of headings that carry it as a bin, of which the midpoint is taken.
+
+The total kinetic energy is headed `TKE`, or `E` where the compiler defined `E` as the energy
+of both fragments under `EN-SEC` (`14065004`, `21095008`, `(E,LF+HF)` and `(E,FF)`); the tag
+rule of the joint abscissa already requires the reaction code to name TKE, so an `E` column
+under that abscissa is the total kinetic energy and not a fragment-energy gate. Where both
+headings are present `TKE` is taken and `E` counts as a variable of its own.
+"""
+const ABSCISSA_HEADINGS = Dict(
+    "mass" => (["MASS"], ["MASS-MIN", "MASS-MAX"]),
+    "product_mass" => (["MASS"], ["MASS-MIN", "MASS-MAX"]),
+    "charge" => (["ELEM"], String[]),
+    "neutron_energy" => (["E"], ["E-MIN", "E-MAX"]),
+    "total_kinetic_energy" => (["TKE", "E"], ["TKE-MIN", "TKE-MAX"]),
+)
+
+"""
+    abscissa_columns(data, quantity) -> (indices, binned)
+
+The columns of `data` that carry the abscissa quantity `quantity`; see
+[`ABSCISSA_HEADINGS`](@ref).
+
+# Arguments
+- `data::SubentryColumns`: the DATA table of one dataset.
+- `quantity::AbstractString`: an abscissa quantity, `"mass"` or `"neutron_energy"`.
+
+# Returns
+`([index], false)` for the column carrying the value itself, else `([low, high], true)` for
+the two columns of the bin pair when both are present, else `(Int[], false)`.
+"""
+function abscissa_columns(data::SubentryColumns, quantity::AbstractString)
+    value_headings, bin_headings = ABSCISSA_HEADINGS[quantity]
+    for heading in value_headings
+        index = column(data, heading)
+        index === nothing || return ([index], false)
+    end
+    if length(bin_headings) == 2
+        low = column(data, bin_headings[1])
+        high = column(data, bin_headings[2])
+        (low === nothing || high === nothing) || return ([low, high], true)
+    end
+    return (Int[], false)
+end
+
+"""
+    covered_headings(abscissa) -> Set{String}
+
+Every heading of [`ABSCISSA_HEADINGS`](@ref) for the quantities of `abscissa`, the value
+heading and both bin headings, together with `ISOMER` when the charge is among them: the isomer
+is part of the product identification the charge abscissa resolves.
+"""
+function covered_headings(abscissa::AbstractVector{<:AbstractString})
+    covered = Set{String}()
+    for quantity in abscissa
+        value_headings, bin_headings = ABSCISSA_HEADINGS[quantity]
+        union!(covered, value_headings, bin_headings)
+    end
+    "charge" in abscissa && push!(covered, "ISOMER")
+    return covered
+end
+
+"""
+    varying_columns(data, abscissa) -> Vector{String}
+
+The independent variables of a DATA table that `abscissa` does not cover and that take more
+than one value, each as `"<heading> [<unit>] (<n> values)"`.
+
+This is the subentry rule, which replaces the rule the csv rendering's `indVars` column once
+supplied. Projecting a dataset onto an abscissa asserts that nothing else varies. A variable
+held at one value is a condition of the measurement and leaves the projection meaningful; one
+that varies makes every abscissa value a family of rows, and no combination of them is the
+observable asked for. Only headings [`heading_class`](@ref) calls `:independent` count, and
+the incident energy is left to the window.
+
+# Arguments
+- `data::SubentryColumns`: the DATA table of one dataset, restricted to the retained rows.
+- `abscissa::AbstractVector{<:AbstractString}`: the abscissa of the query.
+
+# Example
+
+```julia
+julia> varying_columns(data, ["mass"])
+1-element Vector{String}:
+ "TKE [MEV] (200 values)"
+```
+"""
+function varying_columns(data::SubentryColumns, abscissa::AbstractVector{<:AbstractString})
+    covered = covered_headings(abscissa)
+    varying = String[]
+    for (heading, unit, values) in zip(data.headings, data.units, data.values)
+        heading in covered && continue
+        heading_class(heading) == :independent || continue
+        count = length(unique(skipmissing(values)))
+        count > 1 && push!(varying, "$(heading) [$(unit)] ($(count) values)")
+    end
+    return varying
+end
+
+"""
+    energy_factor(unit) -> Union{Float64,Nothing}
+
+The factor converting a column in energy unit `unit` to MeV, or `nothing` when `unit` is not
+among [`ENERGY_UNIT_FACTORS`](@ref).
+"""
+function energy_factor(unit::AbstractString)
+    return get(ENERGY_UNIT_FACTORS, unit, nothing)
+end
+
+"""
+    restrict(columns, keep) -> SubentryColumns
+
+The lines of `columns` that `keep` marks, with the same headings, units and pointers.
+
+Throws a `DimensionMismatch` when `keep` does not have one entry per line.
+"""
+function restrict(columns::SubentryColumns, keep::AbstractVector{Bool})
+    if !isempty(columns.values) && line_count(columns) != length(keep)
+        throw(
+            DimensionMismatch(
+                "a mask of $(length(keep)) entries cannot select from a section of \
+                 $(line_count(columns)) lines",
+            ),
+        )
+    end
+    return SubentryColumns(
+        copy(columns.headings),
+        copy(columns.units),
+        copy(columns.pointers),
+        Vector{Union{Missing, Float64}}[values[keep] for values in columns.values],
+    )
+end

@@ -158,15 +158,23 @@ and they are not handled alike:
 | Cause | Treatment |
 | :--- | :--- |
 | several incident energies | the configured window selects rows; a dataset still holding more than one energy inside it is rejected rather than averaged |
-| another independent variable the rendering declares | rejected where it varies; one held at a single value is a condition of the measurement and passes |
+| another independent variable of the subentry DATA table | rejected where it varies; one held at a single value is a condition of the measurement and passes |
 | isomeric states | the archive's own total where it gives one, otherwise the resolved states summed with uncertainties in quadrature |
 | anything left | inverse-variance weighted mean, uncertainty ``1/\sqrt{\sum 1/\sigma^2}``, counted per dataset and named in a warning |
 
-What is left is not only repetition. The `op=csv` rendering reports a mass as an integer, so a
-dataset tabulated on a non-integer mass scale arrives truncated and its neighbouring points
-collapse onto one mass number; and it drops independent variables it does not recognise, so a
-grid over one of them arrives as unexplained repeats. The run record names every dataset in which
-rows were combined, and the subentry stored beside the data settles which case it is.
+The abscissa is read from the subentry DATA table rather than from the `op=csv` rendering, which
+reports a mass as an integer by truncation and drops the independent variables it does not
+recognise. A mass is the `MASS` column rounded to the nearest integer, ties up: ties to even would
+put the points of a 1-u grid centred on half-integers, 80.5, 81.5 and 82.5, on 80, 82 and 82. A
+charge is `ELEM`; an energy is the `E` or `TKE` column converted to MeV from the unit it is headed
+with; a bin given as a `-MIN`, `-MAX` pair contributes its midpoint. The run record gives, per
+dataset, the number of non-integer masses (`mass_values_non_integer`), the largest distance
+rounding moved one (`mass_rounding_max`), and whether a bin was used (`abscissa_binned`).
+
+What is left for the weighted mean is either a genuine repeat, a chain yield measured through
+several nuclides of one mass, or one measurement under different auxiliary conditions. The run
+record names, as `combined_over`, the auxiliary columns of the subentry — a flight path, a flag —
+that varied among the rows combined, and the subentry stored beside the data is the reference.
 
 ## Selection
 
@@ -182,8 +190,15 @@ Three checks are worth naming because they are easy to get wrong:
 - it also marks **arbitrary units** as `ARB-UNITS`, which carry no scale;
 - the incident-energy window applies **per row**, not to the dataset as a whole, since one
   product is frequently reported at several energies;
-- a variable the rendering declares in `indVars` and the abscissa does not hold **must not
-  vary** — a mass yield at nine kinetic-energy gates is nine yields per mass number;
+- what a dataset is tabulated against is read from its **subentry DATA table**, which is
+  aligned with the csv rendering row by row — the truncated product against `MASS` and `ELEM`,
+  the secondary energy against `E` or `TKE` — and a dataset on which the two disagree is
+  rejected;
+- a heading the EXFOR format classes as an independent variable, other than the abscissa's own
+  and the incident energy, **must not vary** — a mass yield at nine kinetic-energy gates is nine
+  yields per mass number;
+- a spectrum whose energies are in the centre-of-mass frame, `E-CM`, is not a laboratory
+  spectrum and is rejected;
 - `yield` requires the `FY` tag itself, since the quantity code `FY` also files the most probable
   charge against mass, `MASS,PAR,ZP`, which every mass rule admits.
 

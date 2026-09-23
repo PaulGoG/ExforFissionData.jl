@@ -97,9 +97,10 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         end
     end
 
-    accepted_datasets = Dataset[]
-    # The response each accepted dataset was read from, for the retrieval date in the record.
-    accepted_responses = Dict{String, Response}()
+    # Stage one: everything the csv rendering can answer.
+    screened = Screened[]
+    # The csv response each screened dataset was read from, for the retrieval date in the record.
+    screened_responses = Response[]
     rejected = Rejection[]
     parsed = 0
     layout_failures = String[]
@@ -116,9 +117,9 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             continue
         end
         outcome = try
-            selected = select_dataset(identifier, response.body, query)
+            candidate = screen_dataset(identifier, response.body, query)
             parsed += 1
-            selected
+            candidate
         catch exception
             # A response that cannot be read is a property of that response and is recorded;
             # anything else is a defect of this package and must not be filed as a rejection.
@@ -129,8 +130,8 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         if outcome isa Rejection
             push!(rejected, outcome)
         else
-            push!(accepted_datasets, outcome)
-            accepted_responses[identifier] = response
+            push!(screened, outcome)
+            push!(screened_responses, response)
         end
     end
     if parsed == 0 && !isempty(layout_failures)
@@ -141,6 +142,45 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
                  $(first(layout_failures))",
             ),
         )
+    end
+
+    # Stage two: the subentry settles what each screened dataset is tabulated against.
+    subentry_responses = map_bounded(screened, options) do candidate
+        try
+            subentry_text(candidate.identifier, options)
+        catch exception
+            exception
+        end
+    end
+    retrieved_subentries = count(response -> !(response isa Exception), subentry_responses)
+    @info "subentries retrieved" count = retrieved_subentries
+
+    accepted_datasets = Dataset[]
+    accepted_responses = Dict{String, Response}()
+    # The subentry text of each accepted dataset, written beside the data without a second
+    # request.
+    subentry_texts = Dict{String, String}()
+    for (candidate, response, subentry) in
+        zip(screened, screened_responses, subentry_responses)
+        if subentry isa Exception
+            push!(
+                rejected,
+                Rejection(
+                    candidate.identifier,
+                    candidate.reaction_code,
+                    "retrieval of the subentry failed: " * sprint(showerror, subentry),
+                ),
+            )
+            continue
+        end
+        outcome = select_dataset(candidate, subentry.body, query)
+        if outcome isa Rejection
+            push!(rejected, outcome)
+        else
+            push!(accepted_datasets, outcome)
+            accepted_responses[outcome.identifier] = response
+            subentry_texts[outcome.identifier] = subentry.body
+        end
     end
     @info "selection complete" accepted = length(accepted_datasets) rejected =
         length(rejected)
@@ -201,22 +241,12 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         )
     end
 
-    if configuration.save_subentries && !isempty(accepted)
-        map_bounded(accepted, options) do entry
-            try
-                text = subentry_text(entry.dataset.identifier, options).body
-                write(
-                    joinpath(
-                        subentry_directory,
-                        string(dataset_stem(entry.dataset), ".txt"),
-                    ),
-                    text,
-                )
-            catch exception
-                @warn "could not retrieve the EXFOR subentry" identifier =
-                    entry.dataset.identifier exception = exception
-            end
-            nothing
+    if configuration.save_subentries
+        for entry in accepted
+            write(
+                joinpath(subentry_directory, string(dataset_stem(entry.dataset), ".txt")),
+                subentry_texts[entry.dataset.identifier],
+            )
         end
     end
 
@@ -234,7 +264,7 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             entry in accepted if entry.reduced.diagnostics["abscissae_combined"] > 0
         ]
         if !isempty(combined)
-            @warn "rows sharing an abscissa value were combined; the csv rendering truncates non-integer masses and drops variables it does not recognise, so check the subentry of each before use" combined
+            @warn "rows sharing an abscissa value were combined; `combined_over` in the run record names the auxiliary columns that varied among them, and the subentry beside the data is the reference" combined
         end
         units = unique(String[entry.dataset.unit for entry in accepted])
         if length(units) > 1

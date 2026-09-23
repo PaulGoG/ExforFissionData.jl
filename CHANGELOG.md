@@ -103,13 +103,45 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ### Changed
 
+- **The abscissa is read from the subentry DATA table, aligned row by row with the csv
+  rendering.** The rendering truncates a non-integer mass: `23175002` tabulates 63.51, 64.91,
+  66.08 and 66.79, which arrived as 63, 64, 66 and 66, two points collapsing onto one mass number
+  and every mass low by up to a unit. It also drops the variables it does not recognise, so the
+  TKE column of `23268002` never reached the test for other variables. Masses, charges and
+  energies now come from the subentry's own columns, and whether another variable varies is
+  decided on its headings; the rendering still supplies the ordinate, its uncertainty, the unit
+  and the incident energy. What a consumer sees:
+  - masses are the subentry values rounded to the nearest integer, ties up;
+  - the run record carries, per dataset, `mass_values_non_integer`, `mass_rounding_max`,
+    `abscissa_binned`, and `combined_over`, the auxiliary columns that varied among rows
+    combined onto one abscissa value;
+  - a spectrum whose energies are in the centre-of-mass frame, `E-CM`, is rejected;
+  - a dataset whose csv rendering and subentry disagree, in row count or row by row, is
+    rejected;
+  - the subentry of every dataset that passes the csv tests is retrieved, not only of the
+    accepted ones, whether or not `save_subentries` writes it.
+
+  Impact on the shipped configurations, measured by re-running all 21 against the stored runs:
+  314 accepted datasets become 286, and nothing is newly admitted. Of the 28 no longer accepted,
+  16 are the thermal datasets the two `U235_nres` runs used to duplicate (the channel floor,
+  below), 7 are the wrong-observable acceptances of `U235_nth/Y_vs_A` that the `FY` and
+  hidden-variable rules already remove, `23268002` leaves `Cf252_sf/Y_vs_A` as tabulated
+  against TKE, and four centre-of-mass spectra leave the spectrum runs: `23764006`, `23764007`,
+  `41516007`, `41516008`. Among the 286, 28 datasets carry non-integer masses that are now
+  rounded rather than truncated, 18 take an abscissa from a bin pair, and 17 still combine rows
+  on one abscissa value, down from 21: the four Naik chain-yield sets, which are genuine repeats
+  through several nuclides; digitised curves whose neighbouring points fall within half a mass
+  unit, `23717003`, `23175002` and `21995028` among them; and `30099002`, combined over its
+  `MISC` flight-path column.
 - **The incident-energy window must lie inside its channel's interval and defaults to it.**
   `channel = "nth"` with no `energy_max` used to validate and file every incident energy under a
   thermal directory. The intervals are `nth` up to 0.1 eV, `nres` 0.1 eV to 100 keV and `nfast`
   100 keV to 20 MeV, set from the physics of each region — the first resonances, the Doppler
   width against the level spacing, the end of the unresolved resonance region — and documented
-  with their sources. The shipped `U235_nres_*` configurations now state the floor, 0.1 eV, which
-  admits the same datasets as before.
+  with their sources. The shipped `U235_nres_*` configurations now state the floor, 0.1 eV, so
+  the resonance runs no longer duplicate the thermal datasets: `U235_nres/nu_vs_A` keeps the
+  GELINA measurement alone, 1 dataset of the 11 it held, and `U235_nres/nu_vs_A_TKE` 1 of 7;
+  the thermal datasets remain in the `U235_nth` runs.
 
 - **A dataset tabulated against a variable the abscissa does not hold is rejected where that
   variable varies.** The rendering declares what a dataset is tabulated against in `indVars`, and
@@ -186,6 +218,11 @@ Notable changes to ExforFissionData.jl. The format follows
   to be served from the cache forever, so an entry added to the archive after the first run was
   never discovered. A response the archive cannot serve falls back to the cached copy with a
   warning naming the copy's date.
+
+### Removed
+
+- The test for other variables read from the csv rendering's `indVars` column, superseded by the
+  same test over the headings of the subentry DATA table.
 
 ### Fixed
 

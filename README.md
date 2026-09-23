@@ -84,7 +84,7 @@ length(result.accepted), length(result.rejected)
 | Component | State |
 | :--- | :--- |
 | Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f) |
-| Reduction: isomers, energy windows, other independent variables | tested on fixtures; the rejections checked against the live datasets that prompted them. Masses the rendering truncates, and variables it drops, are reported per dataset and not corrected |
+| Reduction: isomers, energy windows, other independent variables | tested on fixtures; the rejections checked against the live datasets that prompted them. The abscissa and the other variables are read from the subentry DATA table, aligned with the rendering row by row |
 | Retrieval: cache, backoff, bounded concurrency | in use; order independence and the concurrency bound tested under 1, 4 and 8 threads |
 | Export and run record | in use |
 | `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
@@ -143,7 +143,8 @@ cannot hold a fast measurement. The physics behind the bounds is in
 [the documentation](https://PaulGoG.github.io/ExforFissionData.jl/dev/#Entrance-channels).
 
 `U235_nres_nu_vs_A` and `U235_nres_nu_vs_A_TKE` span 0.1 eV to 1 keV, which is what the
-resonance-beam measurements need — a thermal window excludes them on their incident energy alone.
+resonance-beam measurements need — a thermal window excludes them on their incident energy alone,
+and the resonance window holds them alone, the thermal datasets belonging to the `nth` runs.
 They are a different system by name, `U235_nres` against `U235_nth`, so they land in a directory of
 their own without any special provision.
 
@@ -251,9 +252,9 @@ Fragment and prompt-neutron observables only. Prompt-γ quantities — ⟨Eγ⟩
 prompt fission γ-ray spectrum — are outside the observable set, as are the neutron multiplicity
 distribution P(ν) and the centre-of-mass spectrum Φ(ε), the last of which the archive does not
 carry as a quantity of its own — with the consequence that a measurement in the centre of mass is
-compiled under the same code as a laboratory-frame one and separated from it only by free text.
-`23268009` (Göök, 2014) is such a dataset, retrieved by `Cf252_sf_spectrum_vs_E` alongside
-laboratory spectra. The frame is the consumer's to check, in the subentry stored beside the data.
+compiled under the same reaction code as a laboratory-frame one. The subentry heads its energy
+column `E-CM`, and `23268009` (Göök, 2014), such a dataset, is rejected by
+`Cf252_sf_spectrum_vs_E` on that heading rather than retrieved alongside laboratory spectra.
 
 For the first two, exclusion is what the archive holds rather than a preference:
 
@@ -327,19 +328,26 @@ they are not handled alike:
 | Cause | Treatment |
 | :--- | :--- |
 | several incident energies | the configured window selects rows; a dataset still holding more than one energy inside it is rejected, naming them, rather than averaged |
-| another independent variable — a kinetic-energy gate, an angle | rejected where the variable varies: a mean over gates is not the observable asked for. One held at a single value is a condition of the measurement and passes |
+| another independent variable of the subentry DATA table — a kinetic-energy gate, an angle | rejected where the variable varies: a mean over gates is not the observable asked for. One held at a single value is a condition of the measurement and passes |
 | isomeric states | the archive's own total where it gives one, otherwise the resolved states summed with uncertainties in quadrature |
 | anything left | inverse-variance weighted mean, uncertainty `1/√(Σ1/σ²)`, counted per dataset as `abscissae_combined` and named in a warning |
 
-The last row deserves suspicion. Some of what reaches it is genuine repetition — a chain yield
-measured through several nuclides of one mass. Much of it is an artefact of the `op=csv`
-rendering, which reports a mass as an integer: a dataset tabulated on a non-integer mass scale
-arrives **truncated**, 63.51 and 64.91 as 63 and 64, and neighbouring points collapse onto one
-mass number. The abscissa of such a dataset is low by half a mass unit on average, and its true
-scale survives only in the subentry stored beside the data. The rendering also drops independent
-variables it does not recognise, and a grid over one of them then arrives as unexplained repeats;
-`23268002` below is the worst case. Neither can be told from the rendering, so every dataset in
-which rows were combined is named in the run record, and the subentry is what settles it.
+The abscissa and the test for other variables come from the **subentry DATA table**, not from the
+`op=csv` rendering. The rendering reports a mass as an integer by truncation, 63.51 and 64.91 as
+63 and 64, and drops the independent variables it does not recognise; it still supplies the
+ordinate, its uncertainty, the unit and the incident energy. The two are aligned row by row, the
+truncated product against the subentry's `MASS` and `ELEM` and the secondary energy against its
+`E` or `TKE`, and a dataset on which they disagree is rejected. A mass is rounded to the nearest
+integer with ties up, since ties to even would put a 1-u grid centred on half-integers, 80.5,
+81.5 and 82.5, on 80, 82 and 82; the run record gives per dataset how many masses were
+non-integer, `mass_values_non_integer`, and the largest distance rounding moved one,
+`mass_rounding_max`. A bin given as a `-MIN`, `-MAX` pair contributes its midpoint, recorded as
+`abscissa_binned`.
+
+Rows that still share an abscissa value are either genuine repetition — a chain yield measured
+through several nuclides of one mass — or one measurement under different auxiliary conditions.
+They are combined, and `combined_over` in the run record names the auxiliary columns of the
+subentry, a flight path or a flag, that varied among them.
 
 ## Selection
 
@@ -358,10 +366,11 @@ Three checks are worth naming because they are easy to get wrong:
 - the incident-energy window is applied **per row**, not to the dataset as a whole. An EXFOR
   dataset frequently reports one product at several energies, and admitting all of them collapses
   an excitation function into a single number;
-- the rendering declares what a dataset is tabulated against, in its `indVars` column, and a
-  declared variable that the abscissa does not hold **must not vary**. `23591005` (Straede, 1987)
-  is a mass yield at nine fragment kinetic energies, and projected onto mass it is nine yields
-  per mass number;
+- a heading of the subentry DATA table that the EXFOR format classes as an independent variable,
+  other than the abscissa's own and the incident energy, **must not vary**. `23591005` (Straede,
+  1987) is a mass yield at nine fragment kinetic energies, and projected onto mass it is nine
+  yields per mass number. `23268002`, whose `TKE` column the csv rendering drops, is rejected from
+  `Cf252_sf_Y_vs_A` on the same rule;
 - the quantity code `FY` files more than yields. `MASS,PAR,ZP` is the most probable charge against
   mass, which satisfies every mass rule, so `yield` requires the `FY` tag itself: six such
   datasets for 235-U would otherwise sit among the mass yields at values near 40;
@@ -409,11 +418,9 @@ joint distribution and marginalise it rather than reach for the miscoded project
 One is known for `ordinate = "yield"`, and it is the rendering that misstates it. `23268002`
 (Göök, 2014), `98-CF-252(0,F)MASS,PRE,FY,,MSC`, is the joint distribution Y(A, TKE): 30 000 rows
 of counts on a 150 × 200 grid, which its subentry heads `TKE`, `MASS`, `DATA` in `ARB-UNITS`. The
-`op=csv` rendering drops the TKE column, declares mass the only independent variable, and gives
-the unit as `PART/FIS`. Nothing in the response distinguishes it from a mass yield measured 200
-times over, so it is retrieved by `Cf252_sf_Y_vs_A`, reduced to 150 rows by a weighted mean that
-means nothing, and written. It carries `MSC` and is named in the run record's scale warning and
-among the combined datasets; it is not a mass yield, and the subentry is where its content is.
+`op=csv` rendering drops the TKE column and gives the unit as `PART/FIS`. The subentry shows the
+column, and `Cf252_sf_Y_vs_A` rejects the dataset as also tabulated against
+`TKE [MEV] (200 values)`.
 
 One more is known for `ordinate = "spectrum"`, and it is a mislabelled unit rather than a
 mislabelled quantity. `40064031` (Kroshkin, 1970), `98-CF-252(0,F),PR,NU/DE,,REL`, heads its

@@ -26,7 +26,6 @@ using ExforFissionData:
     tag_rule,
     unused_path,
     validate_header,
-    varying_variables,
     write_dataset,
     write_metadata,
     EXFOR_HEADER
@@ -161,49 +160,34 @@ include("fixtures.jl")
     @testset "selection" begin
         query = test_query()
 
-        rejected = select_dataset(
-            "1",
-            exfor_csv([exfor_row(; value_kind = "Max(NO-DIM)", product_za = 100)]),
-            query,
-        )
+        rows = [exfor_row(; value_kind = "Max(NO-DIM)", product_za = 100)]
+        rejected = select_dataset("1", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test rejected isa Rejection
         @test occursin("limit", rejected.reason)
 
-        rejected = select_dataset(
-            "2",
-            exfor_csv([exfor_row(; value_kind = "Data(ARB-UNITS)", product_za = 100)]),
-            query,
-        )
+        rows = [exfor_row(; value_kind = "Data(ARB-UNITS)", product_za = 100)]
+        rejected = select_dataset("2", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test rejected isa Rejection
         @test occursin("absolute scale", rejected.reason)
 
-        rejected = select_dataset(
-            "3",
-            exfor_csv([
-                exfor_row(; reaction_code = "92-U-233(N,F)MASS,CUM,FY", product_za = 100),
-            ]),
-            query,
-        )
+        rows = [exfor_row(; reaction_code = "92-U-233(N,F)MASS,CUM,FY", product_za = 100)]
+        rejected = select_dataset("3", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test rejected isa Rejection
         @test occursin("CUM", rejected.reason)
 
         # A charge-coded product cannot answer a bare-mass abscissa.
-        rejected = select_dataset(
-            "4",
-            exfor_csv([exfor_row(; product_za = 54133, incident_ev = 0.0253)]),
-            query,
-        )
+        rows = [exfor_row(; product_za = 54133, incident_ev = 0.0253)]
+        rejected =
+            select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test rejected isa Rejection
         @test occursin("charge-coded", rejected.reason)
 
-        accepted = select_dataset(
-            "5",
-            exfor_csv([
-                exfor_row(; product_za = 100, y = 6.0, dy = 0.1, incident_ev = 0.0253),
-                exfor_row(; product_za = 101, y = 6.5, dy = 0.1, incident_ev = 0.0253),
-            ]),
-            query,
-        )
+        rows = [
+            exfor_row(; product_za = 100, y = 6.0, dy = 0.1, incident_ev = 0.0253),
+            exfor_row(; product_za = 101, y = 6.5, dy = 0.1, incident_ev = 0.0253),
+        ]
+        accepted =
+            select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test accepted isa Dataset
         @test accepted.unit == "PART/FIS"
         @test accepted.author == "A.Author"
@@ -214,36 +198,39 @@ include("fixtures.jl")
         query = test_query(; energy_min = 0.0, energy_max = 1.0e-7)
         # The same product at a thermal and a fast energy. Only the thermal row may survive;
         # averaging the two would collapse an excitation function into one number.
-        body = exfor_csv([
+        rows = [
             exfor_row(; product_za = 100, y = 6.0, dy = 0.1, incident_ev = 0.0253),
             exfor_row(; product_za = 100, y = 4.0, dy = 0.1, incident_ev = 2.0e6),
-        ])
-        accepted = select_dataset("6", body, query)
+        ]
+        body = exfor_csv(rows)
+        accepted = select_dataset("10000002", body, exfor_subentry_for(rows), query)
         @test accepted isa Dataset
         @test nrow(accepted.table) == 1
+        @test nrow(accepted.columns) == 1
 
         reduced = reduce_dataset(accepted, query)
         @test nrow(reduced.table) == 1
         @test reduced.table.Y[1] ≈ 6.0
 
         # A dataset entirely outside the window is rejected, with its range named.
-        outside = select_dataset(
-            "7",
-            exfor_csv([exfor_row(; product_za = 100, y = 4.0, incident_ev = 2.0e6)]),
-            query,
-        )
+        rows = [exfor_row(; product_za = 100, y = 4.0, incident_ev = 2.0e6)]
+        outside = select_dataset("7", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test outside isa Rejection
         @test occursin("outside the window", outside.reason)
     end
 
     @testset "reduction produces one row per abscissa value" begin
         query = test_query()
-        body = exfor_csv([
+        rows = [
             exfor_row(; product_za = 100, y = 6.0, dy = 0.5, incident_ev = 0.0253),
             exfor_row(; product_za = 100, y = 6.4, dy = 0.5, incident_ev = 0.0253),
             exfor_row(; product_za = 101, y = 7.0, dy = 0.2, incident_ev = 0.0253),
-        ])
-        reduced = reduce_dataset(select_dataset("8", body, query), query)
+        ]
+        body = exfor_csv(rows)
+        reduced = reduce_dataset(
+            select_dataset("10000002", body, exfor_subentry_for(rows), query),
+            query,
+        )
         @test reduced.abscissa_columns == [:A]
         @test reduced.ordinate_column == :Y
         @test reduced.table.A == [100, 101]
@@ -256,15 +243,21 @@ include("fixtures.jl")
 
     @testset "energy abscissa converts to MeV" begin
         query = test_query(; abscissa = ["total_kinetic_energy"], ordinate = "yield")
-        body = exfor_csv([
+        rows = [
             exfor_row(;
                 reaction_code = "92-U-233(N,F),TKE,FY",
                 y = 1.0,
                 secondary_ev = 1.7e8,
                 incident_ev = 0.0253,
             ),
-        ])
-        accepted = select_dataset("9", body, query)
+        ]
+        body = exfor_csv(rows)
+        accepted = select_dataset(
+            "10000002",
+            body,
+            exfor_subentry_for(rows; secondary = "TKE"),
+            query,
+        )
         @test accepted isa Dataset
         reduced = reduce_dataset(accepted, query)
         @test reduced.table.TKE[1] ≈ 170.0
@@ -272,7 +265,7 @@ include("fixtures.jl")
 
     @testset "energy ordinates are restated in MeV" begin
         query = test_query(; abscissa = ["mass"], ordinate = "total_kinetic_energy")
-        body = exfor_csv([
+        rows = [
             exfor_row(;
                 reaction_code = "98-CF-252(0,F)MASS,PRE,KE,LF+HF",
                 value_kind = "Data(EV)",
@@ -281,8 +274,9 @@ include("fixtures.jl")
                 dy = 1.0e6,
                 incident_ev = 0.0253,
             ),
-        ])
-        accepted = select_dataset("e1", body, query)
+        ]
+        body = exfor_csv(rows)
+        accepted = select_dataset("10000002", body, exfor_subentry_for(rows), query)
         @test accepted isa Dataset
         reduced = reduce_dataset(accepted, query)
         @test reduced.table.TKE[1] ≈ 186.0
@@ -293,7 +287,7 @@ include("fixtures.jl")
         # A spectrum is a density in energy: rescaling it would change the distribution rather
         # than restate a value, so it is left exactly as the archive gives it.
         spectral = test_query(; abscissa = ["neutron_energy"], ordinate = "spectrum")
-        body = exfor_csv([
+        rows = [
             exfor_row(;
                 reaction_code = "98-CF-252(0,F),PR,NU/DE",
                 value_kind = "Data(1/EV)",
@@ -301,8 +295,12 @@ include("fixtures.jl")
                 secondary_ev = 1.0e6,
                 incident_ev = 0.0253,
             ),
-        ])
-        reduced = reduce_dataset(select_dataset("e2", body, spectral), spectral)
+        ]
+        body = exfor_csv(rows)
+        reduced = reduce_dataset(
+            select_dataset("10000002", body, exfor_subentry_for(rows), spectral),
+            spectral,
+        )
         @test reduced.table.spectrum[1] ≈ 3.0e-7
         @test reduced.diagnostics["ordinate_factor"] == 1.0
     end
@@ -312,34 +310,30 @@ include("fixtures.jl")
             test_query(; abscissa = ["product_mass"], ordinate = "product_kinetic_energy")
         # An alpha from ternary fission is ProdZA 2004. Below the 10^4 threshold that marks a
         # charge-coded product, but four times too heavy to be a fragment mass.
-        rejected = select_dataset(
-            "t1",
-            exfor_csv([
-                exfor_row(;
-                    reaction_code = "98-CF-252(0,F)MASS,SEC,KE",
-                    product_za = 2004,
-                    y = 1.66e8,
-                    incident_ev = 0.0253,
-                ),
-            ]),
-            query,
-        )
+        rows = [
+            exfor_row(;
+                reaction_code = "98-CF-252(0,F)MASS,SEC,KE",
+                product_za = 2004,
+                y = 1.66e8,
+                incident_ev = 0.0253,
+            ),
+        ]
+        rejected =
+            select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test rejected isa Rejection
         @test occursin("charge-coded", rejected.reason)
 
         # A genuine fragment mass still passes.
-        accepted = select_dataset(
-            "t2",
-            exfor_csv([
-                exfor_row(;
-                    reaction_code = "98-CF-252(0,F)MASS,SEC,KE",
-                    product_za = 140,
-                    y = 8.0e7,
-                    incident_ev = 0.0253,
-                ),
-            ]),
-            query,
-        )
+        rows = [
+            exfor_row(;
+                reaction_code = "98-CF-252(0,F)MASS,SEC,KE",
+                product_za = 140,
+                y = 8.0e7,
+                incident_ev = 0.0253,
+            ),
+        ]
+        accepted =
+            select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test accepted isa Dataset
     end
 
@@ -347,7 +341,7 @@ include("fixtures.jl")
         # The same dataset, asked for two ways. A relative mass yield is not an interpretable
         # quantity; a relative spectrum is how prompt fission neutron spectra are measured, and
         # rejecting them removes most of what the archive holds.
-        body = exfor_csv([
+        rows = [
             exfor_row(;
                 value_kind = "Data(ARB-UNITS)",
                 y = 0.34,
@@ -364,15 +358,17 @@ include("fixtures.jl")
                 incident_ev = 0.0253,
                 reaction_code = "92-U-235(N,F),PR,NU/DE,,REL",
             ),
-        ])
+        ]
+        body = exfor_csv(rows)
 
-        as_yield = select_dataset("1", body, test_query())
+        as_yield = select_dataset("10000002", body, exfor_subentry_for(rows), test_query())
         @test as_yield isa Rejection
         @test occursin("no absolute scale", as_yield.reason)
 
         as_spectrum = select_dataset(
-            "1",
+            "10000002",
             body,
+            exfor_subentry_for(rows; unit = "ARB-UNITS"),
             test_query(; abscissa = ["neutron_energy"], ordinate = "spectrum"),
         )
         @test as_spectrum isa Dataset
@@ -384,11 +380,14 @@ include("fixtures.jl")
         query = test_query()
         directory = mktempdir()
 
-        body = exfor_csv([
+        with_rows = [
             exfor_row(; product_za = 100, y = 6.0, dy = 0.5, incident_ev = 0.0253),
             exfor_row(; product_za = 101, y = 7.0, dy = 0.25, incident_ev = 0.0253),
-        ])
-        reduced = reduce_dataset(select_dataset("10", body, query), query)
+        ]
+        body = exfor_csv(with_rows)
+        with_subentry = exfor_subentry_for(with_rows)
+        reduced =
+            reduce_dataset(select_dataset("10000002", body, with_subentry, query), query)
         path = joinpath(directory, "with.dat")
         write_dataset(path, reduced; significant_digits = 7)
         lines = readlines(path)
@@ -396,11 +395,15 @@ include("fixtures.jl")
         @test length(split(lines[2], ' ')) == 3
 
         # No uncertainty anywhere yields a two-column file rather than a column of zeros.
-        bare = exfor_csv([
+        bare_rows = [
             exfor_row(; product_za = 100, y = 6.0, incident_ev = 0.0253),
             exfor_row(; product_za = 101, y = 7.0, incident_ev = 0.0253),
-        ])
-        reduced = reduce_dataset(select_dataset("11", bare, query), query)
+        ]
+        bare = exfor_csv(bare_rows)
+        reduced = reduce_dataset(
+            select_dataset("10000002", bare, exfor_subentry_for(bare_rows), query),
+            query,
+        )
         @test !reduced.has_uncertainties
         path = joinpath(directory, "bare.dat")
         write_dataset(path, reduced; significant_digits = 7)
@@ -411,11 +414,15 @@ include("fixtures.jl")
         # Rounding is by significant digits, not decimal places. An absolute prompt fission
         # neutron spectrum is of order 1e-7 in the units the archive quotes it in, and seven
         # decimal places would write it as one significant digit and a value of 1e-8 as zero.
-        small = exfor_csv([
+        small_rows = [
             exfor_row(; product_za = 100, y = 5.214e-7, dy = 1.3e-8, incident_ev = 0.0253),
             exfor_row(; product_za = 101, y = 1.2e-8, incident_ev = 0.0253),
-        ])
-        reduced = reduce_dataset(select_dataset("12", small, query), query)
+        ]
+        small = exfor_csv(small_rows)
+        reduced = reduce_dataset(
+            select_dataset("10000002", small, exfor_subentry_for(small_rows), query),
+            query,
+        )
         path = joinpath(directory, "small.dat")
         write_dataset(path, reduced; significant_digits = 7)
         rows = readlines(path)
@@ -445,7 +452,7 @@ include("fixtures.jl")
             """,
         )
         record_path = joinpath(directory, "retrieval.toml")
-        dataset = select_dataset("10", body, query)
+        dataset = select_dataset("10000002", body, with_subentry, query)
         retrieved = DateTime(2026, 9, 23, 12)
         accepted = [
             AcceptedDataset(
@@ -1111,11 +1118,21 @@ include("fixtures.jl")
             ) for za in (54133, 54134)
         ]
         query = test_query(; abscissa = ["charge", "product_mass"], ordinate = "yield")
-        rejected = select_dataset("q1", exfor_csv(rows("FIS")), query)
+        rejected = select_dataset(
+            "q1",
+            exfor_csv(rows("FIS")),
+            exfor_subentry_for(rows("FIS")),
+            query,
+        )
         @test rejected isa Rejection
         @test occursin("FIS", rejected.reason)
         @test occursin("nth", rejected.reason)
-        @test select_dataset("q2", exfor_csv(rows("SPA")), query) isa Dataset
+        @test select_dataset(
+            "10000002",
+            exfor_csv(rows("SPA")),
+            exfor_subentry_for(rows("SPA")),
+            query,
+        ) isa Dataset
 
         resonance = test_query(;
             channel = "nres",
@@ -1124,8 +1141,13 @@ include("fixtures.jl")
             abscissa = ["charge", "product_mass"],
             ordinate = "yield",
         )
-        rejected =
-            select_dataset("q3", exfor_csv(rows("MXW"; incident_ev = 580.0)), resonance)
+        resonant = rows("MXW"; incident_ev = 580.0)
+        rejected = select_dataset(
+            "q3",
+            exfor_csv(resonant),
+            exfor_subentry_for(resonant),
+            resonance,
+        )
         @test rejected isa Rejection
         @test occursin("MXW", rejected.reason)
     end
@@ -1142,12 +1164,15 @@ include("fixtures.jl")
         )
 
         # A yield at nine kinetic-energy gates is nine yields; their mean is none of them.
-        varied = select_dataset("20", exfor_csv([gated(1.00e8), gated(1.07e8)]), query)
+        rows = [gated(1.00e8), gated(1.07e8)]
+        varied =
+            select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test varied isa Rejection
-        @test occursin("x3:SecEn (2 values)", varied.reason)
+        @test occursin("E [EV] (2 values)", varied.reason)
 
         # The same variable held at one value is a condition of the measurement.
-        fixed = select_dataset("21", exfor_csv([gated(1.07e8)]), query)
+        rows = [gated(1.07e8)]
+        fixed = select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
         @test fixed isa Dataset
 
         # The joint abscissa accounts for the secondary energy, so nothing is left over.
@@ -1165,23 +1190,229 @@ include("fixtures.jl")
                 reaction_code = "92-U-233(N,F)MASS,PR/FRG,NU/TKE",
             ) for energy in (1.6e8, 1.7e8)
         ]
-        @test select_dataset("22", exfor_csv(rows), joint) isa Dataset
-
-        # A rendering that declares nothing constrains nothing.
-        table = parse_dataset("23", exfor_csv([exfor_row(; product_za = 100)]))
-        @test isempty(varying_variables(table, ["mass"]))
+        @test select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; secondary = "TKE"),
+            joint,
+        ) isa Dataset
     end
 
     @testset "one incident energy per dataset" begin
         query = test_query(; channel = "nres", energy_min = 0.0, energy_max = 1.0e-3)
-        body = exfor_csv([
+        rows = [
             exfor_row(; product_za = 100, y = 6.0, incident_ev = 0.0253),
             exfor_row(; product_za = 100, y = 5.0, incident_ev = 580.0),
-        ])
-        outcome = select_dataset("24", body, query)
+        ]
+        body = exfor_csv(rows)
+        outcome = select_dataset("24", body, exfor_subentry_for(rows), query)
         @test outcome isa Rejection
         @test occursin("2 incident energies", outcome.reason)
         @test occursin("narrow the window", outcome.reason)
+    end
+
+    @testset "the subentry settles the abscissa" begin
+        query = test_query()
+        thermal(; kwargs...) = exfor_row(; incident_ev = 0.0253, kwargs...)
+        # The csv rendering of truncated masses beside the subentry that holds the true ones.
+        function on_mass_scale(masses, products; y = fill(1.0, length(masses)))
+            csv_rows = [thermal(; product_za = p, y = v) for (p, v) in zip(products, y)]
+            text = exfor_subentry(;
+                headings = ["MASS", "DATA"],
+                units = ["NO-DIM", "PRT/FIS"],
+                rows = [[m, v] for (m, v) in zip(masses, y)],
+            )
+            return select_dataset("10000002", exfor_csv(csv_rows), text, query)
+        end
+
+        # 23175002 arrives from the rendering as 63, 64, 66, 66: two points collapsed onto one
+        # mass number and every mass low by up to a unit.
+        accepted = on_mass_scale(
+            [63.51, 64.91, 66.08, 66.79],
+            [63, 64, 66, 66];
+            y = [1.0, 2.0, 3.0, 4.0],
+        )
+        @test accepted isa Dataset
+        reduced = reduce_dataset(accepted, query)
+        @test reduced.table.A == [64, 65, 66, 67]
+        @test reduced.diagnostics["abscissae_combined"] == 0
+        @test reduced.diagnostics["mass_values_non_integer"] == 4
+
+        # Ties to even would put 80.5 and 81.5 on 80 and 82, and 82.5 on 82 again.
+        for (masses, products, expected) in [
+            ([79.5, 81.5, 83.5], [79, 81, 83], [80, 82, 84]),
+            ([80.5, 81.5, 82.5], [80, 81, 82], [81, 82, 83]),
+        ]
+            reduced = reduce_dataset(on_mass_scale(masses, products), query)
+            @test reduced.table.A == expected
+        end
+
+        # A variable the rendering drops is visible in the subentry.
+        rows = [thermal(; product_za = a) for a in (100, 100, 101, 101)]
+        tke(values) = (headings = ["TKE"], units = ["MEV"], values = [[v] for v in values])
+        hidden = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; extra = tke([150.0, 160.0, 150.0, 160.0])),
+            query,
+        )
+        @test hidden isa Rejection
+        @test occursin("TKE [MEV] (2 values)", hidden.reason)
+        held = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; extra = tke(fill(150.0, 4))),
+            query,
+        )
+        @test held isa Dataset
+
+        # An auxiliary column may vary among rows that are combined, and is named.
+        rows = [thermal(; product_za = 100) for _ in 1:2]
+        misc = (headings = ["MISC"], units = ["CM"], values = [[15.5], [30.0]])
+        accepted = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; extra = misc),
+            query,
+        )
+        @test accepted isa Dataset
+        reduced = reduce_dataset(accepted, query)
+        @test reduced.diagnostics["abscissae_combined"] == 1
+        @test reduced.diagnostics["combined_over"] == ["MISC"]
+
+        # A spectrum in the centre-of-mass frame is not a laboratory spectrum.
+        spectral = test_query(; abscissa = ["neutron_energy"], ordinate = "spectrum")
+        spectrum_row(energy) = thermal(;
+            reaction_code = "98-CF-252(0,F),PR,NU/DE",
+            value_kind = "Data(1/EV)",
+            y = 3.0e-7,
+            secondary_ev = energy,
+        )
+        rows = [spectrum_row(energy) for energy in (1.0e6, 2.0e6)]
+        frame = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; secondary = "E-CM"),
+            spectral,
+        )
+        @test frame isa Rejection
+        @test occursin("centre-of-mass", frame.reason)
+
+        # An energy column is converted from the unit the subentry heads it with.
+        rows = [spectrum_row(energy) for energy in (1.0e5, 2.0e5)]
+        subentry = exfor_subentry(;
+            headings = ["E", "DATA"],
+            units = ["KEV", "1/EV"],
+            rows = [[100.0, 3.0e-7], [200.0, 3.0e-7]],
+        )
+        accepted = select_dataset("10000002", exfor_csv(rows), subentry, spectral)
+        @test accepted isa Dataset
+        @test reduce_dataset(accepted, spectral).table.E ≈ [0.1, 0.2]
+
+        # A bin contributes its midpoint.
+        rows = [thermal(; product_za = a) for a in (100, 102)]
+        subentry = exfor_subentry(;
+            headings = ["MASS-MIN", "MASS-MAX", "DATA"],
+            units = ["NO-DIM", "NO-DIM", "PRT/FIS"],
+            rows = [[99.0, 101.0, 1.0], [101.0, 103.0, 1.0]],
+        )
+        reduced = reduce_dataset(
+            select_dataset("10000002", exfor_csv(rows), subentry, query),
+            query,
+        )
+        @test reduced.table.A == [100, 102]
+        @test reduced.diagnostics["abscissa_binned"]
+
+        # The rendering and the subentry are compared row by row before either is used.
+        rows = [thermal(; product_za = 100)]
+        disagreeing = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry(; rows = [[105.0, 6.0]]),
+            query,
+        )
+        @test disagreeing isa Rejection
+        @test occursin("disagree", disagreeing.reason)
+        two = [thermal(; product_za = a) for a in (100, 101)]
+        short = select_dataset(
+            "10000002",
+            exfor_csv(two),
+            exfor_subentry(; rows = [[100.0, 6.0]]),
+            query,
+        )
+        @test short isa Rejection
+        @test occursin("cannot be aligned", short.reason)
+
+        # A pointer dataset has a row only where its own DATA column carries a datum; the lines
+        # a sibling dataset fills alone are not rows of this one. 31685002 holds 93 lines, its
+        # two datasets 87 and 78 rows.
+        pointed = [
+            thermal(; dataset_id = "100000022", product_za = a, y = v) for
+            (a, v) in ((100, 6.0), (102, 5.0))
+        ]
+        shared = exfor_subentry(;
+            headings = ["MASS", "DATA", "DATA"],
+            pointers = [' ', '1', '2'],
+            units = ["NO-DIM", "PRT/FIS", "PRT/FIS"],
+            rows = [[100.0, 1.0, 6.0], [101.0, 2.0, missing], [102.0, 3.0, 5.0]],
+        )
+        sibling = select_dataset("100000022", exfor_csv(pointed), shared, query)
+        @test sibling isa Dataset
+        @test reduce_dataset(sibling, query).table.A == [100, 102]
+
+        # A total kinetic energy the compiler headed E, defined under EN-SEC as the energy of
+        # both fragments, is the TKE abscissa: 14065004 and 21095008 tabulate it so.
+        joint = test_query(;
+            abscissa = ["mass", "total_kinetic_energy"],
+            ordinate = "multiplicity",
+        )
+        gated = [
+            thermal(;
+                product_za = a,
+                secondary_ev = e,
+                y = 2.0,
+                reaction_code = "92-U-233(N,F)MASS,PR/FRG,NU/TKE",
+            ) for (a, e) in ((100, 1.6e8), (101, 1.7e8))
+        ]
+        headed_e = select_dataset(
+            "10000002",
+            exfor_csv(gated),
+            exfor_subentry_for(gated; secondary = "E"),
+            joint,
+        )
+        @test headed_e isa Dataset
+        @test reduce_dataset(headed_e, joint).table.TKE ≈ [160.0, 170.0]
+        absent = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            "-?-No such data in the database-",
+            query,
+        )
+        @test absent isa Rejection
+        @test startswith(absent.reason, "subentry:")
+
+        heading_class = ExforFissionData.heading_class
+        for heading in (
+            "DATA-ERR",
+            "+DATA-ERR",
+            "ERR-S",
+            "MONIT1",
+            "FLAG",
+            "DECAY-FLAG",
+            "MISC2",
+            "KT-NRM",
+            "E-RSL",
+            "MASS-ERR-D",
+            "ERR-DIG",
+        )
+            @test heading_class(heading) == :auxiliary
+        end
+        for heading in ("EN", "EN-DUMMY", "EN-MIN")
+            @test heading_class(heading) == :incident
+        end
+        for heading in ("E", "MASS", "ELEM", "TKE", "KE", "ANG", "ISOMER")
+            @test heading_class(heading) == :independent
+        end
     end
 
     @testset "retrieval from a seeded cache" begin
@@ -1214,36 +1445,49 @@ include("fixtures.jl")
             csv(identifier) = "x4get?DatasetID=$(identifier)&op=csv&plus=2"
             thermal(; kwargs...) = exfor_row(; incident_ev = 0.0253, kwargs...)
 
-            # Two points of a non-integer mass scale, truncated onto one mass number by the
-            # rendering, beside a dataset gated on a variable the abscissa does not hold.
+            # A non-integer mass scale the rendering truncates, restored from the subentry,
+            # beside a dataset gated on a variable the abscissa does not hold.
             seed(listing, "10000002\n10000003\n")
             seed(
                 csv("10000002"),
                 exfor_csv([
-                    thermal(; product_za = 100, y = 6.0, dy = 0.1),
-                    thermal(; product_za = 100, y = 6.4, dy = 0.1),
-                    thermal(; product_za = 101, y = 5.0, dy = 0.1),
+                    thermal(; product_za = 63, y = 6.0, dy = 0.1),
+                    thermal(; product_za = 64, y = 6.4, dy = 0.1),
+                    thermal(; product_za = 66, y = 5.0, dy = 0.1),
                 ]),
             )
             seed(
-                csv("10000003"),
-                exfor_csv([
-                    thermal(;
-                        dataset_id = "10000003",
-                        product_za = 100,
-                        secondary_ev = energy,
-                        independent_variables = 237,
-                    ) for energy in (1.00e8, 1.07e8)
-                ]),
+                "x4get?sub=10000002",
+                exfor_subentry(;
+                    subentry = "10000002",
+                    headings = ["MASS", "DATA", "DATA-ERR"],
+                    units = ["NO-DIM", "PRT/FIS", "PRT/FIS"],
+                    rows = [[63.51, 6.0, 0.1], [64.91, 6.4, 0.1], [66.0, 5.0, 0.1]],
+                    common = (headings = ["EN-DUMMY"], units = ["EV"], values = [0.0253]),
+                ),
             )
+            gated_rows = [
+                thermal(;
+                    dataset_id = "10000003",
+                    product_za = 100,
+                    secondary_ev = energy,
+                    independent_variables = 237,
+                ) for energy in (1.00e8, 1.07e8)
+            ]
+            seed(csv("10000003"), exfor_csv(gated_rows))
+            seed("x4get?sub=10000003", exfor_subentry_for(gated_rows))
             rerun() = retrieve(configuration; root = directory)
-            result =
-                @test_logs (:warn, r"rows sharing an abscissa") match_mode = :any rerun()
+            result = rerun()
             @test [entry.dataset.identifier for entry in result.accepted] == ["10000002"]
             @test only(result.rejected).identifier == "10000003"
+            @test occursin("E [EV] (2 values)", only(result.rejected).reason)
             record = TOML.parsefile(result.metadata_file)
-            @test occursin("10000002", record["datasets"]["combined_warning"])
-            @test only(record["accepted"])["abscissae_combined"] == 1
+            @test !haskey(record["datasets"], "combined_warning")
+            @test only(record["accepted"])["abscissae_combined"] == 0
+            @test only(record["accepted"])["mass_values_non_integer"] == 2
+            @test only(record["accepted"])["mass_rounding_max"] ≈ 0.49
+            written = readlines(joinpath(result.directory, only(result.accepted).file))
+            @test [first(split(line, ' ')) for line in written[2:end]] == ["64", "65", "66"]
             @test haskey(record["run"], "package_version")
             @test haskey(record["conventions"], "abscissa_resolution")
             # Every response is dated, so the record states which archive it reflects.

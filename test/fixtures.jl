@@ -183,3 +183,88 @@ function exfor_subentry(;
     ]
     return join(lines, '\n') * '\n'
 end
+
+"""
+    exfor_subentry_for(rows; secondary = "E", unit = "PRT/FIS", extra = nothing, kwargs...)
+        -> String
+
+The subentry text that the csv rows of `exfor_row` correspond to, built through
+`exfor_subentry`, so that a test states its data once.
+
+The DATA columns are, in this order where present: `ELEM` and `MASS` when any `ProdZA` is
+charge-coded (at least 10 000), else `MASS` alone when any `ProdZA` is given; `ISOMER` when any
+`ProdM` is given; the heading `secondary`, in `EV`, when any `x3` is given; `EN` in `EV` when the
+incident energy takes more than one value, which is a COMMON constant instead when it takes
+one; `DATA` in `unit` from `y`; `DATA-ERR` in `unit` when any `dy` is given. A blank csv field
+is a blank field here.
+
+# Keywords
+- `secondary`: the heading of the secondary energy, `"E"`, `"TKE"`, `"E-CM"`.
+- `unit`: the unit of `DATA` and `DATA-ERR`.
+- `extra`: columns to append, as `(headings = [...], units = [...], values = [...])` with one
+  vector of values per row.
+
+`subentry` defaults to the first eight characters of the identifier of the first row; every
+other keyword passes through to `exfor_subentry` and overrides what is derived here.
+"""
+function exfor_subentry_for(
+    rows::AbstractVector;
+    secondary = "E",
+    unit = "PRT/FIS",
+    extra = nothing,
+    kwargs...,
+)
+    field(row, index) = isempty(row[index]) ? missing : parse(Float64, row[index])
+    csv_column(index) = Union{Missing, Float64}[field(row, index) for row in rows]
+    product = csv_column(26)
+    isomer = csv_column(27)
+    y = csv_column(5)
+    dy = csv_column(6)
+    secondary_energy = csv_column(14)
+    incident_energy = csv_column(11)
+
+    headings = String[]
+    units = String[]
+    columns = Vector{Union{Missing, Float64}}[]
+    function add!(heading, heading_unit, values)
+        push!(headings, heading)
+        push!(units, heading_unit)
+        push!(columns, values)
+    end
+
+    products = collect(skipmissing(product))
+    if any(≥(10_000), products)
+        charge = [ismissing(p) ? missing : Float64(round(Int, p) ÷ 1000) for p in product]
+        mass = [ismissing(p) ? missing : Float64(round(Int, p) % 1000) for p in product]
+        add!("ELEM", "NO-DIM", charge)
+        add!("MASS", "NO-DIM", mass)
+    elseif !isempty(products)
+        add!("MASS", "NO-DIM", product)
+    end
+    any(!ismissing, isomer) && add!("ISOMER", "NO-DIM", isomer)
+    any(!ismissing, secondary_energy) && add!(secondary, "EV", secondary_energy)
+    incident = unique(skipmissing(incident_energy))
+    common = (headings = String[], units = String[], values = Float64[])
+    if length(incident) > 1
+        add!("EN", "EV", incident_energy)
+    elseif length(incident) == 1
+        common = (headings = ["EN"], units = ["EV"], values = [only(incident)])
+    end
+    add!("DATA", unit, y)
+    any(!ismissing, dy) && add!("DATA-ERR", unit, dy)
+    if extra !== nothing
+        for (j, heading) in enumerate(extra.headings)
+            add!(heading, extra.units[j], [row_values[j] for row_values in extra.values])
+        end
+    end
+
+    data_rows = [[values[i] for values in columns] for i in eachindex(rows)]
+    return exfor_subentry(;
+        subentry = first(first(rows)[1], 8),
+        headings,
+        units,
+        rows = data_rows,
+        common,
+        kwargs...,
+    )
+end
