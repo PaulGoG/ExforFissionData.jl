@@ -1050,6 +1050,21 @@ include("fixtures.jl")
         @test response.body == "cached body"
         @test response.retrieved isa DateTime
 
+        # An empty rendering is asked for again rather than trusted, while a rendering with rows
+        # is served without a request: the unreachable archive shows which was attempted.
+        header = join(EXFOR_HEADER, ',') * "\n"
+        empty_query = "x4get?DatasetID=22413013&op=csv&plus=2"
+        write(joinpath(directory, ExforFissionData._cache_key(empty_query)), header)
+        unreachable_dataset =
+            RetrievalOptions(; cache_directory = directory, retries = 0, timeout = 0.001)
+        response = @test_logs (:warn, r"cached") match_mode = :any begin
+            ExforFissionData.fetch_response(empty_query, unreachable_dataset)
+        end
+        @test response.from_cache && response.body == header
+        @test ExforFissionData.is_empty_rendering(header)
+        @test !ExforFissionData.is_empty_rendering(header * "22413013,1997\n")
+        @test_logs ExforFissionData.fetch_response(dataset_query, unreachable_dataset)
+
         # Offline serves the cache and refuses anything it does not hold.
         offline = RetrievalOptions(; cache_directory = directory, offline = true)
         @test ExforFissionData.fetch_response(dataset_query, offline).from_cache

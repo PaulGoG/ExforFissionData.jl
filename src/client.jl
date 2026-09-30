@@ -93,6 +93,21 @@ function _cache_key(query::AbstractString)
 end
 
 """
+    is_empty_rendering(body) -> Bool
+
+Whether `body` is a csv rendering with its header and no row.
+
+The archive has answered so for datasets it holds data for: `22413013`, `227980081` and `23012009`
+were each served empty once, and a cached empty answer hid them from every later run. An empty
+rendering is therefore never served from the cache while the archive can be asked again; see
+[`fetch_response`](@ref).
+"""
+function is_empty_rendering(body::AbstractString)
+    trimmed = strip(body)
+    return startswith(trimmed, "DatasetID,") && !occursin('\n', trimmed)
+end
+
+"""
     is_usable_response(body) -> Bool
 
 Whether a response body is worth parsing or keeping.
@@ -209,7 +224,9 @@ function fetch_response(
         throw(ArgumentError("offline: no cached response for \"$(query)\" under \
                  $(cache_directory(options))"))
     end
-    if usable && !options.refresh && !listing
+    # An empty csv rendering is asked for again, once, rather than trusted from the cache; see
+    # `is_empty_rendering`. The request is not retried, since an empty answer is a usable one.
+    if usable && !options.refresh && !listing && !is_empty_rendering(cached)
         age_days = (Dates.now(Dates.UTC) - cached_at) / Dates.Day(1)
         age_days ≤ options.max_age_days && return Response(cached, cached_at, true)
     end

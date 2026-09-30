@@ -91,6 +91,10 @@ no longer taken for pre-neutron data. The changes below name every dataset whose
   provisional masses) and `41109007` (a mean over cold-fragmentation events) are no longer
   accepted.
 - The post-neutron TKE requires `SEC`; a blank branch no longer passes for post-neutron.
+- A csv rendering cached while the archive returned only its header was served as an empty
+  dataset for as long as the cache lived; such a rendering is now refetched. Three datasets had
+  been reported empty this way: `22413013`, now accepted, and `227980081` and `23012009`, now
+  refused on their codes, so no count above changes.
 
 ### Removed
 
