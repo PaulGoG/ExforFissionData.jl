@@ -196,17 +196,20 @@ const BASE_FORBID = [
 #
 #   mass                  pre-neutron fragment mass: mass-resolved, not charge-resolved, not
 #                         differential in energy, and neither independent nor secondary, which
-#                         would make it post-neutron
+#                         would make it post-neutron, nor provisional (PRV): a mass from the
+#                         two fragment energies uncorrected for neutron emission. 23802002,
+#                         23815002, 23815003, 23815005 and 23588002 are provisional yields
 #   product_mass          post-neutron fragment mass: as mass, but requiring the
 #                         independent or secondary marking and forbidding the pre-neutron one
 #   charge                fragment charge: charge-resolved, not mass-resolved
 #   neutron_energy        energy abscissa of a spectrum
-#   total_kinetic_energy  total kinetic energy, as TKE or as DE of both fragments
+#   total_kinetic_energy  total kinetic energy, as TKE or as DE of both fragments; beside
+#                         mass, the mass is pre-neutron as for mass alone
 const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
     ["mass"] => TagRule(
         ["SF4:MASS"],
         String[],
-        ["TKE", "SF4:ELEM", "SF5:SEC", "SF5:(SEC)", "SF6:DE", "SF5:IND"],
+        ["TKE", "SF4:ELEM", "SF5:SEC", "SF5:(SEC)", "SF5:PRV", "SF6:DE", "SF5:IND"],
     ),
     ["product_mass"] => TagRule(
         ["SF4:MASS"],
@@ -227,8 +230,11 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
         ["SF5:SEC", "SF5:IND"],
         ["SF6:KE", "SF6:DE", "SF5:PRE"],
     ),
-    ["mass", "total_kinetic_energy"] =>
-        TagRule(["SF4:MASS"], ["TKE", "SF6:DE & SF7:LF+HF"], ["SF4:ELEM"]),
+    ["mass", "total_kinetic_energy"] => TagRule(
+        ["SF4:MASS"],
+        ["TKE", "SF6:DE & SF7:LF+HF"],
+        ["SF4:ELEM", "SF5:SEC", "SF5:(SEC)", "SF5:PRV", "SF5:IND"],
+    ),
 )
 
 # Ordinate rules, composed with the abscissa rule. The key is the value of `ordinate` in the

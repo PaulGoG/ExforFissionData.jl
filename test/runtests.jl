@@ -1364,6 +1364,43 @@ include("fixtures.jl")
         @test isempty(ExforFissionData._curation_record("10000002"))
     end
 
+    @testset "a provisional mass is not a pre-neutron mass" begin
+        # 23802002 (Straede 1983): 252-Cf mass yields against provisional masses.
+        cf = test_query(; target_Z = 98, target_A = 252, channel = "sf", ordinate = "yield")
+        rows = [
+            exfor_row(;
+                dataset_id = "23802002",
+                reaction_code = "98-CF-252(0,F)MASS,PRV,FY",
+                value_kind = "Data(PC/FIS)",
+                product_za = mass,
+                y = value,
+            ) for (mass, value) in ((100, 3.2), (101, 3.9), (102, 4.6))
+        ]
+        rejected = select_dataset(
+            "23802002",
+            exfor_csv(rows),
+            exfor_subentry_for(
+                rows;
+                unit = "PC/FIS",
+                bib = ["REACTION   (98-CF-252(0,F)MASS,PRV,FY)"],
+            ),
+            cf,
+        )
+        @test rejected isa Rejection
+        @test rejected.reason == "forbidden code \"PRV\" in SF5"
+
+        # Beside the TKE the mass is pre-neutron too: a post-neutron or provisional joint yield
+        # is not Y(A, TKE).
+        joint = tag_rule(["mass", "total_kinetic_energy"], "yield")
+        @test matches(joint, "92-U-235(N,F)MASS,PRE,FY/DE,LF+HF,REL")
+        for (code, branch) in (
+            "92-U-235(N,F)MASS,SEC,FY/DE,LF+HF,MXW/REL" => "SEC",
+            "92-U-235(N,F)MASS,PRV,FY/DE,LF+HF" => "PRV",
+        )
+            @test rejection_reason(joint, code) == "forbidden code \"$(branch)\" in SF5"
+        end
+    end
+
     @testset "a spectrum qualifier must agree with the channel" begin
         conflict = ExforFissionData.channel_qualifier_conflict
         @test conflict("nth", "92-U-235(N,F)ELEM/MASS,IND,FY,,FIS") == "FIS"
