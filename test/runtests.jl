@@ -1560,6 +1560,39 @@ include("fixtures.jl")
         @test rejected isa Rejection
         @test occursin("Y(A, TKE)", rejected.reason)
 
+        # 22413013 (Dematte 1997): raw counts of 240-Pu(sf), which the rendering calls
+        # PC/FIS/MEV and the subentry NO-DIM, read as arbitrary units.
+        pu240 = test_query(;
+            target_Z = 94,
+            target_A = 240,
+            channel = "sf",
+            abscissa = ["mass", "total_kinetic_energy"],
+            ordinate = "yield",
+        )
+        counts = [(140.0, 130, 3.0), (141.0, 130, 5.0)]
+        rows = [
+            exfor_row(;
+                dataset_id = "22413013",
+                reaction_code = "94-PU-240(0,F)MASS,PRE,FY/DE,,RAW",
+                value_kind = "Data(PC/FIS/MEV)",
+                product_za = mass,
+                y = n,
+                secondary_ev = e * 1.0e6,
+            ) for (e, mass, n) in counts
+        ]
+        text = exfor_subentry(;
+            subentry = "22413013",
+            headings = ["E", "MASS", "DATA"],
+            units = ["MEV", "NO-DIM", "NO-DIM"],
+            rows = [[e, Float64(mass), n] for (e, mass, n) in counts],
+        )
+        accepted = select_dataset("22413013", exfor_csv(rows), text, pu240)
+        @test accepted isa Dataset
+        @test accepted.unit == "ARB-UNITS"
+        reduced = reduce_dataset(accepted, pu240)
+        @test reduced.table.TKE == [140.0, 141.0]
+        @test occursin("event counts", reduced.diagnostics["normalisation"])
+
         # 21995034 (Wagemans 1984): a TKE distribution summed over a mass window, coded as the
         # energy of one fragment, with the window in COMMON.
         pu = test_query(;
@@ -1590,7 +1623,8 @@ include("fixtures.jl")
         # A slice is refused as Y(A, TKE) alone, and listed for its system.
         @test ExforFissionData.slice_rejection("21995034", ["mass"], "yield") === nothing
         for (identifier, slice) in ExforFissionData.SLICE_DATASETS
-            @test slice.system in ("Cf252_sf", "U235_nth", "Pu239_nth", "U233_nth")
+            @test slice.system in
+                  ("Cf252_sf", "U235_nth", "Pu239_nth", "U233_nth", "Pu240_sf")
             @test !haskey(ExforFissionData.CURATED_DATASETS, identifier)
         end
     end
@@ -1865,6 +1899,37 @@ include("fixtures.jl")
         for identifier in ("23012005", "23012006")
             @test occursin("29 to 32 %", ExforFissionData.WIDTH_NOTES[identifier])
         end
+
+        # 22273023 (Schillebeeckx 1992): the dispersion of 240-Pu(sf), a standard deviation with
+        # its own uncertainty column, written as it stands.
+        pu240 = test_query(;
+            target_Z = 94,
+            target_A = 240,
+            channel = "sf",
+            ordinate = "total_kinetic_energy_dispersion",
+        )
+        schillebeeckx =
+            WidthColumn("22273023", "MISC1", "standard_deviation", "total_kinetic_energy")
+        body, text = kinetic_energy_dataset(
+            "22273023",
+            "94-PU-240(0,F)MASS,PRE,KE,LF+HF",
+            [(149, 176.0), (150, 175.0), (151, 174.0)];
+            thermal = false,
+            extra = (
+                headings = ["MISC1", "MISC1-ERR"],
+                units = ["MEV", "MEV"],
+                values = [[8.25, 0.4], [9.12, 0.5], [7.23, 0.4]],
+            ),
+        )
+        reduced = reduce_dataset(
+            select_dataset("22273023", body, text, pu240; widths = [schillebeeckx]),
+            pu240;
+            widths = [schillebeeckx],
+        )
+        @test reduced.table.sigma_TKE == [8.25, 9.12, 7.23]
+        @test reduced.table.sigma_TKE_uncertainty == [0.4, 0.5, 0.4]
+        @test occursin("11.79", reduced.diagnostics["width_note"])
+        @test occursin("11.81", reduced.diagnostics["width_note"])
 
         # The MISC-COL text is quoted for the record, the other dataset's pointer left out.
         text = exfor_subentry(;

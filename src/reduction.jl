@@ -737,7 +737,11 @@ function reduce_dataset(
         merge!(diagnostics, _tke_grid(dataset, [key[tke] for key in final_keys]))
     end
     if query.ordinate == "yield"
-        stated = get(dataset.units, "DATA", dataset.unit)
+        # An arbitrary scale the dataset is read in, from its subentry or a curated reading,
+        # decides over the heading of its DATA column.
+        stated =
+            is_relative_unit(dataset.unit) ? dataset.unit :
+            get(dataset.units, "DATA", dataset.unit)
         diagnostics["normalisation"] =
             get(YIELD_NORMALISATIONS, stated, "as the unit $(stated) states")
     end

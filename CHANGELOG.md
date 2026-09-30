@@ -32,7 +32,13 @@ no longer taken for pre-neutron data. The changes below name every dataset whose
   holds for the system.
 - Configurations `<system>_TKE_vs_A`, `<system>_sigma_TKE_vs_A` and `<system>_Y_vs_A_TKE`: the
   mean TKE for 252-Cf, 235-U and 239-Pu, and the width and the joint yield for all four systems.
-  Thirty-two configurations in all.
+- 240-Pu(sf), the compound nucleus of 239-Pu(n_th,f), for what the archive lacks there:
+  `Pu240_sf_sigma_TKE_vs_A` reads the dispersion of `22273023` (Schillebeeckx 1992,
+  [doi:10.1016/0375-9474(92)90296-V](https://doi.org/10.1016/0375-9474(92)90296-V)), digitised
+  from a figure and written unsmoothed with its scatter stated; `Pu240_sf_Y_vs_A_TKE` reads the
+  raw count matrix `22413013` (Demattè 1997,
+  [doi:10.1016/S0375-9474(97)00032-8](https://doi.org/10.1016/S0375-9474(97)00032-8)) from its
+  subentry, in arbitrary units. Thirty-four configurations in all.
 - Curated readings of datasets no reaction code describes (`src/curation.jl`), each with its
   evidence in the run record: `14101003` (Whetstone 1963,
   [doi:10.1103/PhysRev.131.1232](https://doi.org/10.1103/PhysRev.131.1232)), a double-velocity

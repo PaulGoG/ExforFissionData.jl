@@ -133,6 +133,20 @@ be written under a directory of its own.
   total kinetic energy jointly.
 - `Pu239_nth_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
 
+### 240-Pu(sf)
+
+240-Pu is the compound nucleus of 239-Pu(n_th,f), about 6.5 MeV lower in excitation energy when
+it fissions spontaneously. These two stand in for what the archive lacks for 239-Pu(n_th,f).
+
+- `Pu240_sf_sigma_TKE_vs_A` — the standard deviation of the pre-neutron TKE against heavy mass,
+  from `22273023` (Schillebeeckx 1992, [doi:10.1016/0375-9474(92)90296-V](https://doi.org/10.1016/0375-9474(92)90296-V)),
+  whose `MISC1` the entry calls "the dispersion, sigma, of the distribution". Digitised from a
+  figure of the paper and scattering accordingly, it is written as it stands.
+- `Pu240_sf_Y_vs_A_TKE` — the joint yield in raw event counts, `22413013` (Demattè 1997,
+  [doi:10.1016/S0375-9474(97)00032-8](https://doi.org/10.1016/S0375-9474(97)00032-8)), 1-MeV TKE
+  steps against heavy masses 120 to 160, under `relative/`; the record lists the TKE slices of
+  Wagemans 1984 besides.
+
 ## Spectra
 
 A prompt fission neutron spectrum is conventionally measured relative and normalised afterwards,

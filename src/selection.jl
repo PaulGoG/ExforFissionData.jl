@@ -467,6 +467,8 @@ function select_dataset(
         )
         dataset_unit = subentry_unit
     end
+    curated = get(CURATED_DATASETS, identifier, nothing)
+    (curated === nothing || curated.unit === nothing) || (dataset_unit = curated.unit)
 
     rows = nrow(screened.table)
     lines = line_count(data)

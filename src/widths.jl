@@ -116,6 +116,21 @@ const WIDTH_NOTES = Dict{String, String}(
     "23717006" => "entry 23717 states the data are 'not corrected for resolution effects' \
                    (23717001, CORRECTION)",
     "22780003" => "covers A = 74 to 181 without a gap",
+    "22273023" => "240-Pu(sf), Schillebeeckx 1992 (doi:10.1016/0375-9474(92)90296-V). The \
+                   dispersion is digitised from Fig. 8 of the paper, the mean TKE beside it \
+                   from Fig. 3.12 of the Schillebeeckx thesis (22273023, STATUS), and the \
+                   points scatter: A_H = 150, 156 and 158 lie 1.4, 1.6 and 2.9 MeV above the \
+                   mean of their neighbours, and 126 and 128, near symmetry, 2.6 and 1.9 MeV. \
+                   They are written as they stand, without smoothing. A_H = 125 carries a mean \
+                   and a skewness but no dispersion, so 36 widths are written for A_H = 123 to \
+                   159. The entry defines its dispersion as 'the dispersion, sigma, of the \
+                   distribution' (22273003, MISC-COL). With the Y(A) and mean \
+                   TKE of Wagemans 1984 (doi:10.1103/PhysRevC.30.218) for 239-Pu(nth,f), the \
+                   same compound nucleus (21995028, 21995038), this width has been found to \
+                   give a mass-integrated sigma_TKE of 11.79 MeV; over the masses it tabulates, \
+                   that combination gives 11.51 MeV here, and 11.68 MeV with the widths \
+                   extended by the nearest value to Wagemans' A_H = 120 to 169. The measured \
+                   239-Pu(nth,f) value is 11.81 +- 0.01 MeV (22273003, Table 3 of the paper)",
 )
 
 """

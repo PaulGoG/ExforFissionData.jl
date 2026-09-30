@@ -9,7 +9,7 @@
 # test of the selection still applies to it.
 
 """
-    Curation([abscissa,] ordinate, reason[, notes])
+    Curation([abscissa,] ordinate, reason[, notes[, unit]])
 
 What one dataset holds, established from its subentry text rather than from its reaction code.
 
@@ -23,18 +23,23 @@ What one dataset holds, established from its subentry text rather than from its 
   publication it cites.
 - `notes::Dict{String,String}`: further statements about the dataset for its run record, each
   under its own key.
+- `unit::Union{Nothing,String}`: the unit the data are in where the subentry heads them with
+  another, `"ARB-UNITS"` for event counts headed `NO-DIM`; `nothing` leaves the unit as read.
 """
 struct Curation
     abscissa::Union{Nothing, Vector{String}}
     ordinate::Union{Nothing, String}
     reason::String
     notes::Dict{String, String}
+    unit::Union{Nothing, String}
 end
 
 Curation(ordinate::Union{Nothing, String}, reason::String) =
-    Curation(nothing, ordinate, reason, Dict{String, String}())
+    Curation(nothing, ordinate, reason, Dict{String, String}(), nothing)
 Curation(abscissa::Vector{String}, ordinate::String, reason::String) =
-    Curation(abscissa, ordinate, reason, Dict{String, String}())
+    Curation(abscissa, ordinate, reason, Dict{String, String}(), nothing)
+Curation(abscissa, ordinate, reason, notes::Dict{String, String}) =
+    Curation(abscissa, ordinate, reason, notes, nothing)
 
 """
 Datasets whose ordinate is read from the subentry text, keyed by dataset identifier; see
@@ -46,6 +51,7 @@ Datasets whose ordinate is read from the subentry text, keyed by dataset identif
 | `22780003` | `98-CF-252(0,F)MASS,PRE,KE,FF` | pre-neutron TKE, not the energy of one fragment |
 | `41109007` | `92-U-235(N,F)MASS,PRE,KE,LF+HF,MXW` | none: a mean over cold-fragmentation events |
 | `23268002` | `98-CF-252(0,F)MASS,PRE,FY,,MSC` | Y(A, TKE), in counts |
+| `22413013` | `94-PU-240(0,F)MASS,PRE,FY/DE,,RAW` | Y(A, TKE), in raw counts |
 | `40420062` | `98-CF-252(0,F)MASS,PRE,FY/DE,LF+HF,RAW` | none: a joint histogram against provisional masses |
 
 The criterion for a blank branch field is kinematic. A double-velocity measurement yields
@@ -105,6 +111,20 @@ const CURATED_DATASETS = Dict{String, Curation}(
                 relative 4e-6; 23268004 holds its mean TKE and the standard deviation of TKE \
                 against mass",
         ),
+    ),
+    "22413013" => Curation(
+        ["mass", "total_kinetic_energy"],
+        "yield",
+        "curated: the joint pre-neutron yield Y(A, TKE) of 240-Pu(sf) in raw event counts \
+         (Dematte 1997, doi:10.1016/S0375-9474(97)00032-8), coded MASS,PRE,FY/DE,,RAW: 2911 \
+         cells, E 140 to 210 MeV in 1-MeV steps against heavy masses 120 to 160. EN-SEC codes \
+         the energy (E,FF), but at 140 to 210 MeV against these masses it is the total kinetic \
+         energy, as in 21995034 of the same group; the masses are from the double-energy method \
+         with 'corrections ... for prompt neutron emission' (22413001, METHOD, CORRECTION). RAW \
+         marks the counts themselves, which carry no normalisation; the heading NO-DIM is read \
+         as arbitrary units",
+        Dict{String, String}(),
+        "ARB-UNITS",
     ),
     "40420062" => Curation(
         nothing,
@@ -391,6 +411,21 @@ const SLICE_DATASETS = Dict{String, Slice}(
         "TKE 130.79 to 228.71 MeV, 97 digitised values",
         "masses 120 to 130 and 135 to 174 (COMMON MASS-MIN, MASS-MAX)",
         "Wagemans 1984, doi:10.1103/PhysRevC.30.218, Fig. 4b",
+    ),
+    "21995031" => Slice(
+        "Pu240_sf",
+        "TKE distribution summed over a mass window; percent per fission and MeV. EN-SEC \
+         codes the energy (E,FF), but it runs over the total kinetic energy",
+        "TKE 131.82 MeV upwards, 89 digitised values",
+        "masses 120 to 130 and 135 to 174 (COMMON MASS-MIN, MASS-MAX)",
+        "Wagemans 1984, doi:10.1103/PhysRevC.30.218, Fig. 4a",
+    ),
+    "21995032" => Slice(
+        "Pu240_sf",
+        "TKE distribution summed over a mass window; percent per fission and MeV",
+        "TKE 143.90 MeV upwards, 70 digitised values",
+        "masses 130 to 135 (COMMON MASS-MIN, MASS-MAX)",
+        "Wagemans 1984, doi:10.1103/PhysRevC.30.218, Fig. 4a",
     ),
     "21995035" => Slice(
         "Pu239_nth",

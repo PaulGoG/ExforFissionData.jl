@@ -76,6 +76,11 @@ Where a publication settles what a column holds against its label, the record sa
   digitisation.
 - The widths of `22780003` (Hambsch 1997) at A = 180 and 181, 0 and 1.87 MeV, are not written:
   no measurement has them, and a consumer would take them at face value.
+- The dispersion of 240-Pu(sf) in `22273023` (Schillebeeckx 1992, [doi:10.1016/0375-9474(92)90296-V](https://doi.org/10.1016/0375-9474(92)90296-V))
+  is digitised from Fig. 8 of the paper, and scatters: A_H = 150, 156 and 158 lie 1.4 to 2.9 MeV
+  above the mean of their neighbours. It is written unsmoothed, and the record gives the
+  mass-integrated width it yields with the 239-Pu(n_th,f) Y(A) and mean TKE of Wagemans 1984
+  against the 11.81 ± 0.01 MeV measured for 239-Pu(n_th,f) (`22273003`).
 
 ## The joint yield Y(A, TKE)
 
@@ -88,6 +93,14 @@ whose code names no TKE and whose csv rendering drops the TKE column; it is read
 subentry. The record adds two statements the data support: its TKE values are the centres of
 1-MeV bins, since as centres the matrix reproduces the mean TKE of `23268004` to 0.05 MeV and as
 edges misses by 0.5 MeV; and its mass marginal is `23268003`, to a relative 4 × 10⁻⁶.
+
+For 240-Pu(sf) the archive holds the raw event counts of Demattè 1997 (`22413013`,
+[doi:10.1016/S0375-9474(97)00032-8](https://doi.org/10.1016/S0375-9474(97)00032-8)), coded
+`MASS,PRE,FY/DE,,RAW`: 1-MeV TKE steps from 140 to 210 MeV against heavy masses 120 to 160, from
+double-energy measurement corrected for prompt neutron emission. The code gives the energy as a
+fragment's (`EN-SEC (E,FF)`), but its range is that of the TKE; the subentry heads the counts
+`NO-DIM`, which the csv rendering turns into `PC/FIS/MEV`. It is read from its subentry as
+counts in arbitrary units.
 
 The archive holds slices of the joint distribution besides — yields against mass at a few fixed
 energies of one fragment or of both, and TKE distributions for a few masses. They are not the

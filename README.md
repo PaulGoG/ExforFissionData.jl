@@ -16,7 +16,7 @@ files with a record of everything the query considered.
 ExforFissionData.jl/
 ├── activate.jl        # silent activation of the package environment
 ├── check.jl           # pre-commit gate: format, then test
-├── config/            # 32 retrieval configurations, <system>_<observable>.toml
+├── config/            # 34 retrieval configurations, <system>_<observable>.toml
 ├── scripts/
 │   └── retrieve.jl    # entry point
 ├── src/               # the package: selection, reduction, export, run record
@@ -99,8 +99,9 @@ Not every abscissa and ordinate pairing exists in the archive. Prompt multiplici
 the four systems only 252-Cf has a joint `Y(A, TKE)`, `23268002`, whose code names no TKE and
 whose csv rendering drops the TKE column, so it is read from its subentry — see the
 [observables](https://PaulGoG.github.io/ExforFissionData.jl/stable/observables/#The-joint-yield-Y(A,-TKE)).
-The width of the TKE distribution has no EXFOR code at all, and is read only from the columns a
-configuration names.
+For 240-Pu, the compound nucleus of 239-Pu(n_th,f), the archive holds one of spontaneous fission
+in raw counts, `22413013`. The width of the TKE distribution has no EXFOR code at all, and is
+read only from the columns a configuration names.
 
 ## What it is for
 
@@ -129,23 +130,26 @@ the run record names every one of them with the reason it was left out.
 A configuration is named for what it retrieves: `<system>_<observable>.toml`, the same two tokens
 that name the directories its data is written to.
 
-| Observable | ²⁵²Cf(sf) | ²³⁵U(n,f) | ²³³U(n,f) | ²³⁹Pu(n,f) |
-| :--- | :--- | :--- | :--- | :--- |
-| Y(A), `Y_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
-| ⟨TKE⟩(A), `TKE_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
-| σ_TKE(A), `sigma_TKE_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
-| Y(A, TKE), `Y_vs_A_TKE` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
-| ν(A), `nu_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` |
-| ν(A, TKE), `nu_vs_A_TKE` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` |
-| spectrum, `spectrum_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
-| ratio to a Maxwellian, `spectrum_maxwellian_ratio_vs_E` | `Cf252_sf` | `U235_nth` | | |
+| Observable | ²⁵²Cf(sf) | ²³⁵U(n,f) | ²³³U(n,f) | ²³⁹Pu(n,f) | ²⁴⁰Pu(sf) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Y(A), `Y_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| ⟨TKE⟩(A), `TKE_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| σ_TKE(A), `sigma_TKE_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | `Pu240_sf` |
+| Y(A, TKE), `Y_vs_A_TKE` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | `Pu240_sf` |
+| ν(A), `nu_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
+| ν(A, TKE), `nu_vs_A_TKE` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
+| spectrum, `spectrum_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| ratio to a Maxwellian, `spectrum_maxwellian_ratio_vs_E` | `Cf252_sf` | `U235_nth` | | | |
 
 The file of a cell is `<system>_<observable>.toml`, `config/U235_nth_TKE_vs_A.toml` for instance.
 The first four rows are what a pre-neutron Y(A, TKE) is built from: the mass yield, the mean TKE
 and its width against mass, or the joint matrix. Each is retrieved measurement by measurement,
 so that the marginals of one experiment can be taken together; the joint matrix exists for
-252-Cf alone. The width has no EXFOR code, so its configurations name, dataset by dataset, the
-column that holds it, what it holds and whose energy it is.
+252-Cf, and for 240-Pu(sf) in raw counts. 240-Pu(sf) fissions the compound nucleus of
+239-Pu(n_th,f) about 6.5 MeV lower in excitation energy; its two configurations are the nearest
+substitute for a 239-Pu(n_th,f) system that has no joint matrix in the archive and a width whose
+two columns disagree. The width has no EXFOR code, so its configurations name, dataset by
+dataset, the column that holds it, what it holds and whose energy it is.
 
 A system is an element symbol, a mass number and an **entrance channel** — `sf` spontaneous, `nth`
 thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel decides the EXFOR
@@ -263,7 +267,7 @@ ExforFissionData.jl/
 ├── README.md
 ├── .JuliaFormatter.toml         # formatter settings shared by check.jl and CI
 ├── .gitignore
-├── config/                      # 32 configurations, <system>_<observable>.toml
+├── config/                      # 34 configurations, <system>_<observable>.toml
 ├── docs/                        # Documenter site
 │   ├── activate.jl
 │   ├── Project.toml
