@@ -158,7 +158,9 @@ excluded, with the reason.
 The rejection list is the point of this file. A dataset missing from the output is otherwise
 indistinguishable from one the archive does not hold. An accepted dataset carries the evidence
 for a curated reading as `curation`, the compilation defects left out of it as `archive_defects`,
-and the other runs of its experiment as `correlated_with`; see src/curation.jl.
+and the other runs of its experiment as `correlated_with`; see src/curation.jl. The record of a
+joint yield Y(A, TKE) lists the slices of the distribution the archive holds for the system,
+[`SLICE_DATASETS`](@ref), as `slices`.
 
 The record also carries when the `listing` of datasets and each accepted dataset were obtained
 from the archive, and whether each came from the cache. Those dates are the state of the archive
@@ -305,6 +307,19 @@ function write_metadata(
             entry.reduced.diagnostics,
         ) for entry in accepted
     ]
+    slices = [
+        Dict{String, Any}(
+            "identifier" => identifier,
+            "holds" => slice.holds,
+            "energies" => slice.energies,
+            "masses" => slice.masses,
+            "source" => slice.source,
+        ) for (identifier, slice) in sort!(collect(SLICE_DATASETS); by = first) if
+        slice.system == system_label(query) &&
+            query.abscissa == ["mass", "total_kinetic_energy"] &&
+            query.ordinate == "yield"
+    ]
+    isempty(slices) || (record["slices"] = slices)
     record["rejected"] = [
         Dict{String, Any}(
             "identifier" => rejection.identifier,

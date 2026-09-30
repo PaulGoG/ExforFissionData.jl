@@ -71,6 +71,7 @@ the machine as well, which is useful when the records stay yours.
 | | `uncertainty_source` | `csv`, `subentry ERR-S` and the like where the rendering carries none and the subentry does, or `none` |
 | | `curation`, `archive_defects` | for a dataset read from its subentry text, the evidence; and the compilation defects whose lines were left out |
 | | `correlated_with`, `correlation` | the other runs of the same experiment, and why they are one |
+| `[[slices]]` | `identifier`, `holds`, `energies`, `masses`, `source` | for Y(A, TKE) only: datasets holding slices of the joint distribution for the system, rejected as the distribution and listed for cross-checks at their masses |
 | `[[rejected]]` | `identifier`, `reaction_code`, `reason` | the dataset, its code, and why it was excluded |
 
 ## Output layout
