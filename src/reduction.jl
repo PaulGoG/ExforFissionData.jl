@@ -230,6 +230,47 @@ function _subentry_uncertainties(dataset::Dataset)
     )
 end
 
+"""
+What a yield's unit token says of its normalisation, as the subentry states the unit. Written to
+the run record as `normalisation` for every yield, so that no consumer has to know that a mass
+yield in `PC/FIS` sums to 200 % over both fragments, or that `ARB-UNITS` over a joint grid is a
+count of events.
+"""
+const YIELD_NORMALISATIONS = Dict(
+    "PC/FIS" => "percent per fission; a mass yield over both fragments sums to 200 %",
+    "PRT/FIS" => "fragments per fission; a mass yield over both fragments sums to 2",
+    "PART/FIS" => "fragments per fission; a mass yield over both fragments sums to 2",
+    "ARB-UNITS" => "arbitrary units, event counts or a relative scale as the REACTION text \
+                    states; no absolute normalisation",
+    "NO-DIM" => "dimensionless; the REACTION text states the normalisation",
+)
+
+# How the total kinetic energy of a joint abscissa is tabulated, for the run record: the heading
+# it was read from, point values or bin midpoints, the spacings between successive values, and
+# the bin widths, all in MeV. A point heading, `TKE` or `E`, states no bin convention.
+function _tke_grid(dataset::Dataset, written::AbstractVector)
+    value_headings, bin_headings = ABSCISSA_HEADINGS["total_kinetic_energy"]
+    grid = Dict{String, Any}()
+    values = sort!(unique(Float64.(written)))
+    steps = sort!(unique(round.(diff(values); sigdigits = 6)))
+    grid["tke_step_mev"] = first(steps, 5)
+    heading = findfirst(in(names(dataset.columns)), value_headings)
+    if heading !== nothing
+        grid["tke_heading"] = value_headings[heading]
+        grid["tke_convention"] = "point values under the heading \
+            $(value_headings[heading]); the subentry states no bin convention"
+    else
+        low = _heading_values(dataset, bin_headings[1], true)
+        high = _heading_values(dataset, bin_headings[2], true)
+        widths = sort!(unique(round.(collect(skipmissing(high .- low)); sigdigits = 6)))
+        grid["tke_heading"] = join(bin_headings, "/")
+        grid["tke_bin_widths_mev"] = widths
+        grid["tke_convention"] = "bins from $(bin_headings[1]) to $(bin_headings[2]), \
+            written at their midpoints"
+    end
+    return grid
+end
+
 # The values of each abscissa quantity for every row, in configuration order: a mass as the
 # subentry gives it, unrounded; a charge as an integer; an energy in MeV. Also the bin pair of the
 # mass when the mass came from one, and whether any quantity came from a bin pair.
@@ -584,6 +625,15 @@ function reduce_dataset(dataset::Dataset, query)
     )
     merge!(diagnostics, placement)
     isempty(note) || (diagnostics["mass_placement_refused"] = note)
+    tke = findfirst(==("total_kinetic_energy"), query.abscissa)
+    if tke !== nothing && !isempty(final_keys)
+        merge!(diagnostics, _tke_grid(dataset, [key[tke] for key in final_keys]))
+    end
+    if query.ordinate == "yield"
+        stated = get(dataset.units, "DATA", dataset.unit)
+        diagnostics["normalisation"] =
+            get(YIELD_NORMALISATIONS, stated, "as the unit $(stated) states")
+    end
 
     return ReducedDataset(
         abscissa_columns,

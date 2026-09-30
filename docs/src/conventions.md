@@ -168,10 +168,11 @@ it rather than reach for the miscoded projection.
 
 One is known for `ordinate = "yield"`, and it is the rendering that misstates it. `23268002`
 (Göök, 2014), `98-CF-252(0,F)MASS,PRE,FY,,MSC`, is the joint distribution Y(A, TKE): 30 000 rows
-of counts on a 150 × 200 grid, which its subentry heads `TKE`, `MASS`, `DATA` in `ARB-UNITS`. The
-`op=csv` rendering drops the TKE column and gives the unit as `PART/FIS`. The subentry shows the
-column, and `Cf252_sf_Y_vs_A` rejects the dataset as also tabulated against
-`TKE [MEV] (200 values)`.
+of counts on a 150 × 200 grid, which its subentry heads `TKE`, `MASS`, `DATA` and `ERR-S` in
+`ARB-UNITS`. Its code names no TKE, and the `op=csv` rendering drops the TKE and ERR-S columns
+and gives the unit as `PART/FIS`. It is read from its subentry (`src/curation.jl`): retrieved by
+`Cf252_sf_Y_vs_A_TKE` in counts, under `relative/`, with its uncertainties, and rejected by
+`Cf252_sf_Y_vs_A` as the joint distribution it is.
 
 One more is known for `ordinate = "spectrum"`, and it is a mislabelled unit rather than a
 mislabelled quantity. `40064031` (Kroshkin, 1970), `98-CF-252(0,F),PR,NU/DE,,REL`, heads its

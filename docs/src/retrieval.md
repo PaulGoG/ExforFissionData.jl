@@ -66,9 +66,11 @@ the machine as well, which is useful when the records stay yours.
 | | `mass_values_non_integer`, `mass_interpolation_span_u`, `mass_gaps_skipped`, `mass_values_coincident` | for interpolated masses: how many were non-integer, the widest interval interpolated across, the integer masses left out in wider gaps, and the masses tabulated more than once and combined first |
 | | `mass_bin_widths_u`, `mass_bins_refused` | for mass bins: their widths in mass units, and the yield bins over several masses that were not written |
 | | `abscissa_binned` | whether any abscissa quantity came from a `-MIN`, `-MAX` pair |
+| | `tke_heading`, `tke_convention`, `tke_step_mev`, `tke_bin_widths_mev` | for a TKE abscissa: the heading it was read from, point values or bins written at their midpoints, the spacings of the written values, and the bin widths |
+| | `normalisation` | for a yield, what its subentry unit says of the scale: percent per fission summing to 200 %, per fission, or arbitrary units such as counts |
+| | `uncertainty_source` | `csv`, `subentry ERR-S` and the like where the rendering carries none and the subentry does, or `none` |
 | | `curation`, `archive_defects` | for a dataset read from its subentry text, the evidence; and the compilation defects whose lines were left out |
 | | `correlated_with`, `correlation` | the other runs of the same experiment, and why they are one |
-| | `uncertainty_source` | `csv`, `subentry ERR-S` and the like where the rendering carries none and the subentry does, or `none` |
 | `[[rejected]]` | `identifier`, `reaction_code`, `reason` | the dataset, its code, and why it was excluded |
 
 ## Output layout

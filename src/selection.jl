@@ -175,7 +175,8 @@ function screen_dataset(identifier::AbstractString, body::AbstractString, query)
     # Arbitrary units are fatal for most observables and normal for a spectrum, which is
     # conventionally measured relative and normalised afterwards. Where they are admitted the
     # data is written apart from absolute data rather than mixed with it.
-    if !has_absolute_scale(kind) && !tolerates_relative_scale(query.ordinate)
+    if !has_absolute_scale(kind) &&
+       !tolerates_relative_scale(query.ordinate, query.abscissa)
         return Rejection(identifier, code, "value kind \"$(kind)\" has no absolute scale")
     end
     unit = last(parse_value_kind(kind))
@@ -389,7 +390,7 @@ function select_dataset(screened::Screened, subentry_text::AbstractString, query
     dataset_unit = screened.unit
     subentry_unit = subentry.data.units[datum]
     if is_relative_unit(subentry_unit) && !is_relative_unit(dataset_unit)
-        tolerates_relative_scale(query.ordinate) || return Rejection(
+        tolerates_relative_scale(query.ordinate, query.abscissa) || return Rejection(
             identifier,
             code,
             "the subentry gives DATA in $(subentry_unit), which the csv rendering reports as \

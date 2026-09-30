@@ -96,6 +96,9 @@ with anything, and none may be averaged with absolute data. A reader that takes 
 therefore cannot pick one up by accident. The run record marks each accepted dataset
 `relative = true` or `false` and names them all in one warning.
 
-This applies to the spectrum ordinates alone. For every other observable arbitrary units are
-still fatal, because a relative value there is not interpretable — a kinetic energy in arbitrary
-units is not an energy, and a multiplicity is a count whose scale is the whole quantity.
+This applies to the spectrum ordinates and to the joint yield Y(A, TKE) alone. A joint yield is
+recorded event by event and published as counts on a grid, and what it carries is the TKE
+distribution at each mass, which a consumer normalises to a mass yield. For every other
+observable arbitrary units are still fatal, because a relative value there is not interpretable —
+a one-dimensional Y(A) in counts has no scale to be read off, a kinetic energy in arbitrary units
+is not an energy, and a multiplicity is a count whose scale is the whole quantity.

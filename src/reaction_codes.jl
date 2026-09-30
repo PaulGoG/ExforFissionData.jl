@@ -359,11 +359,29 @@ so [`retrieve`](@ref) writes these to their own directory rather than beside abs
 const RELATIVE_SCALE_ORDINATES = ("spectrum", "spectrum_maxwellian_ratio")
 
 """
-    tolerates_relative_scale(ordinate) -> Bool
+Observables, as abscissa and ordinate, for which arbitrary units are a standard form besides the
+ordinates of [`RELATIVE_SCALE_ORDINATES`](@ref): the joint yield Y(A, TKE). It is recorded event
+by event and published as counts on a grid — 23268002 is 30 000 cells of counts — and what it
+carries is the TKE distribution at each mass, which a consumer normalises to a mass yield. A
+one-dimensional Y(A) in arbitrary units has no such use and stays excluded.
+"""
+const RELATIVE_SCALE_OBSERVABLES = [(["mass", "total_kinetic_energy"], "yield")]
 
-Whether `ordinate` admits datasets in arbitrary units; see [`RELATIVE_SCALE_ORDINATES`](@ref).
+"""
+    tolerates_relative_scale(ordinate[, abscissa]) -> Bool
+
+Whether `ordinate`, against `abscissa` when given, admits datasets in arbitrary units; see
+[`RELATIVE_SCALE_ORDINATES`](@ref) and [`RELATIVE_SCALE_OBSERVABLES`](@ref).
 """
 tolerates_relative_scale(ordinate::AbstractString) = ordinate in RELATIVE_SCALE_ORDINATES
+
+function tolerates_relative_scale(
+    ordinate::AbstractString,
+    abscissa::AbstractVector{<:AbstractString},
+)
+    return tolerates_relative_scale(ordinate) ||
+           (String[abscissa...], String(ordinate)) in RELATIVE_SCALE_OBSERVABLES
+end
 
 """
 Rules of one abscissa and ordinate together, added to the composition of the two.

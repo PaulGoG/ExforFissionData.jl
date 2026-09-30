@@ -9,20 +9,27 @@
 # test of the selection still applies to it.
 
 """
-    Curation(ordinate, reason)
+    Curation([abscissa,] ordinate, reason)
 
 What one dataset holds, established from its subentry text rather than from its reaction code.
 
 # Fields
+- `abscissa::Union{Nothing,Vector{String}}`: the abscissa of [`ABSCISSAE`](@ref) the dataset is
+  tabulated against, when its code does not say so either; `nothing` leaves the abscissa to the
+  abscissa rule.
 - `ordinate::Union{Nothing,String}`: the ordinate of [`ORDINATES`](@ref) the dataset holds, or
   `nothing` when it holds none of them.
 - `reason::String`: the evidence, from the subentry and, where the subentry is silent, from the
   publication it cites.
 """
 struct Curation
+    abscissa::Union{Nothing, Vector{String}}
     ordinate::Union{Nothing, String}
     reason::String
 end
+
+Curation(ordinate::Union{Nothing, String}, reason::String) =
+    Curation(nothing, ordinate, reason)
 
 """
 Datasets whose ordinate is read from the subentry text, keyed by dataset identifier; see
@@ -33,6 +40,11 @@ Datasets whose ordinate is read from the subentry text, keyed by dataset identif
 | `14101003` | `98-CF-252(0,F)MASS,,KE,LF+HF` | pre-neutron TKE, from a double-velocity measurement |
 | `22780003` | `98-CF-252(0,F)MASS,PRE,KE,FF` | pre-neutron TKE, not the energy of one fragment |
 | `41109007` | `92-U-235(N,F)MASS,PRE,KE,LF+HF,MXW` | none: a mean over cold-fragmentation events |
+| `23268002` | `98-CF-252(0,F)MASS,PRE,FY,,MSC` | Y(A, TKE), in counts |
+| `21995034`, `21995035` | `94-PU-239(N,F)MASS,PRE,FY/DE,FF,MXW/MSC`, `…,FY/DE,,MXW` | none: TKE distributions summed over mass windows |
+| `40200005`, `40200006` | `92-U-235(N,F)MASS,PRE,FY/DE,LF+HF,RAW`, `…,MXW/RAW` | none: TKE distributions for eight mass bins, mass yields in nine TKE windows |
+| `40420062` | `98-CF-252(0,F)MASS,PRE,FY/DE,LF+HF,RAW` | none: a joint histogram against provisional masses |
+| `41695006` | `92-U-235(N,F)MASS,PRE,FY/DE,LF+HF,REL` | none: mass yields at four fixed TKE values |
 
 The criterion for a blank branch field is kinematic. A double-velocity measurement yields
 pre-neutron masses and energies directly, since isotropic neutron emission leaves the mean
@@ -41,7 +53,8 @@ corrected with ν(A), and is admitted only where its entry states that correctio
 
 A dataset listed with an ordinate is admitted under that ordinate only, and only if the abscissa
 rule and [`BASE_FORBID`](@ref) admit its code; under any other ordinate it is rejected with the
-reason. A dataset listed without one is rejected under every ordinate.
+reason. A dataset listed with an abscissa as well is read in full, and admitted under that
+abscissa and ordinate alone. A dataset listed without an ordinate is rejected under every one.
 """
 const CURATED_DATASETS = Dict{String, Curation}(
     "14101003" => Curation(
@@ -70,6 +83,54 @@ const CURATED_DATASETS = Dict{String, Curation}(
          lies 20 to 30 MeV above every unconditional mean TKE against mass of 235-U(n,f), at \
          or above the maximal cold-fragmentation TKE of 23589002",
     ),
+    "23268002" => Curation(
+        ["mass", "total_kinetic_energy"],
+        "yield",
+        "curated: the joint pre-neutron yield Y(A, TKE), coded MASS,PRE,FY,,MSC without a TKE \
+         marker. Its REACTION text reads 'Fission fragment yield as a function of pre-neutron \
+         mass and TKE (counts)', and its DATA table holds 30 000 cells of counts, TKE 100.5 to \
+         299.5 MeV in steps of 1 MeV against MASS 51 to 200 (Goeoek 2014, \
+         doi:10.1103/PhysRevC.90.064611, Fig. 6a). The csv rendering drops the TKE column and \
+         gives the unit as PART/FIS; the subentry gives ARB-UNITS",
+    ),
+    "21995034" => Curation(
+        nothing,
+        "curated: a TKE distribution summed over the mass windows 120 to 130 and 135 to 174 \
+         (COMMON MASS-MIN, MASS-MAX), not a yield resolved in mass. EN-SEC codes the energy as \
+         (E,FF), but E runs from 130.8 to 228.7 MeV and is the total kinetic energy \
+         (Wagemans 1984, doi:10.1103/PhysRevC.30.218, Fig. 4b)",
+    ),
+    "21995035" => Curation(
+        nothing,
+        "curated: a TKE distribution summed over the mass window 130 to 135 (COMMON MASS-MIN, \
+         MASS-MAX), not a yield resolved in mass. EN-SEC codes the energy as (E,FF), but E is \
+         the total kinetic energy (Wagemans 1984, doi:10.1103/PhysRevC.30.218, Fig. 4b)",
+    ),
+    "40200005" => Curation(
+        nothing,
+        "curated: TKE distributions, in event counts, for eight selected mass bins of 1.5 u \
+         (Zakharova 1972, Fig. 6), not a joint distribution over the masses",
+    ),
+    "40200006" => Curation(
+        nothing,
+        "curated: mass distributions, in event counts, in nine selected TKE windows between \
+         127.5 and 200 MeV (Zakharova 1972, Figs. 8 and 9), not a joint distribution over the \
+         TKE",
+    ),
+    "41695006" => Curation(
+        nothing,
+        "curated: mass yields at four fixed total kinetic energies, 155.8 to 187.3 MeV \
+         (Artem'ev 1970, 'Mass yields ... for fixed kinetic energies', Fig. 3), read from a \
+         figure over the heavy masses alone; slices of the joint distribution, not the TKE \
+         distribution at each mass",
+    ),
+    "40420062" => Curation(
+        nothing,
+        "curated: a joint histogram of event counts in 1.5-u mass and 2.5-MeV TKE bins, coded \
+         PRE, whose masses its entry does not establish as pre-neutron: entry 40420 names \
+         entry 40232 for the 'FY and TKE for this experiment', and 40232 states that \
+         'corrections on emission of neutrons from fission fragments were not introduced'",
+    ),
 )
 
 """
@@ -79,7 +140,8 @@ The reason a curated dataset with reaction code `code` does not answer the query
 and `ordinate`, or `nothing` when it does.
 
 The curated ordinate stands in for the ordinate rule of [`tag_rule`](@ref); the abscissa rule
-and [`BASE_FORBID`](@ref) are applied to the code as for any other dataset.
+and [`BASE_FORBID`](@ref) are applied to the code as for any other dataset, unless the curation
+names the abscissa too, in which case it stands in for the whole rule.
 """
 function curation_rejection(
     curation::Curation,
@@ -88,6 +150,9 @@ function curation_rejection(
     code::AbstractString,
 )
     curation.ordinate == ordinate || return curation.reason
+    if curation.abscissa !== nothing
+        return curation.abscissa == String[abscissa...] ? nothing : curation.reason
+    end
     x = ABSCISSA_RULES[String[abscissa...]]
     return rejection_reason(
         TagRule(x.require_all, x.require_any, vcat(BASE_FORBID, x.forbid)),

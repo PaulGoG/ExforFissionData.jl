@@ -1481,6 +1481,108 @@ include("fixtures.jl")
         )
     end
 
+    @testset "the joint yield Y(A, TKE)" begin
+        joint = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["mass", "total_kinetic_energy"],
+            ordinate = "yield",
+        )
+        @test tolerates_relative_scale("yield", ["mass", "total_kinetic_energy"])
+        @test !tolerates_relative_scale("yield", ["mass"])
+
+        # 23268002 (Goeoek 2014): counts on a grid of TKE and MASS, ARB-UNITS in the subentry
+        # and PART/FIS in the csv, which drops the TKE column and the ERR-S column alike.
+        cells = [
+            (100.5, 51, 0.0, 0.0),
+            (100.5, 52, 0.0, 0.0),
+            (117.5, 124, 1.0, 1.0),
+            (119.5, 124, 4.0, 2.0),
+        ]
+        function goeoek(identifier)
+            rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = "98-CF-252(0,F)MASS,PRE,FY,,MSC",
+                    value_kind = "Data(PART/FIS)",
+                    product_za = mass,
+                    y = counts,
+                ) for (_, mass, counts, _) in cells
+            ]
+            text = exfor_subentry(;
+                subentry = identifier,
+                bib = [
+                    "REACTION   (98-CF-252(0,F)MASS,PRE,FY,,MSC)",
+                    "            Fission fragment yield as a function of pre-neutron",
+                    "           mass and TKE ( counts) .",
+                ],
+                headings = ["TKE", "MASS", "DATA", "ERR-S"],
+                units = ["MEV", "NO-DIM", "ARB-UNITS", "ARB-UNITS"],
+                rows = [[t, Float64(m), c, e] for (t, m, c, e) in cells],
+            )
+            return exfor_csv(rows), text
+        end
+        accepted = select_dataset("23268002", goeoek("23268002")..., joint)
+        @test accepted isa Dataset
+        @test accepted.unit == "ARB-UNITS"
+        reduced = reduce_dataset(accepted, joint)
+        @test reduced.table.A == [51, 52, 124, 124]
+        @test reduced.table.TKE == [100.5, 100.5, 117.5, 119.5]
+        @test reduced.table.Y == [0.0, 0.0, 1.0, 4.0]
+        @test reduced.table.Y_uncertainty == [0.0, 0.0, 1.0, 2.0]
+        @test reduced.diagnostics["uncertainty_source"] == "subentry ERR-S"
+        @test reduced.diagnostics["tke_heading"] == "TKE"
+        @test reduced.diagnostics["tke_step_mev"] == [2.0, 17.0]
+        @test occursin("no bin convention", reduced.diagnostics["tke_convention"])
+        @test occursin("event counts", reduced.diagnostics["normalisation"])
+        mktempdir() do directory
+            file = joinpath(directory, "joint.dat")
+            write_dataset(file, reduced)
+            lines = readlines(file)
+            @test lines[1] == "A TKE Y Y_uncertainty"
+            @test lines[end] == "124 119.5 4.0 2.0"
+            @test length(lines) == 1 + length(cells)
+        end
+
+        # The reading is of 23268002 alone: the same code and table under another identifier
+        # names no TKE, and 23268002 is no mass yield.
+        rejected = select_dataset("10000002", goeoek("10000002")..., joint)
+        @test rejected isa Rejection
+        @test occursin("none of the alternatives", rejected.reason)
+        mass_only = test_query(; target_Z = 98, target_A = 252, channel = "sf")
+        rejected = select_dataset("23268002", goeoek("23268002")..., mass_only)
+        @test rejected isa Rejection
+        @test occursin("Y(A, TKE)", rejected.reason)
+
+        # 21995034 (Wagemans 1984): a TKE distribution summed over a mass window, coded as the
+        # energy of one fragment, with the window in COMMON.
+        pu = test_query(;
+            target_Z = 94,
+            target_A = 239,
+            abscissa = ["mass", "total_kinetic_energy"],
+            ordinate = "yield",
+        )
+        rows = [
+            exfor_row(;
+                dataset_id = "21995034",
+                reaction_code = "94-PU-239(N,F)MASS,PRE,FY/DE,FF,MXW/MSC",
+                value_kind = "Data(PC/FIS/MEV)",
+                y = value,
+                secondary_ev = energy * 1.0e6,
+                incident_ev = 0.0253,
+            ) for (energy, value) in ((130.79, 1.596e-2), (132.0, 2.2442e-2))
+        ]
+        rejected = select_dataset(
+            "21995034",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; unit = "PC/FIS/MEV"),
+            pu,
+        )
+        @test rejected isa Rejection
+        @test occursin("mass windows", rejected.reason)
+    end
+
     @testset "an uncertainty the rendering drops is read from the subentry" begin
         # 14369003 (Fraser): the csv carries no uncertainty, the subentry a DATA-ERR column.
         query = test_query(; target_A = 235, ordinate = "total_kinetic_energy")
