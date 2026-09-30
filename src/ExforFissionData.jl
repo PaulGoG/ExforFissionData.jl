@@ -43,6 +43,9 @@ using Scratch: @get_scratch!
 using Statistics: median
 using TOML: TOML
 
+# USER_AGENT carries the version, fixed at precompilation; a new version must recompile.
+include_dependency(joinpath(dirname(@__DIR__), "Project.toml"))
+
 include("elements.jl")
 include("schema.jl")
 include("reaction_codes.jl")
