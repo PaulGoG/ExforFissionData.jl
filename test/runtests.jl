@@ -1825,6 +1825,47 @@ include("fixtures.jl")
             @test rejected.reason == "forbidden code \"SEC\" in SF5"
         end
 
+        # 22780003 (Hambsch 1997): the widths at A = 180 and 181, 0 and 1.8723 MeV, are not
+        # written; a changed archive value makes the exclusion stale, and the dataset is refused.
+        cf = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            ordinate = "total_kinetic_energy_dispersion",
+        )
+        hambsch =
+            WidthColumn("22780003", "MISC", "standard_deviation", "total_kinetic_energy")
+        tail(widths) = kinetic_energy_dataset(
+            "22780003",
+            "98-CF-252(0,F)MASS,PRE,KE,FF",
+            [(179, 145.266), (180, 135.49), (181, 138.427)];
+            thermal = false,
+            extra = (headings = ["MISC"], units = ["MEV"], values = [[w] for w in widths]),
+        )
+        accepted = select_dataset(
+            "22780003",
+            tail([9.8746, 0.0, 1.8723])...,
+            cf;
+            widths = [hambsch],
+        )
+        @test accepted isa Dataset
+        reduced = reduce_dataset(accepted, cf; widths = [hambsch])
+        @test reduced.table.A == [179]
+        @test length(reduced.diagnostics["width_rows_excluded"]) == 2
+        stale = select_dataset(
+            "22780003",
+            tail([9.8746, 0.5, 1.8723])...,
+            cf;
+            widths = [hambsch],
+        )
+        @test stale isa Rejection
+        @test occursin("must be reviewed", stale.reason)
+
+        # Nishio's two columns should agree once converted, and the record says they do not.
+        for identifier in ("23012005", "23012006")
+            @test occursin("29 to 32 %", ExforFissionData.WIDTH_NOTES[identifier])
+        end
+
         # The MISC-COL text is quoted for the record, the other dataset's pointer left out.
         text = exfor_subentry(;
             subentry = "10000002",

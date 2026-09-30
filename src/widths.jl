@@ -82,29 +82,40 @@ const WIDTH_EXCLUSIONS = Dict{String, String}(
                    since its square roots rise with mass where sigma falls",
 )
 
+# At fixed pre-neutron mass the width of one fragment's energy converts exactly into that of the
+# TKE, so the two Nishio columns should agree once converted; they do not, and the record says so
+# without reconciling them.
+const _NISHIO_DISAGREEMENT = "Converted, 23012005 (the TKE) and 23012006 (one fragment's \
+    energy, times A_0/(A_0 - A)) should agree exactly at fixed pre-neutron mass; at A = 130, \
+    140, 150 they give 7.18, 6.04, 4.34 against 10.12, 8.91, 6.39 MeV, 29 to 32 % lower. \
+    The disagreement is the paper's and is not reconciled here"
+
 """
 What the evidence says of individual width columns beyond the configuration's reading, keyed by
 dataset identifier, written to the run record as `width_note`.
 """
 const WIDTH_NOTES = Dict{String, String}(
-    "23012005" => "the column holds half the FWHM: the vertical bars of Fig. 6 of Nishio 1995 \
-                   (doi:10.1080/18811248.1995.9731725, p. 410) are 'the FWHM of the kinetic \
-                   energy distribution at a given mass', and measured on the figure the TKE \
-                   bars at A = 130, 140, 150 are 17.4, 14.6, 10.7 MeV long, 2.06, 2.05, 2.10 \
-                   times the column's 8.45, 7.11, 5.11: the compiler read the bars as \
-                   symmetric error bars. The widths so obtained are about 30 % narrower than those \
-                   converted from the fragment energies of 23012006 at A = 130, 140, 150",
-    "23012006" => "the column holds half the FWHM of one fragment's energy: measured on Fig. 6 \
-                   of Nishio 1995 (doi:10.1080/18811248.1995.9731725, p. 410), the bars at \
+    "23012005" =>
+        "the column holds half the FWHM, and the width is value/sqrt(2 ln 2): the \
+                   vertical bars of Fig. 6 of Nishio 1995 (doi:10.1080/18811248.1995.9731725, \
+                   p. 410) are 'the FWHM of the kinetic energy distribution at a given mass', \
+                   and measured on the figure the TKE bars at A = 130, 140, 150 are 17.4, \
+                   14.6, 10.7 MeV long, 2.06, 2.05, 2.10 times the column's 8.45, 7.11, 5.11: \
+                   the compiler recorded half of each bar. " *
+        _NISHIO_DISAGREEMENT,
+    "23012006" =>
+        "the column holds half the FWHM of one fragment's energy, and the width is \
+                   value/sqrt(2 ln 2) before the conversion to the TKE: measured on Fig. 6 of \
+                   Nishio 1995 (doi:10.1080/18811248.1995.9731725, p. 410), the bars at \
                    A = 90, 100, 110 are 9.2, 12.2, 13.7 MeV long, 2.00, 2.02, 2.00 times the \
-                   column's 4.6, 6.03, 6.84",
+                   column's 4.6, 6.03, 6.84: the compiler recorded half of each bar. " *
+        _NISHIO_DISAGREEMENT,
     "23717004" => "entry 23717 states the data are 'not corrected for resolution effects' \
                    (23717001, CORRECTION): the widths include the resolution and lie about 13 % \
                    above those of 23268004",
     "23717006" => "entry 23717 states the data are 'not corrected for resolution effects' \
                    (23717001, CORRECTION)",
-    "22780003" => "covers A = 74 to 181 without a gap; the widths at A = 180 and 181, 0 and \
-                   1.87 MeV, lie below any physical value where the far tail holds few events",
+    "22780003" => "covers A = 74 to 181 without a gap",
 )
 
 """
@@ -135,4 +146,70 @@ The width column `widths` names for the dataset `identifier`, or `nothing`.
 function mapped_width(widths::AbstractVector{WidthColumn}, identifier::AbstractString)
     index = findfirst(width -> width.subentry == identifier, widths)
     return index === nothing ? nothing : widths[index]
+end
+
+"""
+    WidthRowExclusion(mass, value, reason)
+
+A tabulated mass whose width is not written, and the value the archive holds there. The value
+is a guard: an entry the archive has since changed no longer matches it, and the dataset is then
+refused until the exclusion is reviewed.
+"""
+struct WidthRowExclusion
+    mass::Float64
+    value::Float64
+    reason::String
+end
+
+"""
+Widths not written, by dataset identifier; see [`WidthRowExclusion`](@ref). A consumer would take
+a written width at face value, so a value no measurement can have is left out, with the reason in
+the run record as `width_rows_excluded`.
+"""
+const WIDTH_ROW_EXCLUSIONS = Dict{String, Vector{WidthRowExclusion}}(
+    "22780003" => [
+        WidthRowExclusion(
+            180.0,
+            0.0,
+            "a width of 0 MeV, below any physical value where the far tail holds few events",
+        ),
+        WidthRowExclusion(
+            181.0,
+            1.8723,
+            "a width of 1.8723 MeV, below any physical value where the far tail holds few \
+             events",
+        ),
+    ],
+)
+
+"""
+    width_row_refusal(identifier, data, column) -> Union{String,Nothing}
+
+Why the exclusions of [`WIDTH_ROW_EXCLUSIONS`](@ref) for `identifier` no longer match the width
+`column` of the DATA table `data`, or `nothing` when they match or there are none.
+"""
+function width_row_refusal(
+    identifier::AbstractString,
+    data::SubentryColumns,
+    column_heading::AbstractString,
+)
+    exclusions = get(WIDTH_ROW_EXCLUSIONS, identifier, WidthRowExclusion[])
+    isempty(exclusions) && return nothing
+    masses = column(data, "MASS")
+    widths = column(data, column_heading)
+    (masses === nothing || widths === nothing) &&
+        return "the width exclusions of this dataset name MASS and $(column_heading), which \
+                the subentry no longer carries; the exclusions must be reviewed"
+    for exclusion in exclusions
+        lines = findall(m -> !ismissing(m) && m == exclusion.mass, data.values[masses])
+        found = [data.values[widths][i] for i in lines]
+        (
+            length(found) == 1 &&
+            !ismissing(only(found)) &&
+            isapprox(only(found), exclusion.value; atol = 1.0e-6)
+        ) || return "the subentry \
+            no longer holds the width $(exclusion.value) at MASS $(exclusion.mass) that is \
+            excluded; the archive may have corrected it, and the exclusion must be reviewed"
+    end
+    return nothing
 end

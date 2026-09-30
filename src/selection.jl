@@ -450,6 +450,8 @@ function select_dataset(
             "column $(width.column) is headed $(unit), which is not a unit of a \
              $(replace(width.holds, '_' => ' ')) of an energy this package converts",
         )
+        stale = width_row_refusal(identifier, data, width.column)
+        stale === nothing || return Rejection(identifier, code, stale)
     end
 
     # The rendering can misstate the unit: 23268002 is counts, ARB-UNITS in its subentry and

@@ -256,9 +256,13 @@ function _width_values(
     source = all(ismissing, errors) ? "none" : "subentry $(error_heading)"
     σ = Vector{Union{Missing, Float64}}(missing, length(values))
     δ = Vector{Union{Missing, Float64}}(missing, length(values))
+    excluded =
+        [x.mass for x in get(WIDTH_ROW_EXCLUSIONS, dataset.identifier, WidthRowExclusion[])]
+    tabulated = "MASS" in names(dataset.columns) ? dataset.columns[!, "MASS"] : masses
     for i in eachindex(values)
         v = values[i]
         ismissing(v) && continue
+        (!ismissing(tabulated[i]) && tabulated[i] in excluded) && continue
         e = abs(coalesce(errors[i], 0.0))
         if width.holds == "variance"
             variance = v * VARIANCE_UNIT_FACTORS[unit]
@@ -722,6 +726,11 @@ function reduce_dataset(
         diagnostics["width_conversion"] = width_conversion(width, A₀)
         note = get(WIDTH_NOTES, dataset.identifier, nothing)
         note === nothing || (diagnostics["width_note"] = note)
+        excluded = get(WIDTH_ROW_EXCLUSIONS, dataset.identifier, WidthRowExclusion[])
+        isempty(excluded) || (
+            diagnostics["width_rows_excluded"] =
+                ["A = $(Int(x.mass)): $(x.reason)" for x in excluded]
+        )
     end
     tke = findfirst(==("total_kinetic_energy"), query.abscissa)
     if tke !== nothing && !isempty(final_keys)
