@@ -560,3 +560,50 @@ function restrict(columns::SubentryColumns, keep::AbstractVector{Bool})
         Vector{Union{Missing, Float64}}[values[keep] for values in columns.values],
     )
 end
+
+"""
+    misc_columns(text, identifier) -> Dict{String,String}
+
+The `MISC-COL` definitions of the subentry of `identifier`, each MISC heading to the free text
+the compiler wrote for it, whitespace collapsed; empty when the subentry has none. A definition
+carrying another dataset's pointer is left out.
+
+For the run record only: which column holds what is never decided from this text.
+
+# Arguments
+- `text::AbstractString`: the entry excerpt `x4get?sub=` returns.
+- `identifier::AbstractString`: the dataset identifier, 8 characters or 9 with a pointer.
+"""
+function misc_columns(text::AbstractString, identifier::AbstractString)
+    subentry = subentry_identifier(identifier)
+    pointer = dataset_pointer(identifier)
+    definitions = Dict{String, String}()
+    inside = false
+    keyword = ""
+    heading = nothing
+    for line in eachline(IOBuffer(String(text)))
+        record = _record(line)
+        system = _system_identifier(record)
+        if system == "SUBENT"
+            inside = _subentry_number(record) == subentry
+            continue
+        end
+        inside || continue
+        system == "ENDBIB" && break
+        label = strip(first(record, 10))
+        isempty(label) || (keyword = label)
+        keyword == "MISC-COL" || continue
+        rest = record[11:end]
+        opening = match(r"^([0-9A-Z ])\((MISC[^)]*)\)\s*(.*)$", rest)
+        if opening !== nothing
+            mark, name, definition = something.(opening.captures)
+            own = only(mark) == ' ' || pointer === nothing || only(mark) == pointer
+            heading = own ? String(name) : nothing
+            heading === nothing && continue
+            definitions[heading] = strip(definition)
+        elseif heading !== nothing
+            definitions[heading] = strip(definitions[heading] * " " * strip(rest))
+        end
+    end
+    return Dict(k => join(split(v), ' ') for (k, v) in definitions)
+end

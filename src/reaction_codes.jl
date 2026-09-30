@@ -270,6 +270,10 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      (23589002), the TKE at which neutron emission stops
 #                                      (23118008, 23175011), a TKE against mass ratio in
 #                                      alpha-energy windows (30916007)
+#   total_kinetic_energy_dispersion    the width of the pre-neutron TKE distribution at fixed
+#                                      mass: the datasets of the mean, whose MISC column the
+#                                      configuration names ([[width]]); a width of one
+#                                      fragment's energy takes the fragment_kinetic_energy rule
 #   post_neutron_total_kinetic_energy  the same, post-neutron: SEC required, since a blank
 #                                      branch establishes nothing — 40232003 leaves it blank
 #                                      over provisional masses — and (SEC) is uncertain
@@ -288,6 +292,8 @@ const ORDINATE_RULES = Dict{String, TagRule}(
     "product_kinetic_energy" =>
         TagRule(["SF6:KE"], String[], ["SF7:LF+HF", "SF7:N", "SF5:PRE"]),
     "total_kinetic_energy" =>
+        TagRule(["SF6:KE", "SF7:LF+HF", "SF5:PRE"], String[], ["SF7:N", "SF8:MSC"]),
+    "total_kinetic_energy_dispersion" =>
         TagRule(["SF6:KE", "SF7:LF+HF", "SF5:PRE"], String[], ["SF7:N", "SF8:MSC"]),
     "post_neutron_total_kinetic_energy" =>
         TagRule(["SF6:KE", "SF7:LF+HF", "SF5:SEC"], String[], ["SF7:N"]),
@@ -334,6 +340,7 @@ const ORDINATE_TOKEN = Dict(
     "fragment_kinetic_energy" => "E_K",
     "product_kinetic_energy" => "E_K_p",
     "total_kinetic_energy" => "TKE",
+    "total_kinetic_energy_dispersion" => "sigma_TKE",
     "post_neutron_total_kinetic_energy" => "TKE_p",
     "neutron_kinetic_energy" => "eps",
     "spectrum" => "spectrum",
@@ -568,6 +575,7 @@ const ORDINATE_QUANTITY = Dict(
     "fragment_kinetic_energy" => "E",
     "product_kinetic_energy" => "E",
     "total_kinetic_energy" => "E",
+    "total_kinetic_energy_dispersion" => "E",
     "post_neutron_total_kinetic_energy" => "E",
     "neutron_kinetic_energy" => "E",
     "spectrum" => "MFQ",

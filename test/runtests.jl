@@ -1661,6 +1661,222 @@ include("fixtures.jl")
         @test !reduced.has_uncertainties
     end
 
+    @testset "the width of the TKE distribution" begin
+        WidthColumn = ExforFissionData.WidthColumn
+        sigma = test_query(;
+            target_Z = 94,
+            target_A = 239,
+            ordinate = "total_kinetic_energy_dispersion",
+        )
+        # A mean TKE of 239-Pu against mass with a width column beside it: MISC, and MISC-ERR
+        # when `errors` are given.
+        function with_width(
+            identifier,
+            widths;
+            unit = "MEV",
+            errors = nothing,
+            code = "94-PU-239(N,F)MASS,PRE,KE,LF+HF,MXW",
+        )
+            points = [(130, 180.0), (140, 175.0)]
+            extra = if errors === nothing
+                (headings = ["MISC"], units = [unit], values = [[w] for w in widths])
+            else
+                (
+                    headings = ["MISC", "MISC-ERR"],
+                    units = [unit, unit],
+                    values = [[w, e] for (w, e) in zip(widths, errors)],
+                )
+            end
+            return kinetic_energy_dataset(identifier, code, points; extra = extra)
+        end
+        read(identifier, widths, mapping; kwargs...) = select_dataset(
+            identifier,
+            with_width(identifier, widths; kwargs...)...,
+            sigma;
+            widths = [mapping],
+        )
+
+        # The width comes from the named column and never from the mean beside it.
+        mapping =
+            WidthColumn("10000002", "MISC", "standard_deviation", "total_kinetic_energy")
+        dataset = read("10000002", [9.0, 8.0], mapping; errors = [0.5, 0.4])
+        @test dataset isa Dataset
+        reduced = reduce_dataset(dataset, sigma; widths = [mapping])
+        @test reduced.table.A == [130, 140]
+        @test reduced.table.sigma_TKE == [9.0, 8.0]
+        @test reduced.table.sigma_TKE_uncertainty == [0.5, 0.4]
+        @test reduced.diagnostics["unit_written"] == "MEV"
+        @test reduced.diagnostics["mass_range"] == [130, 140]
+        @test occursin("pre-neutron total kinetic energy", reduced.diagnostics["width_is"])
+        # A dataset the configuration does not name gives no width, whatever it holds.
+        unnamed = select_dataset("10000003", with_width("10000003", [9.0, 8.0])..., sigma)
+        @test unnamed isa Rejection
+        @test occursin("[[width]]", unnamed.reason)
+        # A named column the subentry lacks is refused.
+        absent =
+            WidthColumn("10000002", "MISC1", "standard_deviation", "total_kinetic_energy")
+        rejected = read("10000002", [9.0, 8.0], absent)
+        @test rejected isa Rejection
+        @test occursin("MISC1", rejected.reason)
+
+        # Each kind is converted to the standard deviation: a variance in MeV^2 by its square
+        # root, a FWHM by 2 sqrt(2 ln 2), a half width by sqrt(2 ln 2).
+        convert(
+            widths,
+            holds;
+            unit = "MEV",
+            errors = nothing,
+            of = "total_kinetic_energy",
+        ) =
+            let mapping = WidthColumn("10000002", "MISC", holds, of)
+                reduce_dataset(
+                    read("10000002", widths, mapping; unit = unit, errors = errors),
+                    sigma;
+                    widths = [mapping],
+                )
+            end
+        reduced = convert([100.0, 64.0], "variance"; unit = "MEV-SQ", errors = [20.0, 16.0])
+        @test isapprox(reduced.table.sigma_TKE, [10.0, 8.0]; rtol = 1.0e-12)
+        @test isapprox(reduced.table.sigma_TKE_uncertainty, [1.0, 1.0]; rtol = 1.0e-12)
+        @test occursin("square root", reduced.diagnostics["width_conversion"])
+        fwhm = 2 * sqrt(2 * log(2))
+        # (the fixture writes 11-character fields, which round the widths at 1e-10)
+        reduced = convert([10.0 * fwhm, 8.0 * fwhm], "fwhm")
+        @test isapprox(reduced.table.sigma_TKE, [10.0, 8.0]; rtol = 1.0e-8)
+        reduced = convert([10.0 * fwhm / 2, 8.0 * fwhm / 2], "hwhm")
+        @test isapprox(reduced.table.sigma_TKE, [10.0, 8.0]; rtol = 1.0e-8)
+        # A variance headed in MeV contradicts its reading and is refused.
+        mapping = WidthColumn("10000002", "MISC", "variance", "total_kinetic_energy")
+        @test read("10000002", [100.0, 64.0], mapping) isa Rejection
+
+        # The width of one fragment's energy, at fixed pre-neutron mass A of a 240-nucleon
+        # compound nucleus, is that of the TKE times A_0/(A_0 - A).
+        mapping =
+            WidthColumn("10000002", "MISC", "standard_deviation", "fragment_kinetic_energy")
+        one_fragment = select_dataset(
+            "10000002",
+            with_width(
+                "10000002",
+                [4.4, 4.0];
+                code = "94-PU-239(N,F)MASS,PRE,KE,FF,MXW",
+            )...,
+            sigma;
+            widths = [mapping],
+        )
+        @test one_fragment isa Dataset
+        reduced = reduce_dataset(one_fragment, sigma; widths = [mapping])
+        @test isapprox(
+            reduced.table.sigma_TKE,
+            [4.4 * 240 / 110, 4.0 * 240 / 100];
+            rtol = 1.0e-12,
+        )
+        @test occursin("A_0 = 240", reduced.diagnostics["width_conversion"])
+        # Named as the width of the TKE, the same single-fragment dataset is refused.
+        as_total =
+            WidthColumn("10000002", "MISC", "standard_deviation", "total_kinetic_energy")
+        refused = select_dataset(
+            "10000002",
+            with_width(
+                "10000002",
+                [4.4, 4.0];
+                code = "94-PU-239(N,F)MASS,PRE,KE,FF,MXW",
+            )...,
+            sigma;
+            widths = [as_total],
+        )
+        @test refused isa Rejection
+
+        # 12709004 (Weber 1981): its MISC column is an uncalibrated digitisation, not a width,
+        # and is refused even when named.
+        weber = WidthColumn("12709004", "MISC", "variance", "total_kinetic_energy")
+        rejected = select_dataset(
+            "12709004",
+            with_width("12709004", [56.0863, 47.4683])...,
+            sigma;
+            widths = [weber],
+        )
+        @test rejected isa Rejection
+        @test occursin("uncalibrated", rejected.reason)
+
+        # The MISC-COL text is quoted for the record, the other dataset's pointer left out.
+        text = exfor_subentry(;
+            subentry = "10000002",
+            bib = [
+                "REACTION   (94-PU-239(N,F)MASS,PRE,KE,LF+HF)",
+                "MISC-COL   (MISC1) Dispersion of total kinetic",
+                "                   energy",
+                "          2(MISC2) Skewness",
+            ],
+            headings = ["MASS", "DATA", "MISC1"],
+            units = ["NO-DIM", "MEV", "MEV"],
+            rows = [[130.0, 180.0, 9.0]],
+        )
+        @test ExforFissionData.misc_columns(text, "10000002") ==
+              Dict("MISC1" => "Dispersion of total kinetic energy", "MISC2" => "Skewness")
+    end
+
+    @testset "a width configuration" begin
+        mktempdir() do directory
+            base = """
+            [query]
+            target_Z = 94
+            target_A = 239
+            channel = "nth"
+            abscissa = ["mass"]
+            ordinate = "total_kinetic_energy_dispersion"
+            """
+            entry(;
+                subentry = "23012005",
+                column = "MISC",
+                holds = "hwhm",
+                of = "total_kinetic_energy",
+            ) = """
+[[width]]
+subentry = "$(subentry)"
+column = "$(column)"
+holds = "$(holds)"
+of = "$(of)"
+"""
+            load(text) =
+                let file = joinpath(directory, "c.toml")
+                    write(file, text)
+                    load_configuration(file)
+                end
+            configuration = load(base * entry())
+            @test only(configuration.widths) == ExforFissionData.WidthColumn(
+                "23012005",
+                "MISC",
+                "hwhm",
+                "total_kinetic_energy",
+            )
+            # A mean is never read as a width, nor an uncertainty or a variable.
+            for column in ("DATA", "DATA-ERR", "ERR-S", "MASS", "TKE")
+                @test occursin(
+                    "width",
+                    error_message(() -> load(base * entry(; column = column))),
+                )
+            end
+            @test occursin(
+                "one of",
+                error_message(() -> load(base * entry(; holds = "rms"))),
+            )
+            @test occursin("one of", error_message(() -> load(base * entry(; of = "TKE"))))
+            @test occursin("names none", error_message(() -> load(base)))
+            @test occursin("twice", error_message(() -> load(base * entry() * entry())))
+            @test occursin(
+                "alone",
+                error_message(
+                    () -> load(
+                        replace(
+                            base,
+                            "total_kinetic_energy_dispersion" => "total_kinetic_energy",
+                        ) * entry(),
+                    ),
+                ),
+            )
+        end
+    end
+
     @testset "a spectrum qualifier must agree with the channel" begin
         conflict = ExforFissionData.channel_qualifier_conflict
         @test conflict("nth", "92-U-235(N,F)ELEM/MASS,IND,FY,,FIS") == "FIS"

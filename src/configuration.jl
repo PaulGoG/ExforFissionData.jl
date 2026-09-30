@@ -47,6 +47,8 @@ A validated retrieval configuration.
 - `output_directory::String`: root for retrieved data.
 - `significant_digits::Int`: significant digits in tabulated output.
 - `record_hostname::Bool`: whether to name the machine in the run record.
+- `widths::Vector{WidthColumn}`: the width columns of `[[width]]`, for the ordinate
+  `total_kinetic_energy_dispersion` alone; empty for every other.
 - `source::String`: path of the configuration file; the run record carries its file name.
 """
 struct Configuration
@@ -56,6 +58,7 @@ struct Configuration
     output_directory::String
     significant_digits::Int
     record_hostname::Bool
+    widths::Vector{WidthColumn}
     source::String
 end
 
@@ -75,7 +78,11 @@ const DEFAULT_SIGNIFICANT_DIGITS = 7
 const SIGNIFICANT_DIGITS_BOUNDS = (1, 15)
 
 """Sections a configuration may hold; any other section is refused."""
-const SECTIONS = ("query", "retrieval", "output")
+const SECTIONS = ("query", "retrieval", "output", "width")
+"""Keys of each `[[width]]` table; all are required and any other is refused."""
+const WIDTH_KEYS = ("subentry", "column", "holds", "of")
+"""The ordinate whose datasets are read through `[[width]]`."""
+const WIDTH_ORDINATE = "total_kinetic_energy_dispersion"
 """Keys of `[query]`; any other key is refused."""
 const QUERY_KEYS =
     ("target_Z", "target_A", "channel", "abscissa", "ordinate", "energy_min", "energy_max")
@@ -423,6 +430,8 @@ function load_configuration(path::AbstractString)
     # attributes a run to the hardware it came from.
     record_hostname = _optional(output_section, "record_hostname", false, "output", source)
 
+    widths = _widths(table, ordinate, abscissa, source)
+
     return Configuration(
         Query(
             target_Z,
@@ -451,8 +460,73 @@ function load_configuration(path::AbstractString)
         directory,
         significant_digits,
         record_hostname,
+        widths,
         abspath(path),
     )
+end
+
+# The `[[width]]` tables, validated: present exactly for the width ordinate, against mass alone,
+# each naming a dataset identifier once, a column that can hold a width, and one of the documented
+# kinds and energies.
+function _widths(table::AbstractDict, ordinate, abscissa, source)
+    entries = get(table, "width", Any[])
+    if ordinate != WIDTH_ORDINATE
+        isempty(entries) || throw(
+            ArgumentError(
+                "$(source): [[width]] applies to the ordinate \"$(WIDTH_ORDINATE)\" alone, not \
+                 to \"$(ordinate)\"",
+            ),
+        )
+        return WidthColumn[]
+    end
+    abscissa == ["mass"] || throw(
+        ArgumentError(
+            "$(source): the ordinate \"$(WIDTH_ORDINATE)\" is tabulated against [\"mass\"] \
+             alone, not $(abscissa)",
+        ),
+    )
+    (entries isa AbstractVector && all(entry -> entry isa AbstractDict, entries)) ||
+        throw(ArgumentError("$(source): [[width]] must be an array of tables"))
+    isempty(entries) && throw(
+        ArgumentError(
+            "$(source): the ordinate \"$(WIDTH_ORDINATE)\" reads widths only from the columns \
+             [[width]] names, and the configuration names none",
+        ),
+    )
+    widths = WidthColumn[]
+    for (index, entry) in enumerate(entries)
+        path = "width[$(index)]"
+        _reject_unknown(entry, WIDTH_KEYS, "[[width]] $(index)", source)
+        subentry = _require(entry, "subentry", String, path, source)
+        length(subentry) in (8, 9) || throw(
+            ArgumentError(
+                "$(source): [$(path)].subentry must have 8 characters, or 9 with a pointer, \
+                 got $(repr(subentry))",
+            ),
+        )
+        any(w -> w.subentry == subentry, widths) &&
+            throw(ArgumentError("$(source): [$(path)].subentry $(subentry) is named twice"))
+        column = _require(entry, "column", String, path, source)
+        refusal = width_column_refusal(column)
+        refusal === nothing ||
+            throw(ArgumentError("$(source): [$(path)].column: $(refusal)"))
+        holds = _one_of(
+            _require(entry, "holds", String, path, source),
+            WIDTH_KINDS,
+            "holds",
+            path,
+            source,
+        )
+        of = _one_of(
+            _require(entry, "of", String, path, source),
+            WIDTH_OF,
+            "of",
+            path,
+            source,
+        )
+        push!(widths, WidthColumn(subentry, String(strip(column)), holds, of))
+    end
+    return widths
 end
 
 """

@@ -11,7 +11,8 @@ abscissa = ["mass"]     # quantities the observable is tabulated against; one of
 ordinate = "yield"      # the observable; one of:
                         #   "yield" | "multiplicity" | "multiplicity_per_fission" |
                         #   "fragment_kinetic_energy" | "product_kinetic_energy" |
-                        #   "total_kinetic_energy" | "post_neutron_total_kinetic_energy" |
+                        #   "total_kinetic_energy" | "total_kinetic_energy_dispersion" |
+                        #   "post_neutron_total_kinetic_energy" |
                         #   "neutron_kinetic_energy" | "spectrum" |
                         #   "spectrum_maxwellian_ratio"
 

@@ -238,6 +238,54 @@ function _subentry_uncertainties(dataset::Dataset)
     )
 end
 
+# The width of each row as the standard deviation of the TKE in MeV, its uncertainty, and where
+# the uncertainty came from: the column `<column>-ERR` in the width's own unit, or none. `masses`
+# are the tabulated masses of the rows, which a width of one fragment's energy is converted with.
+function _width_values(
+    dataset::Dataset,
+    width::WidthColumn,
+    A₀::Integer,
+    masses::AbstractVector,
+)
+    values = dataset.columns[!, width.column]
+    unit = dataset.units[width.column]
+    error_heading = width.column * "-ERR"
+    has_errors =
+        error_heading in names(dataset.columns) && dataset.units[error_heading] == unit
+    errors = has_errors ? dataset.columns[!, error_heading] : fill(missing, length(values))
+    source = all(ismissing, errors) ? "none" : "subentry $(error_heading)"
+    σ = Vector{Union{Missing, Float64}}(missing, length(values))
+    δ = Vector{Union{Missing, Float64}}(missing, length(values))
+    for i in eachindex(values)
+        v = values[i]
+        ismissing(v) && continue
+        e = abs(coalesce(errors[i], 0.0))
+        if width.holds == "variance"
+            variance = v * VARIANCE_UNIT_FACTORS[unit]
+            variance < 0 && continue
+            s = sqrt(variance)
+            d = s > 0 ? e * VARIANCE_UNIT_FACTORS[unit] / (2 * s) : 0.0
+        else
+            per_sigma = Dict(
+                "standard_deviation" => 1.0,
+                "fwhm" => FWHM_PER_SIGMA,
+                "hwhm" => FWHM_PER_SIGMA / 2,
+            )[width.holds]
+            s = v * energy_factor(unit) / per_sigma
+            d = e * energy_factor(unit) / per_sigma
+        end
+        if width.of == "fragment_kinetic_energy"
+            ismissing(masses[i]) && continue
+            k = A₀ / (A₀ - masses[i])
+            s *= k
+            d *= k
+        end
+        σ[i] = s
+        δ[i] = d
+    end
+    return σ, δ, source
+end
+
 """
 What a yield's unit token says of its normalisation, as the subentry states the unit. Written to
 the run record as `normalisation` for every yield, so that no consumer has to know that a mass
@@ -408,7 +456,11 @@ are exact conversions of a value with the factor recorded. No *normalisation* is
 that convention differs between consumers and cannot be undone, so the unit token is recorded
 instead.
 """
-function reduce_dataset(dataset::Dataset, query)
+function reduce_dataset(
+    dataset::Dataset,
+    query;
+    widths::AbstractVector{WidthColumn} = WidthColumn[],
+)
     table = dataset.table
     abscissa_columns = [Symbol(ABSCISSA_TOKEN[quantity]) for quantity in query.abscissa]
     coordinates, mass_bins, binned = _abscissa(dataset, query.abscissa)
@@ -417,7 +469,22 @@ function reduce_dataset(dataset::Dataset, query)
     raw_values = table[!, COL_Y]
     raw_uncertainties = table[!, COL_DY]
     uncertainty_source = "csv"
-    if all(ismissing, raw_uncertainties)
+    # A width is read from the column the configuration names, never from the datum.
+    width = nothing
+    A₀ = query.target_A + (query.spontaneous ? 0 : 1)
+    if query.ordinate == WIDTH_ORDINATE
+        width = mapped_width(widths, dataset.identifier)
+        width === nothing && throw(
+            ArgumentError(
+                "dataset $(dataset.identifier): the configuration names no width column for it",
+            ),
+        )
+        masses =
+            mass_position === nothing ? fill(missing, nrow(table)) :
+            coordinates[mass_position]
+        raw_values, raw_uncertainties, uncertainty_source =
+            _width_values(dataset, width, A₀, masses)
+    elseif all(ismissing, raw_uncertainties)
         fallback = _subentry_uncertainties(dataset)
         if fallback === nothing
             uncertainty_source = "none"
@@ -599,7 +666,10 @@ function reduce_dataset(dataset::Dataset, query)
     unit_written = dataset.unit
     factor = 1.0
     ordinate_factor = energy_factor(dataset.unit)
-    if query.ordinate in ENERGY_ORDINATES && ordinate_factor !== nothing
+    if width !== nothing
+        # Converted to MeV from the width column's own unit in `_width_values`.
+        unit_written = "MEV"
+    elseif query.ordinate in ENERGY_ORDINATES && ordinate_factor !== nothing
         factor = ordinate_factor
         if factor != 1.0
             final_values .*= factor
@@ -638,6 +708,21 @@ function reduce_dataset(dataset::Dataset, query)
     )
     merge!(diagnostics, placement)
     isempty(note) || (diagnostics["mass_placement_refused"] = note)
+    if mass_position !== nothing && !isempty(final_keys)
+        written = [key[mass_position] for key in final_keys]
+        diagnostics["mass_range"] = [minimum(written), maximum(written)]
+    end
+    if width !== nothing
+        diagnostics["width_column"] = width.column
+        diagnostics["width_unit"] = dataset.units[width.column]
+        diagnostics["width_holds"] = width.holds
+        diagnostics["width_of"] = width.of
+        diagnostics["width_is"] = "the standard deviation of the pre-neutron total kinetic \
+            energy at fixed pre-neutron mass, in MeV"
+        diagnostics["width_conversion"] = width_conversion(width, A₀)
+        note = get(WIDTH_NOTES, dataset.identifier, nothing)
+        note === nothing || (diagnostics["width_note"] = note)
+    end
     tke = findfirst(==("total_kinetic_energy"), query.abscissa)
     if tke !== nothing && !isempty(final_keys)
         merge!(diagnostics, _tke_grid(dataset, [key[tke] for key in final_keys]))

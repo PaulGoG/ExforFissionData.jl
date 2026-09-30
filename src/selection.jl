@@ -122,7 +122,7 @@ function parse_dataset(identifier::AbstractString, body::AbstractString)
 end
 
 """
-    screen_dataset(identifier, body, query) -> Union{Screened,Rejection}
+    screen_dataset(identifier, body, query; widths = WidthColumn[]) -> Union{Screened,Rejection}
 
 The first stage of [`select_dataset`](@ref): every test the csv rendering of one dataset can
 answer, in the order below, the first failure being reported.
@@ -146,11 +146,18 @@ DATA table until the second stage has compared the two.
 - `identifier::AbstractString`: the dataset identifier.
 - `body::AbstractString`: the csv rendering of the dataset.
 - `query`: the [`Query`](@ref) to answer.
+- `widths`: the width columns the configuration names, which alone the ordinate
+  `total_kinetic_energy_dispersion` reads; see [`WidthColumn`](@ref).
 
 # Returns
 A [`Screened`](@ref) or a [`Rejection`](@ref). Throws as [`parse_dataset`](@ref) does.
 """
-function screen_dataset(identifier::AbstractString, body::AbstractString, query)
+function screen_dataset(
+    identifier::AbstractString,
+    body::AbstractString,
+    query;
+    widths::AbstractVector{WidthColumn} = WidthColumn[],
+)
     table = parse_dataset(identifier, body)
     isempty(table) && return Rejection(identifier, "", "dataset is empty")
 
@@ -183,13 +190,27 @@ function screen_dataset(identifier::AbstractString, body::AbstractString, query)
     end
     unit = last(parse_value_kind(kind))
 
+    # A width is read from the datasets of the mean the configuration names, and only from
+    # them; a width of one fragment's energy is selected as that energy is.
+    ordinate = query.ordinate
+    if ordinate == WIDTH_ORDINATE
+        excluded = get(WIDTH_EXCLUSIONS, String(identifier), nothing)
+        excluded === nothing || return Rejection(identifier, code, excluded)
+        width = mapped_width(widths, identifier)
+        width === nothing && return Rejection(
+            identifier,
+            code,
+            "no width column of this dataset is named in the configuration ([[width]])",
+        )
+        ordinate = width.of
+    end
     curation = get(CURATED_DATASETS, String(identifier), nothing)
     reason = something(
-        slice_rejection(identifier, query.abscissa, query.ordinate),
+        slice_rejection(identifier, query.abscissa, ordinate),
         if curation === nothing
-            rejection_reason(tag_rule(query.abscissa, query.ordinate), code)
+            rejection_reason(tag_rule(query.abscissa, ordinate), code)
         else
-            curation_rejection(curation, query.abscissa, query.ordinate, code)
+            curation_rejection(curation, query.abscissa, ordinate, code)
         end,
         Some(nothing),
     )
@@ -317,7 +338,8 @@ function _column_table(data::SubentryColumns)
 end
 
 """
-    select_dataset(screened, subentry_text, query) -> Union{Dataset,Rejection}
+    select_dataset(screened, subentry_text, query; widths = WidthColumn[])
+        -> Union{Dataset,Rejection}
 
 Decide whether one retrieved dataset answers `query`, and reduce it to the rows that do.
 
@@ -356,12 +378,19 @@ name its frame.
 - `screened::Screened`: the outcome of [`screen_dataset`](@ref).
 - `subentry_text::AbstractString`: the text `x4get?sub=` returns for the dataset.
 - `query`: the [`Query`](@ref) to answer.
+- `widths`: the width columns the configuration names, which alone the ordinate
+  `total_kinetic_energy_dispersion` reads; see [`WidthColumn`](@ref).
 
 # Returns
 A [`Dataset`](@ref) or a [`Rejection`](@ref). A [`SubentryError`](@ref) becomes a rejection;
 any other exception propagates.
 """
-function select_dataset(screened::Screened, subentry_text::AbstractString, query)
+function select_dataset(
+    screened::Screened,
+    subentry_text::AbstractString,
+    query;
+    widths::AbstractVector{WidthColumn} = WidthColumn[],
+)
     identifier = screened.identifier
     code = screened.reaction_code
     subentry = try
@@ -394,6 +423,29 @@ function select_dataset(screened::Screened, subentry_text::AbstractString, query
          quantities the rendering does not present as measurements",
     )
     data = restrict(subentry.data, BitVector(map(!ismissing, subentry.data.values[datum])))
+
+    width = query.ordinate == WIDTH_ORDINATE ? mapped_width(widths, identifier) : nothing
+    if width !== nothing
+        index = column(data, width.column)
+        index === nothing && return Rejection(
+            identifier,
+            code,
+            "the configuration names column $(width.column) as a width, which the subentry \
+             DATA table does not carry",
+        )
+        unit = data.units[index]
+        convertible = if width.holds == "variance"
+            haskey(VARIANCE_UNIT_FACTORS, unit)
+        else
+            energy_factor(unit) !== nothing
+        end
+        convertible || return Rejection(
+            identifier,
+            code,
+            "column $(width.column) is headed $(unit), which is not a unit of a \
+             $(replace(width.holds, '_' => ' ')) of an energy this package converts",
+        )
+    end
 
     # The rendering can misstate the unit: 23268002 is counts, ARB-UNITS in its subentry and
     # PART/FIS in the csv. An arbitrary scale the subentry states is not overruled.
@@ -529,7 +581,8 @@ function select_dataset(screened::Screened, subentry_text::AbstractString, query
 end
 
 """
-    select_dataset(identifier, body, subentry_text, query) -> Union{Dataset,Rejection}
+    select_dataset(identifier, body, subentry_text, query; widths = WidthColumn[])
+        -> Union{Dataset,Rejection}
 
 The two stages of selection in one call: [`screen_dataset`](@ref) over the csv rendering
 `body`, then [`select_dataset`](@ref) over the subentry text of a dataset that passed.
@@ -538,9 +591,10 @@ function select_dataset(
     identifier::AbstractString,
     body::AbstractString,
     subentry_text::AbstractString,
-    query,
+    query;
+    widths::AbstractVector{WidthColumn} = WidthColumn[],
 )
-    screened = screen_dataset(identifier, body, query)
+    screened = screen_dataset(identifier, body, query; widths)
     screened isa Rejection && return screened
-    return select_dataset(screened, subentry_text, query)
+    return select_dataset(screened, subentry_text, query; widths)
 end
