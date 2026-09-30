@@ -52,7 +52,9 @@ record says which of three cases applied.
 - **A bin with integer edges**, `MASS-MIN` to `MASS-MAX` such as 126–127, holds each integer mass
   from one edge to the other. The value of a mean — a kinetic energy, a multiplicity — holds for
   every mass of its bin and is written at each with its own uncertainty, which the repetition
-  does not reduce; the widths are recorded as `mass_bin_widths_u`. A yield over several masses is
+  does not reduce; the widths are recorded as `mass_bin_widths_u`. Only bins of at most 2 u are
+  placed: a wider bin averages over a part of the sawtooth where ν(A) changes by more than a
+  neutron, and repeated at each mass it would put flat steps into the curve. A yield over several masses is
   their sum and holds for none of them, so it is not written (`10865003` gives the yield of
   masses 135 and 136 together). Bins that share or split an edge mass leave open which bin it
   belongs to and are not placed.

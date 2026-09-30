@@ -181,6 +181,14 @@ sparse grid — and an integer mass inside it is left out and counted rather tha
 const MASS_INTERPOLATION_SPAN = 3.0
 
 """
+Widest mass bin, in mass units, whose value is written at each of its masses. A bin of two
+masses, as the 2-u bins of 12709004 (Weber 1981), holds a mean that varies little across it;
+a wider bin averages over a part of the sawtooth where ν(A) changes by more than a neutron, and
+repeated at every member mass it would put flat steps into the curve. Wider bins are not placed.
+"""
+const MAXIMUM_MASS_BIN_WIDTH = 2
+
+"""
 Ordinates whose value for a mass bin is not the value at each mass of the bin.
 
 A yield over a bin of several masses is their sum, as 10865003 states of its masses 135 and 136;
@@ -383,8 +391,9 @@ integers, never rounded:
 - integer masses are taken as they are;
 - a bin pair `MASS-MIN`, `MASS-MAX` with integer edges holds each integer mass from one edge to
   the other, and its value is written at every one of them with its own uncertainty — for a
-  mean; a yield over more than one mass is their sum and is not written (see
-  [`EXTENSIVE_ORDINATES`](@ref)); bins with shared or fractional edges are not placed;
+  mean, and for bins of at most [`MAXIMUM_MASS_BIN_WIDTH`](@ref) masses; a yield over more than
+  one mass is their sum and is not written (see [`EXTENSIVE_ORDINATES`](@ref)); bins with
+  shared or fractional edges are not placed;
 - non-integer masses, a digitised curve or a half-integer grid, are interpolated linearly onto
   the integer masses within their range, separately at each value of any other abscissa
   quantity, never across more than [`MASS_INTERPOLATION_SPAN`](@ref).
@@ -496,6 +505,10 @@ function reduce_dataset(dataset::Dataset, query)
         if members === nothing
             note = "its mass bins share or split an edge mass, and which bin that mass belongs \
                     to is not decided here"
+        elseif any(>(MAXIMUM_MASS_BIN_WIDTH), length.(members))
+            note = "its mass bins are $(join(Int.(widths), ", ")) u wide, wider than the \
+                    $(MAXIMUM_MASS_BIN_WIDTH) u a bin may span to be written at each of its \
+                    masses"
         elseif query.ordinate in EXTENSIVE_ORDINATES && any(>(1), length.(members))
             note = "a yield over a mass bin of several masses is their sum, and has no value at \
                     any one of them"

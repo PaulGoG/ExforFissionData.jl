@@ -1938,6 +1938,19 @@ include("fixtures.jl")
         @test reduced.diagnostics["mass_bin_widths_u"] == [2.0]
         @test reduced.diagnostics["abscissa_binned"]
 
+        # A bin of three masses averages over too much of the curve to be repeated at each.
+        reduced = reduce_dataset(
+            select_dataset(
+                "10000002",
+                exfor_csv(rows),
+                binned([(126.0, 128.0), (129.0, 131.0)]),
+                tke,
+            ),
+            tke,
+        )
+        @test isempty(reduced.table)
+        @test occursin("3 u wide", reduced.diagnostics["mass_placement_refused"])
+
         # Bins sharing an edge mass leave its owner open, and are not placed.
         reduced = reduce_dataset(
             select_dataset(
