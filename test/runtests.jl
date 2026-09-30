@@ -1798,6 +1798,33 @@ include("fixtures.jl")
         @test rejected isa Rejection
         @test occursin("uncalibrated", rejected.reason)
 
+        # 21771014 (Asghar 1981): an RMS width of the TKE against provisional, post-neutron
+        # mass. Unnamed, the record gives that reason; named, it is refused all the same.
+        u233 = test_query(; ordinate = "total_kinetic_energy_dispersion")
+        asghar(widths) = select_dataset(
+            "21771014",
+            kinetic_energy_dataset(
+                "21771014",
+                "92-U-233(N,F)MASS,SEC,KE,LF+HF,MXW",
+                [(117, 162.57), (118, 160.88)];
+                extra = (
+                    headings = ["MISC"],
+                    units = ["MEV"],
+                    values = [[11.058], [8.3919]],
+                ),
+            )...,
+            u233;
+            widths = widths,
+        )
+        for named in (
+            WidthColumn[],
+            [WidthColumn("21771014", "MISC", "standard_deviation", "total_kinetic_energy")],
+        )
+            rejected = asghar(named)
+            @test rejected isa Rejection
+            @test rejected.reason == "forbidden code \"SEC\" in SF5"
+        end
+
         # The MISC-COL text is quoted for the record, the other dataset's pointer left out.
         text = exfor_subentry(;
             subentry = "10000002",

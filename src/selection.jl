@@ -192,17 +192,15 @@ function screen_dataset(
 
     # A width is read from the datasets of the mean the configuration names, and only from
     # them; a width of one fragment's energy is selected as that energy is.
+    # A dataset the configuration does not name is judged as a mean TKE first, so that the record
+    # gives the substantive reason where there is one; it is refused as unnamed only after.
     ordinate = query.ordinate
+    width = nothing
     if ordinate == WIDTH_ORDINATE
         excluded = get(WIDTH_EXCLUSIONS, String(identifier), nothing)
         excluded === nothing || return Rejection(identifier, code, excluded)
         width = mapped_width(widths, identifier)
-        width === nothing && return Rejection(
-            identifier,
-            code,
-            "no width column of this dataset is named in the configuration ([[width]])",
-        )
-        ordinate = width.of
+        ordinate = width === nothing ? "total_kinetic_energy" : width.of
     end
     curation = get(CURATED_DATASETS, String(identifier), nothing)
     reason = something(
@@ -218,6 +216,13 @@ function screen_dataset(
     if "mass" in query.abscissa
         provisional = provisional_mass(identifier)
         provisional === nothing || return Rejection(identifier, code, provisional)
+    end
+    if query.ordinate == WIDTH_ORDINATE && width === nothing
+        return Rejection(
+            identifier,
+            code,
+            "no width column of this dataset is named in the configuration ([[width]])",
+        )
     end
     conflict = channel_qualifier_conflict(query.channel, code)
     if conflict !== nothing
