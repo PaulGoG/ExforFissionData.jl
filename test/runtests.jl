@@ -1618,6 +1618,37 @@ include("fixtures.jl")
         @test !reduced.has_uncertainties
     end
 
+    @testset "an entry that states its masses provisional" begin
+        # 404200021 (Zakharova 1979): nu(A) against the masses of entry 40420, whose entry names
+        # 40232 for them, and 40232 states that no neutron-emission correction was made.
+        nu = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            ordinate = "multiplicity",
+        )
+        function per_fragment(identifier)
+            rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = "98-CF-252(0,F)MASS,PR/FRG,NU",
+                    value_kind = "Data(PRT/FIS)",
+                    product_za = mass,
+                    y = value,
+                ) for (mass, value) in ((129, 1.2), (130, 1.0), (131, 0.8))
+            ]
+            return exfor_csv(rows), exfor_subentry_for(rows; unit = "PRT/FIS")
+        end
+        rejected = select_dataset("404200021", per_fragment("404200021")..., nu)
+        @test rejected isa Rejection
+        @test occursin("40232001, CORRECTION", rejected.reason)
+        # An entry silent on the correction stays admitted.
+        @test select_dataset("41720002", per_fragment("41720002")..., nu) isa Dataset
+        # Only an abscissa of pre-neutron mass inherits the defect.
+        @test ExforFissionData.provisional_mass("40420005") !== nothing
+        @test ExforFissionData.provisional_mass("40421005") === nothing
+    end
+
     @testset "a spectrum qualifier must agree with the channel" begin
         conflict = ExforFissionData.channel_qualifier_conflict
         @test conflict("nth", "92-U-235(N,F)ELEM/MASS,IND,FY,,FIS") == "FIS"

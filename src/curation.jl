@@ -267,3 +267,34 @@ function correlation_group(identifier::AbstractString)
     index = findfirst(group -> identifier in group.members, CORRELATION_GROUPS)
     return index === nothing ? nothing : CORRELATION_GROUPS[index]
 end
+
+"""
+Entries whose fragment masses the entry itself establishes as provisional — derived from the two
+fragment energies without correcting them for neutron emission — keyed by the five-character
+entry number, with the evidence.
+
+A dataset of such an entry is rejected under every abscissa that is a pre-neutron mass, whatever
+its reaction code says: an observable defined against pre-neutron mass takes only masses that
+are pre-neutron, from a ν(A) or ν(A, TKE) correction or from double-velocity kinematics. Every
+subentry sharing the entry's mass determination inherits the defect, and on the steep side of
+the sawtooth, near A ≈ 130, a shift of about 1 u moves ν(A) visibly. An entry that is silent on
+the correction stays admitted.
+"""
+const PROVISIONAL_MASS_ENTRIES = Dict{String, String}(
+    "40232" => "provisional masses: entry 40232 (Zakharova 1973) states that 'corrections on \
+                emission of neutrons from fission fragments were not introduced' (40232001, \
+                CORRECTION), its masses following from the two fragment energies by \
+                conservation of mass and momentum (40232001, ANALYSIS)",
+    "40420" => "provisional masses: entry 40420 (Zakharova 1979) names entry 40232 for the 'FY \
+                and TKE for this experiment' (40420001, REL-REF), and 40232 states that \
+                'corrections on emission of neutrons from fission fragments were not \
+                introduced' (40232001, CORRECTION)",
+)
+
+"""
+    provisional_mass(identifier) -> Union{String,Nothing}
+
+The evidence of [`PROVISIONAL_MASS_ENTRIES`](@ref) for the entry of `identifier`, or `nothing`.
+"""
+provisional_mass(identifier::AbstractString) =
+    get(PROVISIONAL_MASS_ENTRIES, first(identifier, 5), nothing)

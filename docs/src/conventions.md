@@ -89,7 +89,11 @@ empirical, since the archive applies its own vocabulary inconsistently: the tabl
 redundant usually guards a real entry.
 
 Where no code can tell two datasets apart, a dataset is read from its subentry text one at a time
-(`src/curation.jl`), and the run record carries the evidence as `curation`. A blank branch field
+(`src/curation.jl`), and the run record carries the evidence as `curation`. An observable against
+pre-neutron mass takes only pre-neutron masses: an entry that states its masses were not
+corrected for neutron emission has every dataset against such a mass rejected, with the
+subentry that states it as the reason — entries 40232 and 40420 (Zakharova 1973 and 1979), whose
+ν(A) and ν(A, TKE) share that mass determination. A blank branch field
 is decided kinematically: a double-velocity measurement gives pre-neutron masses and energies
 directly, since isotropic neutron emission leaves the mean fragment velocity unchanged, while a
 double-energy measurement gives provisional masses until they are corrected with ν(A), and is

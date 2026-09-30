@@ -131,7 +131,9 @@ answer, in the order below, the first failure being reported.
 2. the `y:Value` column marks measurements rather than limits, and is not in arbitrary units;
 3. the reaction code satisfies the composed tag rule of the abscissa and ordinate — or, for a
    dataset of [`CURATED_DATASETS`](@ref), the curated ordinate is the one asked for and the
-   code satisfies the abscissa rule; see [`curation_rejection`](@ref);
+   code satisfies the abscissa rule; see [`curation_rejection`](@ref). A pre-neutron mass
+   abscissa refuses the entries whose masses are provisional
+   ([`PROVISIONAL_MASS_ENTRIES`](@ref));
 4. the reaction code carries no spectrum qualifier that contradicts the entrance channel; see
    [`CHANNEL_FORBIDDEN_QUALIFIERS`](@ref);
 5. for induced fission, at least one row lies within the configured incident-energy window,
@@ -188,6 +190,10 @@ function screen_dataset(identifier::AbstractString, body::AbstractString, query)
         curation_rejection(curation, query.abscissa, query.ordinate, code)
     end
     reason === nothing || return Rejection(identifier, code, reason)
+    if "mass" in query.abscissa
+        provisional = provisional_mass(identifier)
+        provisional === nothing || return Rejection(identifier, code, provisional)
+    end
     conflict = channel_qualifier_conflict(query.channel, code)
     if conflict !== nothing
         return Rejection(
