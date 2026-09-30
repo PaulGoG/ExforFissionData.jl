@@ -238,8 +238,10 @@ function write_metadata(
             string(maximum(entry.retrieved for entry in accepted))
     end
     flagged = [
-        entry.dataset.identifier for entry in accepted if
-        any(tag -> occursin(tag, entry.dataset.reaction_code), keys(SCALE_QUALIFIERS))
+        entry.dataset.identifier for entry in accepted if any(
+            tag -> has_code(entry.dataset.reaction_code, qualifier_tag(tag)),
+            keys(SCALE_QUALIFIERS),
+        )
     ]
     if !isempty(flagged)
         record["datasets"]["scale_warning"] =

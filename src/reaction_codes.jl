@@ -4,26 +4,119 @@
 #
 #     92-U-233(N,F)ELEM/MASS,CUM,FY
 #
-# whose comma-separated fields name the measured quantity, the stage of the fission process it
-# refers to, and the averaging applied. The vocabulary is applied inconsistently across entries,
-# so selection cannot be done by parsing the code into fields: it is done by substring tests
-# tuned against the data as it actually appears. The tables below are that tuning, annotated
-# with what each tag catches. They are empirical knowledge about the state of the archive, not a
-# formal grammar, and a rule that looks redundant usually guards a real entry.
+# whose comma-separated subfields name the product (SF4), the branch (SF5), the parameter (SF6),
+# the particle considered (SF7), the modifiers (SF8) and the data type (SF9), each holding one or
+# more codes joined by `/` (EXFOR Formats Manual, IAEA-NDS-207, chapter 6). A code is read into
+# those subfields and every test compares whole codes in a named subfield: `DE` is the energy
+# differential of SF6 and never a part of `DERIV`, `KE` never a part of `KEP`. The vocabulary is
+# still applied inconsistently across entries, so which codes each observable requires and
+# forbids is empirical: the tables below encode observed failures of the upstream labelling, each
+# annotated with what it catches, and a rule that looks redundant usually guards a real entry.
+
+"""
+    reaction_fields(code) -> Union{Vector{Vector{String}},Nothing}
+
+The codes of subfields SF4 to SF9 of a single EXFOR reaction, one vector per subfield in that
+order, each subfield split at its `/` separators; `nothing` when `code` is a combination of
+several reactions — a ratio, sum, difference or product, written in parentheses — or is not a
+reaction code at all.
+
+Parenthesised codes keep their parentheses: `(SEC)`, "compiler uncertain if secondary", is a
+code of its own and not `SEC`.
+
+# Example
+
+```jldoctest
+julia> ExforFissionData.reaction_fields("92-U-235(N,F)ELEM/MASS,IND,FY,,FIS")
+6-element Vector{Vector{String}}:
+ ["ELEM", "MASS"]
+ ["IND"]
+ ["FY"]
+ []
+ ["FIS"]
+ []
+```
+"""
+function reaction_fields(code::AbstractString)
+    text = strip(String(code))
+    startswith(text, "(") && return nothing
+    parsed = match(r"^[^()]+\([^()]*\)([^()]*(?:\([^()]*\)[^()]*)*)$", text)
+    parsed === nothing && return nothing
+    subfields = split(something(parsed.captures[1], ""), ',')
+    length(subfields) > 6 && return nothing
+    fields = [String[] for _ in 4:9]
+    for (k, subfield) in enumerate(subfields)
+        fields[k] = String[c for c in split(subfield, '/') if !isempty(c)]
+    end
+    return fields
+end
+
+"""
+Codes that a tag of the key's form also accepts: `AKE`, average kinetic energy, is the coding of
+the same mean that the archive used before `KE` replaced it in SF6 (the histories of 21995010,
+22650013, 40112013 and many more record the change). `KEP`, the most probable kinetic energy,
+and `KEM`, the temperature of a Maxwellian (Dictionary 32), are not synonyms.
+"""
+const CODE_SYNONYMS = Dict("SF6:KE" => ("KE", "AKE"))
+
+# The subfield a tag names, 4 to 9, or 0 for any subfield, and the code: `SF5:PRE` is (5, "PRE").
+function _locate(tag::AbstractString)
+    if ncodeunits(tag) > 4 && startswith(tag, "SF") && tag[4] == ':' && tag[3] in '4':'9'
+        return (tag[3] - '0', String(tag[5:end]))
+    end
+    return (0, String(tag))
+end
+
+# Whether the subfields `fields` hold the code a tag names. A tag is `SFn:CODE`, a code in
+# subfield n, or a bare `CODE` in any subfield; tags joined by ` & ` must all hold.
+function _holds(tag::AbstractString, fields::Vector{Vector{String}})
+    for part in split(tag, " & ")
+        subfield, code = _locate(part)
+        if subfield == 0
+            any(field -> code in field, fields) || return false
+        else
+            accepted = get(CODE_SYNONYMS, part, (code,))
+            any(in(fields[subfield - 3]), accepted) || return false
+        end
+    end
+    return true
+end
+
+# A tag as a reason reads it: `"PRE" in SF5`.
+function _describe(tag::AbstractString)
+    parts = map(split(tag, " & ")) do part
+        subfield, code = _locate(part)
+        subfield == 0 ? "\"$(code)\"" : "\"$(code)\" in SF$(subfield)"
+    end
+    return join(parts, " with ")
+end
+
+"""
+    has_code(code, tag) -> Bool
+
+Whether the reaction code `code` holds the code a tag names — `"SF8:MSC"` for `MSC` among the
+modifiers, `"TKE"` for `TKE` in any subfield; false for a combination of reactions.
+"""
+function has_code(code::AbstractString, tag::AbstractString)
+    fields = reaction_fields(code)
+    return fields !== nothing && _holds(tag, fields)
+end
 
 """
     TagRule(require_all, require_any, forbid)
 
-A substring test over an EXFOR reaction code.
+A test over the subfields of an EXFOR reaction code, by whole codes.
 
-A code matches when it contains every tag of `require_all`, at least one tag of `require_any`
-(when that list is non-empty), and none of `forbid`.
+A code matches when it is a single reaction whose subfields hold every tag of `require_all`, at
+least one tag of `require_any` (when that list is non-empty), and none of `forbid`. A tag is
+`SFn:CODE` for a code in subfield n, or a bare `CODE` for one in any subfield; tags joined by
+` & ` must all hold. [`CODE_SYNONYMS`](@ref) lists the codes a tag also accepts.
 
 # Fields
-- `require_all::Vector{String}`: tags that must all be present.
-- `require_any::Vector{String}`: tags of which at least one must be present; an empty list
-  imposes no constraint.
-- `forbid::Vector{String}`: tags of which none may be present.
+- `require_all::Vector{String}`: tags that must all hold.
+- `require_any::Vector{String}`: tags of which at least one must hold; an empty list imposes no
+  constraint.
+- `forbid::Vector{String}`: tags of which none may hold.
 """
 struct TagRule
     require_all::Vector{String}
@@ -36,84 +129,106 @@ end
 
 Whether an EXFOR reaction code satisfies `rule`.
 """
-function matches(rule::TagRule, code::AbstractString)
-    for tag in rule.forbid
-        occursin(tag, code) && return false
-    end
-    for tag in rule.require_all
-        occursin(tag, code) || return false
-    end
-    isempty(rule.require_any) && return true
-    for tag in rule.require_any
-        occursin(tag, code) && return true
-    end
-    return false
-end
+matches(rule::TagRule, code::AbstractString) = rejection_reason(rule, code) === nothing
 
 """
     rejection_reason(rule, code) -> Union{String,Nothing}
 
-The tag that caused `code` to fail `rule`, or `nothing` when it matches.
+Why `code` fails `rule` — the first forbidden code present, the first required code absent, or
+the absence of every alternative — or `nothing` when it matches.
 
 Used to record why a dataset was excluded, so that an exclusion can be audited rather than
 merely observed.
 """
 function rejection_reason(rule::TagRule, code::AbstractString)
+    fields = reaction_fields(code)
+    if fields === nothing
+        return startswith(strip(String(code)), "(") ?
+               "a combination of reaction codes (a ratio, sum, difference or product), not \
+                the quantity itself" :
+               "not a reaction code this package reads"
+    end
     for tag in rule.forbid
-        occursin(tag, code) && return "forbidden tag \"$(tag)\""
+        _holds(tag, fields) && return "forbidden code $(_describe(tag))"
     end
     for tag in rule.require_all
-        occursin(tag, code) || return "missing required tag \"$(tag)\""
+        _holds(tag, fields) || return "missing required code $(_describe(tag))"
     end
     isempty(rule.require_any) && return nothing
-    any(tag -> occursin(tag, code), rule.require_any) && return nothing
-    return "none of the alternative tags $(rule.require_any) present"
+    any(tag -> _holds(tag, fields), rule.require_any) && return nothing
+    return "none of the alternatives $(join(_describe.(rule.require_any), ", ")) present"
 end
 
 """
-Tags rejected for every observable.
+Codes rejected for every observable, besides any combination of reactions.
 
 | Tag | Excludes |
 | :--- | :--- |
-| `RECOM` | recommended or evaluated values, not a measurement |
-| `TER` | ternary fission |
-| `RAT` | a ratio rather than the quantity itself |
-| `,G` | a gamma-related channel |
-| `-G-` | a ground-state-resolved product in the code's product field |
-| `)/(`, `)//(` | a ratio of two reaction codes, in either form |
-| `DEL` | delayed rather than prompt emission |
-| `CUM` | cumulative rather than independent yield |
-| `RAW` | uncorrected data |
+| `SF9:RECOM` | recommended values, not a measurement |
+| `SF5:TER` | ternary fission |
+| `SF6:RAT` | a ratio rather than the quantity itself |
+| `SF7:G` | a γ-related quantity |
+| `SF4:0-G-0` | γ rays as the product |
+| `SF5:DL` | delayed rather than prompt emission |
+| `SF5:CUM`, `SF5:(CUM)` | cumulative yield, or one the compiler could not tell from it |
+| `SF8:RAW` | uncorrected data |
 
 `CHN` (chain yields) and `REL` (relative data) are deliberately absent: excluding them removes
 datasets that are wanted, and both are recorded per dataset through [`SCALE_QUALIFIERS`](@ref).
 """
-const BASE_FORBID = ["RECOM", "TER", "RAT", ",G", "-G-", ")/(", ")//(", "DEL", "CUM", "RAW"]
+const BASE_FORBID = [
+    "SF9:RECOM",
+    "SF5:TER",
+    "SF6:RAT",
+    "SF7:G",
+    "SF4:0-G-0",
+    "SF5:DL",
+    "SF5:CUM",
+    "SF5:(CUM)",
+    "SF8:RAW",
+]
 
 # Abscissa rules, keyed by the `abscissa` list of the configuration. An abscissa is a joint
 # index, so the key is a list of quantities rather than a composite token: the two-quantity
 # rules are not the composition of the one-quantity ones and have to be stated in their own
-# right.
+# right. `(SEC)` is refused wherever `SEC` is: a compiler uncertain whether a quantity is
+# post-neutron has not established that it is pre-neutron either.
 #
-#   mass                  pre-neutron fragment mass:  mass-resolved, not charge-resolved, not
-#                         energy-resolved, and neither independent nor secondary, which would
-#                         make it post-neutron
+#   mass                  pre-neutron fragment mass: mass-resolved, not charge-resolved, not
+#                         differential in energy, and neither independent nor secondary, which
+#                         would make it post-neutron
 #   product_mass          post-neutron fragment mass: as mass, but requiring the
-#                         independent/secondary marking and forbidding the pre-neutron one
+#                         independent or secondary marking and forbidding the pre-neutron one
 #   charge                fragment charge: charge-resolved, not mass-resolved
 #   neutron_energy        energy abscissa of a spectrum
-#   total_kinetic_energy  total kinetic energy
+#   total_kinetic_energy  total kinetic energy, as TKE or as DE of both fragments
 const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
-    ["mass"] => TagRule(["MASS"], String[], ["TKE", "ELEM", "SEC", "DE", "IND"]),
-    ["product_mass"] => TagRule(["MASS"], ["SEC", "IND"], ["TKE", "ELEM", "PRE", "DE"]),
-    ["charge"] => TagRule([","], ["ELEM", "CHG"], ["TKE", "MASS", "DE"]),
-    ["neutron_energy"] =>
-        TagRule([","], ["KE", "DE"], ["MASS", "ELEM", "TKE", "LF+HF"]),
-    ["total_kinetic_energy"] => TagRule([","], ["TKE", "DE,LF+HF"], ["MASS", "ELEM"]),
-    ["charge", "product_mass"] =>
-        TagRule(["MASS", "ELEM"], ["SEC", "IND"], ["KE", "DE", "PRE"]),
+    ["mass"] => TagRule(
+        ["SF4:MASS"],
+        String[],
+        ["TKE", "SF4:ELEM", "SF5:SEC", "SF5:(SEC)", "SF6:DE", "SF5:IND"],
+    ),
+    ["product_mass"] => TagRule(
+        ["SF4:MASS"],
+        ["SF5:SEC", "SF5:IND"],
+        ["TKE", "SF4:ELEM", "SF5:PRE", "SF6:DE"],
+    ),
+    ["charge"] =>
+        TagRule(String[], ["SF4:ELEM", "SF5:CHG"], ["TKE", "SF4:MASS", "SF6:DE"]),
+    ["neutron_energy"] => TagRule(
+        String[],
+        ["SF6:KE", "SF6:DE"],
+        ["SF4:MASS", "SF4:ELEM", "TKE", "SF7:LF+HF"],
+    ),
+    ["total_kinetic_energy"] =>
+        TagRule(String[], ["TKE", "SF6:DE & SF7:LF+HF"], ["SF4:MASS", "SF4:ELEM"]),
+    ["charge", "product_mass"] => TagRule(
+        ["SF4:MASS", "SF4:ELEM"],
+        ["SF5:SEC", "SF5:IND"],
+        ["SF6:KE", "SF6:DE", "SF5:PRE"],
+    ),
     ["mass", "total_kinetic_energy"] =>
-        TagRule(["MASS"], ["TKE", "DE,LF+HF"], ["ELEM"]),
+        TagRule(["SF4:MASS"], ["TKE", "SF6:DE & SF7:LF+HF"], ["SF4:ELEM"]),
 )
 
 # Ordinate rules, composed with the abscissa rule. The key is the value of `ordinate` in the
@@ -128,38 +243,46 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      abscissa rule alone admits
 #   fragment_kinetic_energy            pre-neutron fragment kinetic energy
 #   product_kinetic_energy             post-neutron fragment kinetic energy
-#   total_kinetic_energy               pre-neutron total kinetic energy (LF+HF, both fragments);
-#                                      KE also matches AKE, the older coding of the same mean.
-#                                      MSC marks a quantity outside the standard definition, and
-#                                      every such dataset against mass is something else: the
-#                                      TKE of fragments with provisional masses (33082004), the
-#                                      maximal TKE of cold fragmentation (23589002), the TKE at
-#                                      which neutron emission stops (23118008, 23175011), a TKE
-#                                      against mass ratio in alpha-energy windows (30916007).
-#                                      KEP, which KE also matches, is the most probable kinetic
-#                                      energy (Dictionary 32; Dictionary 236 PRE,KEP,*F), not the
-#                                      mean
+#   total_kinetic_energy               pre-neutron total kinetic energy (LF+HF, both fragments):
+#                                      KE, or AKE, the older coding of the same mean; not KEP,
+#                                      the most probable value. MSC marks a quantity outside the
+#                                      standard definition, and every such dataset against mass
+#                                      is something else: the TKE of fragments with provisional
+#                                      masses (33082004), the maximal TKE of cold fragmentation
+#                                      (23589002), the TKE at which neutron emission stops
+#                                      (23118008, 23175011), a TKE against mass ratio in
+#                                      alpha-energy windows (30916007)
 #   post_neutron_total_kinetic_energy  the same, post-neutron
 #   neutron_kinetic_energy             centre-of-mass neutron energy, per neutron (,N)
 #   spectrum                           prompt fission neutron spectrum (DE, energy-differential)
 #   spectrum_maxwellian_ratio          the same, as a ratio to a Maxwellian (MXD)
 #
-# MSC excludes miscellaneous groupings; /DA and PR/ exclude angular differential and
-# ratio-to-prompt forms of the spectrum.
+# MSC excludes miscellaneous groupings; DA excludes angle-differential spectra, and FRG, NUM
+# and PAR beside PR the per-fragment, per-multiplicity and partial ones.
 const ORDINATE_RULES = Dict{String, TagRule}(
-    "multiplicity" => TagRule(["PR", "FRG"], String[], ["MSC"]),
-    "multiplicity_per_fission" => TagRule(["PR"], String[], ["MSC", "FRG"]),
-    "yield" => TagRule(["FY"], String[], String[]),
-    "fragment_kinetic_energy" => TagRule(["KE", "PRE"], String[], ["LF+HF", ",N"]),
-    "product_kinetic_energy" => TagRule(["KE"], String[], ["LF+HF", ",N", "PRE"]),
+    "multiplicity" => TagRule(["SF5:PR", "SF5:FRG"], String[], ["SF8:MSC"]),
+    "multiplicity_per_fission" => TagRule(["SF5:PR"], String[], ["SF8:MSC", "SF5:FRG"]),
+    "yield" => TagRule(["SF6:FY"], String[], String[]),
+    "fragment_kinetic_energy" =>
+        TagRule(["SF6:KE", "SF5:PRE"], String[], ["SF7:LF+HF", "SF7:N"]),
+    "product_kinetic_energy" =>
+        TagRule(["SF6:KE"], String[], ["SF7:LF+HF", "SF7:N", "SF5:PRE"]),
     "total_kinetic_energy" =>
-        TagRule(["KE", "LF+HF", "PRE"], String[], [",N", "MSC", "KEP"]),
+        TagRule(["SF6:KE", "SF7:LF+HF", "SF5:PRE"], String[], ["SF7:N", "SF8:MSC"]),
     "post_neutron_total_kinetic_energy" =>
-        TagRule(["KE", "LF+HF"], String[], [",N", "PRE"]),
-    "neutron_kinetic_energy" => TagRule(["KE", "PR", ",N"], String[], ["PRE"]),
-    "spectrum" => TagRule(["PR", "DE"], String[], ["/DA", "PR/", "FRG", "MXD", "MSC"]),
-    "spectrum_maxwellian_ratio" =>
-        TagRule(["PR", "DE", "MXD"], String[], ["/DA", "PR/", "FRG"]),
+        TagRule(["SF6:KE", "SF7:LF+HF"], String[], ["SF7:N", "SF5:PRE"]),
+    "neutron_kinetic_energy" =>
+        TagRule(["SF6:KE", "SF5:PR", "SF7:N"], String[], ["SF5:PRE"]),
+    "spectrum" => TagRule(
+        ["SF5:PR", "SF6:DE"],
+        String[],
+        ["SF6:DA", "SF5:FRG", "SF5:NUM", "SF5:PAR", "SF8:MXD", "SF8:MSC"],
+    ),
+    "spectrum_maxwellian_ratio" => TagRule(
+        ["SF5:PR", "SF6:DE", "SF8:MXD"],
+        String[],
+        ["SF6:DA", "SF5:FRG", "SF5:NUM", "SF5:PAR"],
+    ),
 )
 
 """
@@ -302,8 +425,33 @@ const SPECTRUM_QUALIFIERS = Dict(
     "FIS" => "fission-neutron-spectrum-averaged",
     "FST" => "fast-reactor-spectrum-averaged",
     "EPI" => "epithermal",
-    "THR" => "thermal",
 )
+
+"""
+The subfield each qualifier of [`SCALE_QUALIFIERS`](@ref) and [`SPECTRUM_QUALIFIERS`](@ref) is
+coded in: the data type `DERIV` in SF9, the branches `CHN` in SF5, every other one among the
+modifiers of SF8 (Dictionaries 31, 34 and 35).
+"""
+const QUALIFIER_SUBFIELD = Dict(
+    "MSC" => 8,
+    "REL" => 8,
+    "CHN" => 5,
+    "DERIV" => 9,
+    "FCT" => 8,
+    "MXW" => 8,
+    "SPA" => 8,
+    "FIS" => 8,
+    "FST" => 8,
+    "EPI" => 8,
+)
+
+"""
+    qualifier_tag(qualifier) -> String
+
+The tag of a qualifier in its subfield, `"SF8:MXW"` for `"MXW"`; see
+[`QUALIFIER_SUBFIELD`](@ref).
+"""
+qualifier_tag(qualifier::AbstractString) = "SF$(QUALIFIER_SUBFIELD[qualifier]):$(qualifier)"
 
 """
     code_qualifiers(code) -> Vector{String}
@@ -315,7 +463,8 @@ function code_qualifiers(code::AbstractString)
     found = String[]
     for table in (SCALE_QUALIFIERS, SPECTRUM_QUALIFIERS)
         for tag in sort(collect(keys(table)))
-            occursin(tag, code) && push!(found, string(tag, ": ", table[tag]))
+            has_code(code, qualifier_tag(tag)) &&
+                push!(found, string(tag, ": ", table[tag]))
         end
     end
     return found
@@ -418,15 +567,15 @@ const CHANNEL_FORBIDDEN_QUALIFIERS = Dict(
     channel_qualifier_conflict(channel, code) -> Union{String,Nothing}
 
 The first qualifier of [`CHANNEL_FORBIDDEN_QUALIFIERS`](@ref) for `channel`, in the order listed
-there, that the reaction code `code` contains; `nothing` when the code names no spectrum the
-channel excludes.
+there, that the reaction code `code` carries among its modifiers; `nothing` when the code names
+no spectrum the channel excludes.
 
 The code `"92-U-235(N,F)ELEM/MASS,IND,FY,,FIS"`, for instance, gives `"FIS"` under `"nth"`, a
 fission-spectrum irradiation not being a thermal measurement, and `nothing` under `"nfast"`.
 """
 function channel_qualifier_conflict(channel::AbstractString, code::AbstractString)
     for tag in CHANNEL_FORBIDDEN_QUALIFIERS[channel]
-        occursin(tag, code) && return tag
+        has_code(code, qualifier_tag(tag)) && return tag
     end
     return nothing
 end

@@ -95,7 +95,7 @@ include("fixtures.jl")
     end
 
     @testset "reaction code selection" begin
-        rule = TagRule(["MASS"], ["SEC", "IND"], ["ELEM"])
+        rule = TagRule(["SF4:MASS"], ["SF5:SEC", "SF5:IND"], ["SF4:ELEM"])
         @test matches(rule, "92-U-233(N,F)MASS,IND,FY")
         @test !matches(rule, "92-U-233(N,F)ELEM/MASS,IND,FY")
         @test !matches(rule, "92-U-233(N,F)MASS,CHN,FY")
@@ -115,6 +115,62 @@ include("fixtures.jl")
         yield = tag_rule(["mass"], "yield")
         @test !matches(yield, "92-U-233(N,F)MASS,CUM,FY")
         @test !matches(yield, "(92-U-235(N,F)MASS,CHN,FY,,REL)//(92-U-235(N,F)MASS,CHN,FY)")
+    end
+
+    @testset "codes are compared whole, in their subfield" begin
+        fields = ExforFissionData.reaction_fields
+        @test fields("92-U-235(N,F)ELEM/MASS,IND,FY,,FIS") ==
+              [["ELEM", "MASS"], ["IND"], ["FY"], String[], ["FIS"], String[]]
+        @test fields("98-CF-252(0,F),(SEC),AKE,LF") ==
+              [String[], ["(SEC)"], ["AKE"], ["LF"], String[], String[]]
+        @test fields("(92-U-235(N,F)MASS,CHN,FY)/(92-U-235(N,F)MASS,CHN,FY)") === nothing
+
+        # DE is the energy differential of SF6 and no part of DERIV. A derived independent yield
+        # is admitted and flagged; a yield differential in energy stays out, as before.
+        independent = tag_rule(["charge", "product_mass"], "yield")
+        derived = "92-U-235(N,F)ELEM/MASS,IND,FY,,,DERIV"
+        @test matches(independent, derived)
+        @test "DERIV: derived from other data rather than measured" in
+              ExforFissionData.code_qualifiers(derived)
+        @test rejection_reason(independent, "92-U-235(N,F)ELEM/MASS,IND,FY/DE") ==
+              "forbidden code \"DE\" in SF6"
+        @test rejection_reason(
+            tag_rule(["mass"], "yield"),
+            "94-PU-239(N,F)MASS,PRE,FY/DE,FF,MXW/MSC",
+        ) == "forbidden code \"DE\" in SF6"
+
+        # PR is not PRE, and KE is neither TKE, KEP nor KEM; AKE is KE.
+        @test !matches(
+            tag_rule(["mass"], "multiplicity_per_fission"),
+            "92-U-233(N,F)MASS,PRE,FY",
+        )
+        @test !matches(
+            tag_rule(["total_kinetic_energy"], "neutron_kinetic_energy"),
+            "92-U-235(N,F),PR,NU/TKE",
+        )
+        tke = tag_rule(["mass"], "total_kinetic_energy")
+        @test matches(tke, "94-PU-239(N,F)MASS,PRE,AKE,LF+HF,MXW")
+        @test !matches(tke, "98-CF-252(0,F)MASS,PRE,KEP,LF+HF")
+        @test !matches(
+            tag_rule(["neutron_energy"], "product_kinetic_energy"),
+            "92-U-233(N,F)0-NN-1,PR,KEM",
+        )
+
+        # A compiler uncertain whether a quantity is secondary has not made it primary.
+        @test rejection_reason(tag_rule(["mass"], "yield"), "92-U-235(N,F)MASS,(SEC),FY") ==
+              "forbidden code \"(SEC)\" in SF5"
+
+        # Every combination of reactions is refused, not only ratios; delayed emission too.
+        spectrum = tag_rule(["neutron_energy"], "spectrum")
+        @test occursin(
+            "combination",
+            rejection_reason(
+                spectrum,
+                "(98-CF-252(0,F)0-NN-1,PR/PAR,KE)-(92-U-233(N,F)0-NN-1,PR/PAR,KE)",
+            ),
+        )
+        @test rejection_reason(spectrum, "92-U-235(N,F),DL,NU/DE") ==
+              "forbidden code \"DL\" in SF5"
     end
 
     @testset "combining repeat measurements" begin
@@ -1113,7 +1169,7 @@ include("fixtures.jl")
         @test matches(rule, "92-U-235(N,F)MASS,PRE,FY")
         @test !matches(rule, "92-U-235(N,F)MASS,PAR,ZP,,MXW")
         @test rejection_reason(rule, "92-U-235(N,F)MASS,PAR,ZP,,MXW") ==
-              "missing required tag \"FY\""
+              "missing required code \"FY\" in SF6"
     end
 
     @testset "the mean total kinetic energy against pre-neutron mass" begin
@@ -1129,18 +1185,18 @@ include("fixtures.jl")
         end
         refused = [
             # 33082004: "Total kinetic energy for fragments with provisional mass specified"
-            "92-U-235(N,F)MASS,PRE,KE,LF+HF,MSC" => "forbidden tag \"MSC\"",
+            "92-U-235(N,F)MASS,PRE,KE,LF+HF,MSC" => "forbidden code \"MSC\" in SF8",
             # 21543015: post-neutron
-            "92-U-235(N,F)MASS,SEC,KE,LF+HF,MXW" => "forbidden tag \"SEC\"",
+            "92-U-235(N,F)MASS,SEC,KE,LF+HF,MXW" => "forbidden code \"SEC\" in SF5",
             # 23012006, 22650013: the energy of one fragment
-            "94-PU-239(N,F)MASS,PRE,KE,FF,MXW" => "missing required tag \"LF+HF\"",
-            "94-PU-239(N,F)MASS,PRE,KE,,MXW" => "missing required tag \"LF+HF\"",
+            "94-PU-239(N,F)MASS,PRE,KE,FF,MXW" => "missing required code \"LF+HF\" in SF7",
+            "94-PU-239(N,F)MASS,PRE,KE,,MXW" => "missing required code \"LF+HF\" in SF7",
             # 23213008, 40232003: the branch left blank
-            "98-CF-252(0,F)MASS,,KE,LF+HF" => "missing required tag \"PRE\"",
+            "98-CF-252(0,F)MASS,,KE,LF+HF" => "missing required code \"PRE\" in SF5",
             # 330810021: charge-resolved
-            "92-U-233(N,F)ELEM/MASS,PRE,KE,LF+HF" => "forbidden tag \"ELEM\"",
+            "92-U-233(N,F)ELEM/MASS,PRE,KE,LF+HF" => "forbidden code \"ELEM\" in SF4",
             # the most probable rather than the mean TKE, as Dictionary 236 codes it
-            "98-CF-252(0,F)MASS,PRE,KEP,LF+HF" => "forbidden tag \"KEP\"",
+            "98-CF-252(0,F)MASS,PRE,KEP,LF+HF" => "missing required code \"KE\" in SF6",
         ]
         for (code, reason) in refused
             @test rejection_reason(rule, code) == reason
@@ -1159,7 +1215,7 @@ include("fixtures.jl")
         )
         rejected = select_dataset("33082004", body, text, tke)
         @test rejected isa Rejection
-        @test rejected.reason == "forbidden tag \"MSC\""
+        @test rejected.reason == "forbidden code \"MSC\" in SF8"
     end
 
     @testset "datasets read from their subentry text" begin
@@ -1233,7 +1289,7 @@ include("fixtures.jl")
         for identifier in ("40232003", "23213008")
             rejected = select_dataset(identifier, blank_branch(identifier)..., tke_cf)
             @test rejected isa Rejection
-            @test rejected.reason == "missing required tag \"PRE\""
+            @test rejected.reason == "missing required code \"PRE\" in SF5"
         end
 
         # 22780003 (Hambsch 1997): coded as the energy of one fragment, holding the TKE, as the
@@ -1272,7 +1328,7 @@ include("fixtures.jl")
         )
         rejected = select_dataset("23012006", body, text, pu)
         @test rejected isa Rejection
-        @test rejected.reason == "missing required tag \"LF+HF\""
+        @test rejected.reason == "missing required code \"LF+HF\" in SF7"
         @test select_dataset(
             "23012006",
             body,

@@ -10,9 +10,10 @@ prompt fission neutron spectrum, and the rest of the set in [`ABSCISSAE`](@ref) 
 abscissa value, and writes them as space-separated tables with a record of everything it
 considered.
 
-Selection is by substring tests over the EXFOR reaction code. The archive applies its own
-vocabulary inconsistently, so the tag tables in `src/reaction_codes.jl` are empirical: they
-encode observed failures of the upstream labelling rather than a formal grammar.
+Selection compares whole codes in the subfields of the EXFOR reaction code. The archive applies
+its own vocabulary inconsistently, so the tag tables in `src/reaction_codes.jl` are empirical:
+they encode observed failures of the upstream labelling. Datasets that no code can tell apart
+are read from their subentry text in `src/curation.jl`.
 
 What the package deliberately does not do: it applies no normalisation to ordinates and drops no
 point on the basis of its value or uncertainty. Normalisation conventions differ between

@@ -73,10 +73,24 @@ the reference.
 
 ## Selection
 
-Datasets are chosen by substring tests over the EXFOR reaction code — for instance
-`92-U-233(N,F)ELEM/MASS,CUM,FY`. The archive applies its own vocabulary inconsistently, so the
-tables in `src/reaction_codes.jl` are empirical: they encode observed failures of the upstream
-labelling rather than a formal grammar. A rule that looks redundant usually guards a real entry.
+Datasets are chosen by the codes of their EXFOR reaction code — for instance
+`92-U-233(N,F)ELEM/MASS,CUM,FY`. The code is read into its subfields, product (SF4), branch
+(SF5), parameter (SF6), particle (SF7), modifier (SF8) and data type (SF9), each split at its
+`/` separators, and every test compares a whole code in a named subfield: `DE`, the energy
+differential of SF6, is never read inside the data type `DERIV`, nor `KE` inside `KEP`, the most
+probable value, or inside `TKE`. `AKE`, the older coding of the mean kinetic energy, is accepted
+wherever `KE` is. A combination of several reactions — a ratio, sum or difference — is never the
+quantity itself and is rejected. Which codes each observable requires and forbids is still
+empirical, since the archive applies its own vocabulary inconsistently: the tables in
+`src/reaction_codes.jl` encode observed failures of the upstream labelling. A rule that looks
+redundant usually guards a real entry.
+
+Where no code can tell two datasets apart, a dataset is read from its subentry text one at a time
+(`src/curation.jl`), and the run record carries the evidence as `curation`. A blank branch field
+is decided kinematically: a double-velocity measurement gives pre-neutron masses and energies
+directly, since isotropic neutron emission leaves the mean fragment velocity unchanged, while a
+double-energy measurement gives provisional masses until they are corrected with ν(A), and is
+admitted only where its entry states that correction.
 
 The checks easiest to get wrong:
 
