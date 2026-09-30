@@ -1116,6 +1116,52 @@ include("fixtures.jl")
               "missing required tag \"FY\""
     end
 
+    @testset "the mean total kinetic energy against pre-neutron mass" begin
+        rule = tag_rule(["mass"], "total_kinetic_energy")
+        # The current coding (40112007), a thermal Maxwellian average (21981010), and the AKE
+        # coding of the same mean that 21995010 carried until 2009.
+        for code in (
+            "92-U-233(N,F)MASS,PRE,KE,LF+HF",
+            "94-PU-239(N,F)MASS,PRE,KE,LF+HF,MXW",
+            "94-PU-239(N,F)MASS,PRE,AKE,LF+HF,MXW",
+        )
+            @test matches(rule, code)
+        end
+        refused = [
+            # 33082004: "Total kinetic energy for fragments with provisional mass specified"
+            "92-U-235(N,F)MASS,PRE,KE,LF+HF,MSC" => "forbidden tag \"MSC\"",
+            # 21543015: post-neutron
+            "92-U-235(N,F)MASS,SEC,KE,LF+HF,MXW" => "forbidden tag \"SEC\"",
+            # 23012006, 22650013: the energy of one fragment
+            "94-PU-239(N,F)MASS,PRE,KE,FF,MXW" => "missing required tag \"LF+HF\"",
+            "94-PU-239(N,F)MASS,PRE,KE,,MXW" => "missing required tag \"LF+HF\"",
+            # 23213008, 40232003: the branch left blank
+            "98-CF-252(0,F)MASS,,KE,LF+HF" => "missing required tag \"PRE\"",
+            # 330810021: charge-resolved
+            "92-U-233(N,F)ELEM/MASS,PRE,KE,LF+HF" => "forbidden tag \"ELEM\"",
+            # the most probable rather than the mean TKE, as Dictionary 236 codes it
+            "98-CF-252(0,F)MASS,PRE,KEP,LF+HF" => "forbidden tag \"KEP\"",
+        ]
+        for (code, reason) in refused
+            @test rejection_reason(rule, code) == reason
+        end
+
+        tke = test_query(; ordinate = "total_kinetic_energy")
+        # 33082004 (Ajitanand 1983): coded as pre-neutron, compiled against provisional masses.
+        body, text = kinetic_energy_dataset(
+            "33082004",
+            "92-U-235(N,F)MASS,PRE,KE,LF+HF,MSC",
+            [(76, 150.1), (77, 149.6), (78, 149.1), (79, 150.4)];
+            bib = [
+                "REACTION   (92-U-235(N,F)MASS,PRE,KE,LF+HF,MSC) Total kinetic",
+                "           energy for fragments with provisional mass specified",
+            ],
+        )
+        rejected = select_dataset("33082004", body, text, tke)
+        @test rejected isa Rejection
+        @test rejected.reason == "forbidden tag \"MSC\""
+    end
+
     @testset "a spectrum qualifier must agree with the channel" begin
         conflict = ExforFissionData.channel_qualifier_conflict
         @test conflict("nth", "92-U-235(N,F)ELEM/MASS,IND,FY,,FIS") == "FIS"

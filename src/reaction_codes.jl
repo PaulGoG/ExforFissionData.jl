@@ -128,7 +128,17 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      abscissa rule alone admits
 #   fragment_kinetic_energy            pre-neutron fragment kinetic energy
 #   product_kinetic_energy             post-neutron fragment kinetic energy
-#   total_kinetic_energy               pre-neutron total kinetic energy (LF+HF, both fragments)
+#   total_kinetic_energy               pre-neutron total kinetic energy (LF+HF, both fragments);
+#                                      KE also matches AKE, the older coding of the same mean.
+#                                      MSC marks a quantity outside the standard definition, and
+#                                      every such dataset against mass is something else: the
+#                                      TKE of fragments with provisional masses (33082004), the
+#                                      maximal TKE of cold fragmentation (23589002), the TKE at
+#                                      which neutron emission stops (23118008, 23175011), a TKE
+#                                      against mass ratio in alpha-energy windows (30916007).
+#                                      KEP, which KE also matches, is the most probable kinetic
+#                                      energy (Dictionary 32; Dictionary 236 PRE,KEP,*F), not the
+#                                      mean
 #   post_neutron_total_kinetic_energy  the same, post-neutron
 #   neutron_kinetic_energy             centre-of-mass neutron energy, per neutron (,N)
 #   spectrum                           prompt fission neutron spectrum (DE, energy-differential)
@@ -142,7 +152,8 @@ const ORDINATE_RULES = Dict{String, TagRule}(
     "yield" => TagRule(["FY"], String[], String[]),
     "fragment_kinetic_energy" => TagRule(["KE", "PRE"], String[], ["LF+HF", ",N"]),
     "product_kinetic_energy" => TagRule(["KE"], String[], ["LF+HF", ",N", "PRE"]),
-    "total_kinetic_energy" => TagRule(["KE", "LF+HF", "PRE"], String[], [",N"]),
+    "total_kinetic_energy" =>
+        TagRule(["KE", "LF+HF", "PRE"], String[], [",N", "MSC", "KEP"]),
     "post_neutron_total_kinetic_energy" =>
         TagRule(["KE", "LF+HF"], String[], [",N", "PRE"]),
     "neutron_kinetic_energy" => TagRule(["KE", "PR", ",N"], String[], ["PRE"]),

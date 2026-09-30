@@ -261,3 +261,35 @@ function exfor_subentry_for(
         kwargs...,
     )
 end
+
+"""
+    kinetic_energy_dataset(identifier, code, points; thermal = true, bib = [], extra = nothing)
+        -> (body, text)
+
+The csv rendering and the subentry text of one dataset of kinetic energies in MeV against
+fragment mass, `points` holding `(mass, value)` pairs; `bib` defaults to the REACTION record
+alone, and `extra` passes through to `exfor_subentry_for`. `thermal` places every row at
+0.0253 eV; without it the rows carry no incident energy, as for spontaneous fission.
+"""
+function kinetic_energy_dataset(
+    identifier,
+    code,
+    points;
+    thermal = true,
+    bib = String[],
+    extra = nothing,
+)
+    rows = [
+        exfor_row(;
+            dataset_id = identifier,
+            reaction_code = code,
+            value_kind = "Data(MEV)",
+            product_za = mass,
+            y = value,
+            incident_ev = thermal ? 0.0253 : missing,
+        ) for (mass, value) in points
+    ]
+    bib_records = isempty(bib) ? ["REACTION   ($(code))"] : bib
+    return exfor_csv(rows),
+    exfor_subentry_for(rows; unit = "MEV", bib = bib_records, extra = extra)
+end
