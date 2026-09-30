@@ -160,6 +160,14 @@ include("fixtures.jl")
         @test rejection_reason(tag_rule(["mass"], "yield"), "92-U-235(N,F)MASS,(SEC),FY") ==
               "forbidden code \"(SEC)\" in SF5"
 
+        # The post-neutron TKE requires SEC: a blank branch (40232003, provisional masses) and
+        # (SEC) establish nothing.
+        post = tag_rule(["product_mass"], "post_neutron_total_kinetic_energy")
+        @test matches(post, "92-U-235(N,F)MASS,SEC,KE,LF+HF,MXW")
+        @test rejection_reason(post, "98-CF-252(0,F)MASS,,KE,LF+HF") ==
+              "missing required code \"SEC\" in SF5"
+        @test !matches(post, "98-CF-252(0,F)MASS,(SEC),KE,LF+HF")
+
         # Every combination of reactions is refused, not only ratios; delayed emission too.
         spectrum = tag_rule(["neutron_energy"], "spectrum")
         @test occursin(

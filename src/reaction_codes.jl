@@ -252,7 +252,9 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      (23589002), the TKE at which neutron emission stops
 #                                      (23118008, 23175011), a TKE against mass ratio in
 #                                      alpha-energy windows (30916007)
-#   post_neutron_total_kinetic_energy  the same, post-neutron
+#   post_neutron_total_kinetic_energy  the same, post-neutron: SEC required, since a blank
+#                                      branch establishes nothing — 40232003 leaves it blank
+#                                      over provisional masses — and (SEC) is uncertain
 #   neutron_kinetic_energy             centre-of-mass neutron energy, per neutron (,N)
 #   spectrum                           prompt fission neutron spectrum (DE, energy-differential)
 #   spectrum_maxwellian_ratio          the same, as a ratio to a Maxwellian (MXD)
@@ -270,7 +272,7 @@ const ORDINATE_RULES = Dict{String, TagRule}(
     "total_kinetic_energy" =>
         TagRule(["SF6:KE", "SF7:LF+HF", "SF5:PRE"], String[], ["SF7:N", "SF8:MSC"]),
     "post_neutron_total_kinetic_energy" =>
-        TagRule(["SF6:KE", "SF7:LF+HF"], String[], ["SF7:N", "SF5:PRE"]),
+        TagRule(["SF6:KE", "SF7:LF+HF", "SF5:SEC"], String[], ["SF7:N"]),
     "neutron_kinetic_energy" =>
         TagRule(["SF6:KE", "SF5:PR", "SF7:N"], String[], ["SF5:PRE"]),
     "spectrum" => TagRule(
