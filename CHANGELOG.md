@@ -6,11 +6,14 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-01
+
 The fragment-yield input of a pre-neutron Y(A, TKE) — the mass yield, the mean total kinetic
 energy and its width against mass, or the joint matrix — can be taken from EXFOR for 252-Cf(sf),
-235-U(nth,f), 239-Pu(nth,f) and 233-U(nth,f), measurement by measurement. Retrieved files change
-for existing observables: masses are no longer rounded, and post-neutron and provisional data are
-no longer taken for pre-neutron data. The changes below name every dataset whose status changed.
+235-U(nth,f), 239-Pu(nth,f) and 233-U(nth,f), measurement by measurement, and from 240-Pu(sf)
+where 239-Pu(nth,f) lacks it. Retrieved files change for existing observables: masses are no
+longer rounded, and post-neutron and provisional data are no longer taken for pre-neutron data.
+The changes below name every dataset whose status changed.
 
 ### Added
 
@@ -95,6 +98,8 @@ no longer taken for pre-neutron data. The changes below name every dataset whose
   dataset for as long as the cache lived; such a rendering is now refetched. Three datasets had
   been reported empty this way: `22413013`, now accepted, and `227980081` and `23012009`, now
   refused on their codes, so no count above changes.
+- A developed checkout kept its previous version in the user agent after the version changed,
+  the precompiled image not depending on `Project.toml`.
 
 ### Removed
 
@@ -170,5 +175,6 @@ no longer taken for pre-neutron data. The changes below name every dataset whose
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/PaulGoG/ExforFissionData.jl/releases/tag/v0.1.0
