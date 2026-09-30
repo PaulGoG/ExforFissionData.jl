@@ -9,7 +9,7 @@
 # test of the selection still applies to it.
 
 """
-    Curation([abscissa,] ordinate, reason)
+    Curation([abscissa,] ordinate, reason[, notes])
 
 What one dataset holds, established from its subentry text rather than from its reaction code.
 
@@ -21,15 +21,20 @@ What one dataset holds, established from its subentry text rather than from its 
   `nothing` when it holds none of them.
 - `reason::String`: the evidence, from the subentry and, where the subentry is silent, from the
   publication it cites.
+- `notes::Dict{String,String}`: further statements about the dataset for its run record, each
+  under its own key.
 """
 struct Curation
     abscissa::Union{Nothing, Vector{String}}
     ordinate::Union{Nothing, String}
     reason::String
+    notes::Dict{String, String}
 end
 
 Curation(ordinate::Union{Nothing, String}, reason::String) =
-    Curation(nothing, ordinate, reason)
+    Curation(nothing, ordinate, reason, Dict{String, String}())
+Curation(abscissa::Vector{String}, ordinate::String, reason::String) =
+    Curation(abscissa, ordinate, reason, Dict{String, String}())
 
 """
 Datasets whose ordinate is read from the subentry text, keyed by dataset identifier; see
@@ -89,6 +94,17 @@ const CURATED_DATASETS = Dict{String, Curation}(
          299.5 MeV in steps of 1 MeV against MASS 51 to 200 (Goeoek 2014, \
          doi:10.1103/PhysRevC.90.064611, Fig. 6a). The csv rendering drops the TKE column and \
          gives the unit as PART/FIS; the subentry gives ARB-UNITS",
+        Dict(
+            "tke_grid_inference" => "the TKE values are the centres of 1-MeV bins, an \
+                inference the data support but EXFOR does not state: taken as centres, the \
+                count-weighted mean TKE of the matrix reproduces that of 23268004 to +0.05 MeV \
+                over the masses of at least 1000 counts, and taken as lower or upper edges it \
+                misses by +0.55 or -0.45 MeV",
+            "mass_marginal" => "23268003, the pre-neutron mass yield of the same measurement \
+                in PC/FIS, is this matrix summed over TKE and normalised to 200 %, to a \
+                relative 4e-6; 23268004 holds its mean TKE and the standard deviation of TKE \
+                against mass",
+        ),
     ),
     "40420062" => Curation(
         nothing,

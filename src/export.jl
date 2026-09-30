@@ -137,7 +137,10 @@ end
 function _curation_record(identifier::AbstractString)
     record = Dict{String, Any}()
     curation = get(CURATED_DATASETS, identifier, nothing)
-    curation === nothing || (record["curation"] = curation.reason)
+    if curation !== nothing
+        record["curation"] = curation.reason
+        merge!(record, curation.notes)
+    end
     defects = get(ARCHIVE_DEFECTS, identifier, nothing)
     defects === nothing || (record["archive_defects"] = [d.description for d in defects])
     group = correlation_group(identifier)

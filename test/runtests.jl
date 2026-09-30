@@ -1545,6 +1545,11 @@ include("fixtures.jl")
             @test length(lines) == 1 + length(cells)
         end
 
+        # The record states the grid inference and the mass marginal of the same measurement.
+        notes = ExforFissionData._curation_record("23268002")
+        @test occursin("centres of 1-MeV bins", notes["tke_grid_inference"])
+        @test startswith(notes["mass_marginal"], "23268003")
+
         # The reading is of 23268002 alone: the same code and table under another identifier
         # names no TKE, and 23268002 is no mass yield.
         rejected = select_dataset("10000002", goeoek("10000002")..., joint)
