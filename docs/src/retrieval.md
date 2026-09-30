@@ -70,6 +70,10 @@ the machine as well, which is useful when the records stay yours.
 | | `normalisation` | for a yield, what its subentry unit says of the scale: percent per fission summing to 200 %, per fission, or arbitrary units such as counts |
 | | `uncertainty_source` | `csv`, `subentry ERR-S` and the like where the rendering carries none and the subentry does, or `none` |
 | | `curation`, `archive_defects` | for a dataset read from its subentry text, the evidence; and the compilation defects whose lines were left out |
+| | `tke_grid_inference`, `mass_marginal` | further statements of a curated reading, such as the TKE grid and the mass marginal of 23268002 |
+| | `mass_range` | the smallest and largest mass written |
+| | `width_column`, `width_unit`, `width_holds`, `width_of`, `width_is`, `width_conversion` | for σ_TKE: the column and its unit, what it holds and whose energy, what the written width is, and how it was converted |
+| | `width_note`, `width_rows_excluded`, `misc_columns` | for σ_TKE: evidence beyond the configuration's reading, widths not written with the reason, and every `MISC-COL` definition of the subentry quoted |
 | | `correlated_with`, `correlation` | the other runs of the same experiment, and why they are one |
 | `[[slices]]` | `identifier`, `holds`, `energies`, `masses`, `source` | for Y(A, TKE) only: datasets holding slices of the joint distribution for the system, rejected as the distribution and listed for cross-checks at their masses |
 | `[[rejected]]` | `identifier`, `reaction_code`, `reason` | the dataset, its code, and why it was excluded |

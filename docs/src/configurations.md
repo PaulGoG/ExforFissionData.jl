@@ -5,7 +5,8 @@ CurrentModule = ExforFissionData
 # Configurations
 
 A configuration is named `<system>_<observable>.toml`, the same two tokens that name the
-directories its data is written to. Sections are `[query]`, `[retrieval]` and `[output]`. Every
+directories its data is written to. Sections are `[query]`, `[retrieval]` and `[output]`, and
+for the width of the TKE distribution the tables `[[width]]`. Every
 key is validated as the file is read: a value of the wrong type, one outside its bounds, or one
 that is not among the enumerated choices stops the run with a message naming the offending key,
 so a retrieval cannot start from a configuration it cannot honour. A section or a key the loader
@@ -20,7 +21,7 @@ to every incident energy — and so is an energy window on `sf`, which has no in
 | `[query]` | `target_A` | mass number of the target | at least `target_Z`, at most 300 | required |
 | `[query]` | `channel` | entrance channel; fixes the incident-energy interval, see [Entrance channels](channels.md) | `"sf"`, `"nth"`, `"nres"`, `"nfast"` | required |
 | `[query]` | `abscissa` | quantities the observable is tabulated against | `["mass"]`, `["product_mass"]`, `["charge"]`, `["neutron_energy"]`, `["total_kinetic_energy"]`, `["charge", "product_mass"]`, `["mass", "total_kinetic_energy"]` | required |
-| `[query]` | `ordinate` | the observable | `"yield"`, `"multiplicity"`, `"multiplicity_per_fission"`, `"fragment_kinetic_energy"`, `"product_kinetic_energy"`, `"total_kinetic_energy"`, `"post_neutron_total_kinetic_energy"`, `"neutron_kinetic_energy"`, `"spectrum"`, `"spectrum_maxwellian_ratio"` | required |
+| `[query]` | `ordinate` | the observable | `"yield"`, `"multiplicity"`, `"multiplicity_per_fission"`, `"fragment_kinetic_energy"`, `"product_kinetic_energy"`, `"total_kinetic_energy"`, `"total_kinetic_energy_dispersion"`, `"post_neutron_total_kinetic_energy"`, `"neutron_kinetic_energy"`, `"spectrum"`, `"spectrum_maxwellian_ratio"` | required |
 | `[query]` | `energy_min` | lower edge of the incident-energy window, MeV | must lie inside the channel's interval (`nth` 0 to 1.0e-7 (0.1 eV), `nres` 1.0e-7 (0.1 eV) to 0.1, `nfast` 0.1 to 20); not allowed for `sf` | the channel's floor |
 | `[query]` | `energy_max` | upper edge of the incident-energy window, MeV | above `energy_min`; must lie inside the channel's interval (`nth` 0 to 1.0e-7 (0.1 eV), `nres` 1.0e-7 (0.1 eV) to 0.1, `nfast` 0.1 to 20); not allowed for `sf` | the channel's ceiling |
 | `[retrieval]` | `concurrency` | simultaneous requests | 1 to 16 | 4 |
@@ -36,9 +37,17 @@ to every incident energy — and so is an energy window on `sf`, which has no in
 | `[output]` | `directory` | root for retrieved data, relative to the output root | string | `"data"` |
 | `[output]` | `significant_digits` | significant digits in tabulated output | 1 to 15 | 7 |
 | `[output]` | `record_hostname` | name the machine in the run record | boolean | `false` |
+| `[[width]]` | `subentry` | EXFOR dataset whose column holds a width | 8 characters, or 9 with its pointer; each once | required in each table |
+| `[[width]]` | `column` | DATA heading of the width | a MISC-type heading; not `DATA`, an uncertainty or a variable | required in each table |
+| `[[width]]` | `holds` | what the column holds | `"standard_deviation"`, `"variance"`, `"fwhm"`, `"hwhm"` | required in each table |
+| `[[width]]` | `of` | whose energy the width is of | `"total_kinetic_energy"`, `"fragment_kinetic_energy"` | required in each table |
 
 `[query]` and its five required keys must be present. `[retrieval]` and `[output]` may be omitted
-entirely, in which case every key they hold takes its default.
+entirely, in which case every key they hold takes its default. `[[width]]` is required, at least
+once, for the ordinate `"total_kinetic_energy_dispersion"` against `["mass"]`, and refused for
+every other ordinate: EXFOR has no code for the width of a kinetic-energy distribution, so a
+width is read only from the columns these tables name, never from free text and never from the
+datum. See [Observables](observables.md).
 
 The listing of datasets is requested on every run that is not offline, because the archive adds
 entries and a cached listing never discovers them. Dataset responses are served from the cache.
@@ -47,12 +56,23 @@ carries the retrieval date of the listing and of every dataset.
 
 ## Shipped configurations
 
+The mass yield, the mean TKE and its width against mass, or the joint yield, are what a
+pre-neutron Y(A, TKE) is built from. Each is retrieved experiment by experiment, with the
+accession in every file name, so that a consumer can take the three marginals of one
+measurement, or its joint matrix, together.
+
 ### 252-Cf(sf)
 
 The incident-energy window is not applied to spontaneous fission, which has no incident particle,
 so these configurations omit `energy_min` and `energy_max`.
 
 - `Cf252_sf_Y_vs_A` — pre-neutron mass yields.
+- `Cf252_sf_TKE_vs_A` — pre-neutron total kinetic energy against pre-neutron fragment mass.
+- `Cf252_sf_sigma_TKE_vs_A` — the standard deviation of the pre-neutron TKE against mass, from
+  the width columns of 23268004 (Göök 2014), 23717004 and 23717006 (Barreau 1985) and 22780003
+  (Hambsch 1997); the width column of 12709004 (Weber 1981) is refused as no width.
+- `Cf252_sf_Y_vs_A_TKE` — the joint pre-neutron yield Y(A, TKE): 23268002 (Göök 2014), 30 000
+  cells of counts, written under `relative/`.
 - `Cf252_sf_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass.
 - `Cf252_sf_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
@@ -63,6 +83,11 @@ so these configurations omit `energy_min` and `energy_max`.
 ### 235-U(nth,f)
 
 - `U235_nth_Y_vs_A` — pre-neutron mass yields.
+- `U235_nth_TKE_vs_A` — pre-neutron total kinetic energy against pre-neutron fragment mass.
+- `U235_nth_sigma_TKE_vs_A` — the standard deviation of the pre-neutron TKE against mass, from
+  23014003 (Baba 1997), 40235017 (D'yachenko 1968, a variance) and 40200003 (Zakharova 1973).
+- `U235_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system, and the
+  record lists the slices it holds instead.
 - `U235_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass.
 - `U235_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
@@ -90,13 +115,19 @@ be written under a directory of its own.
 - `U233_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
 - `U233_nth_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
-- `U233_nth_TKE_vs_A` — pre-neutron total kinetic energy against pre-neutron fragment mass. The
-  mass dependence of ⟨TKE⟩ is what a Y(A, TKE) carries and a single mean does not. No Y(A, TKE)
-  exists for this system, so this is the closest the archive comes.
+- `U233_nth_TKE_vs_A` — pre-neutron total kinetic energy against pre-neutron fragment mass.
+- `U233_nth_sigma_TKE_vs_A` — the standard deviation of the pre-neutron TKE against mass, from
+  23014002 (Baba 1997).
+- `U233_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system.
 
 ### 239-Pu(nth,f)
 
 - `Pu239_nth_Y_vs_A` — pre-neutron mass yields.
+- `Pu239_nth_TKE_vs_A` — pre-neutron total kinetic energy against pre-neutron fragment mass.
+- `Pu239_nth_sigma_TKE_vs_A` — the standard deviation of the pre-neutron TKE against mass, from
+  23012005 and 23012006 (Nishio 1995), the second a width of one fragment's energy.
+- `Pu239_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system, and the
+  record lists the slices it holds instead.
 - `Pu239_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass.
 - `Pu239_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.

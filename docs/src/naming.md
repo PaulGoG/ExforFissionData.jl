@@ -44,6 +44,7 @@ an equation and none is spelled as one.
 | `charge` | `Z` | fragment charge |
 | `neutron_energy` | `E` | secondary neutron energy |
 | `total_kinetic_energy` | `TKE` | total kinetic energy, pre-neutron |
+| `total_kinetic_energy_dispersion` | `sigma_TKE` | standard deviation of the pre-neutron total kinetic energy at fixed mass, σ_TKE(A) |
 | `post_neutron_total_kinetic_energy` | `TKE_p` | total kinetic energy, post-neutron |
 | `fragment_kinetic_energy` | `E_K` | fragment kinetic energy, pre-neutron |
 | `product_kinetic_energy` | `E_K_p` | fragment kinetic energy, post-neutron |

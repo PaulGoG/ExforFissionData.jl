@@ -22,6 +22,7 @@ the identifier and configuration rules, is on the [Naming](naming.md) page.
 | `multiplicity`, `multiplicity_per_fission` | `nu`, `nu_bar` | prompt neutron multiplicity, per fragment and per fragment pair |
 | `fragment_kinetic_energy`, `product_kinetic_energy` | `E_K`, `E_K_p` | pre- and post-neutron fragment kinetic energy |
 | `total_kinetic_energy`, `post_neutron_total_kinetic_energy` | `TKE`, `TKE_p` | pre- and post-neutron total kinetic energy |
+| `total_kinetic_energy_dispersion` | `sigma_TKE` | standard deviation of the pre-neutron total kinetic energy at fixed mass |
 | `neutron_kinetic_energy` | `eps` | centre-of-mass neutron energy |
 | `spectrum`, `spectrum_maxwellian_ratio` | — | prompt fission neutron spectrum, absolute and as a ratio to a Maxwellian |
 
@@ -43,6 +44,55 @@ written down wrong and would retrieve a different observable under the requested
 Not every combination exists in the archive. ν(TKE), for instance, is reported as a pair quantity,
 so `multiplicity_per_fission` against `["total_kinetic_energy"]` returns data where
 `multiplicity` returns none.
+
+## The width of the TKE distribution
+
+σ_TKE(A), the standard deviation of the pre-neutron total kinetic energy at fixed pre-neutron
+mass, has no code in EXFOR. Dictionaries 34 (modifiers) and 236 (quantities) of the current
+dictionary transmission carry no quantity or modifier for a width, dispersion, variance,
+standard deviation or FWHM of a kinetic-energy distribution, and the Formats Manual leaves such a
+value to a `MISC` column explained in `MISC-COL` free text. The archive fills it inconsistently —
+a standard deviation, a variance in MeV², a FWHM, a "dispersion", of the TKE or of one fragment's
+energy — and once with no width at all.
+
+The width is therefore read only from the columns a configuration names, one `[[width]]` table
+per dataset with the column, what it holds and whose energy it is (see
+[Configurations](configurations.md)); never from the free text, and never from the datum. A
+named dataset is selected as the mean TKE of its entry is, and its width converted to σ of the
+TKE: a variance by its square root, a FWHM by 2√(2 ln 2), a half width by √(2 ln 2), and the
+width of the energy of a fragment of mass A by A₀/(A₀ − A), which pre-neutron momentum
+conservation makes exact at fixed mass. The run record gives, per dataset, the column, the
+conversion, the mass range, and the `MISC-COL` text of the subentry quoted.
+
+Where a publication settles what a column holds against its label, the record says so:
+
+- `23012005` and `23012006` (Nishio 1995, [doi:10.1080/18811248.1995.9731725](https://doi.org/10.1080/18811248.1995.9731725))
+  are labelled FWHM, and hold half of it: the paper's Fig. 6 bars are the FWHM, and measured on
+  the figure they are 2.00 to 2.10 times the columns. Converted, the two should agree exactly at
+  fixed mass; they differ by 29 to 32 %, which the record states without reconciling it.
+- The width column of `12709004` (Weber 1981, [doi:10.1103/PhysRevC.23.2100](https://doi.org/10.1103/PhysRevC.23.2100)),
+  labelled a standard deviation, is refused even when named: it runs from 47 to 94 where Fig. 3c
+  of the paper plots σ(TKE) from 15 to 10.5 MeV, following the plot as an uncalibrated, inverted
+  digitisation.
+- The widths of `22780003` (Hambsch 1997) at A = 180 and 181, 0 and 1.87 MeV, are not written:
+  no measurement has them, and a consumer would take them at face value.
+
+## The joint yield Y(A, TKE)
+
+`yield` against `["mass", "total_kinetic_energy"]` is the joint pre-neutron distribution, one
+row per (A, TKE) cell. It is recorded event by event and published as counts, so it is admitted
+in arbitrary units and written under `relative/`, and the record states the TKE grid and the
+normalisation as the subentry gives them. The archive holds one for these four systems,
+`23268002` (Göök 2014, [doi:10.1103/PhysRevC.90.064611](https://doi.org/10.1103/PhysRevC.90.064611)),
+whose code names no TKE and whose csv rendering drops the TKE column; it is read from its
+subentry. The record adds two statements the data support: its TKE values are the centres of
+1-MeV bins, since as centres the matrix reproduces the mean TKE of `23268004` to 0.05 MeV and as
+edges misses by 0.5 MeV; and its mass marginal is `23268003`, to a relative 4 × 10⁻⁶.
+
+The archive holds slices of the joint distribution besides — yields against mass at a few fixed
+energies of one fragment or of both, and TKE distributions for a few masses. They are not the
+distribution over the fragmentation range and are not retrieved as it; the record of each
+`Y_vs_A_TKE` retrieval lists those of its system under `slices`, with their masses and energies.
 
 ## Not covered
 

@@ -16,7 +16,7 @@ files with a record of everything the query considered.
 ExforFissionData.jl/
 ├── activate.jl        # silent activation of the package environment
 ├── check.jl           # pre-commit gate: format, then test
-├── config/            # 21 retrieval configurations, <system>_<observable>.toml
+├── config/            # 32 retrieval configurations, <system>_<observable>.toml
 ├── scripts/
 │   └── retrieve.jl    # entry point
 ├── src/               # the package: selection, reduction, export, run record
@@ -85,7 +85,8 @@ length(result.accepted), length(result.rejected)
 
 | Component | State |
 | :--- | :--- |
-| Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f) |
+| Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f). Reaction codes are compared code by code in their subfields |
+| Curated readings, compilation defects, width columns | tested; every dataset read from its subentry text, every defect and every width conversion carries a test built from that subentry |
 | Reduction: isomers, energy windows, other independent variables | tested on fixtures; the rejections checked against the live datasets that prompted them. The abscissa and the other variables are read from the subentry DATA table, aligned with the rendering row by row |
 | Retrieval: cache, backoff, bounded concurrency | in use; result order independent of completion order, and the concurrency bound verified at limits 1, 3 and 4 |
 | Export and run record | in use |
@@ -94,9 +95,12 @@ length(result.accepted), length(result.rejected)
 
 Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against
 `["total_kinetic_energy"]` is reported as a pair quantity, so it needs
-`multiplicity_per_fission`; 252-Cf carries no mass-resolved post-neutron kinetic energy, and its
-one `Y(A, TKE)` grid is rendered without its TKE column — see `23268002` under the
-[known miscoded entries](https://PaulGoG.github.io/ExforFissionData.jl/stable/conventions/#Known-miscoded-entries).
+`multiplicity_per_fission`; 252-Cf carries no mass-resolved post-neutron kinetic energy; and of
+the four systems only 252-Cf has a joint `Y(A, TKE)`, `23268002`, whose code names no TKE and
+whose csv rendering drops the TKE column, so it is read from its subentry — see the
+[observables](https://PaulGoG.github.io/ExforFissionData.jl/stable/observables/#The-joint-yield-Y(A,-TKE)).
+The width of the TKE distribution has no EXFOR code at all, and is read only from the columns a
+configuration names.
 
 ## What it is for
 
@@ -125,12 +129,23 @@ the run record names every one of them with the reason it was left out.
 A configuration is named for what it retrieves: `<system>_<observable>.toml`, the same two tokens
 that name the directories its data is written to.
 
-| System | Y(A) | ν(A) | ν(A,TKE) | spectrum |
+| Observable | ²⁵²Cf(sf) | ²³⁵U(n,f) | ²³³U(n,f) | ²³⁹Pu(n,f) |
 | :--- | :--- | :--- | :--- | :--- |
-| ²⁵²Cf(sf) | `Cf252_sf_Y_vs_A` | `Cf252_sf_nu_vs_A` | `Cf252_sf_nu_vs_A_TKE` | `Cf252_sf_spectrum_vs_E` |
-| ²³⁵U(n,f) | `U235_nth_Y_vs_A` | `U235_nth_nu_vs_A` | `U235_nth_nu_vs_A_TKE` | `U235_nth_spectrum_vs_E` |
-| ²³³U(n,f) | `U233_nth_Y_vs_A` | `U233_nth_nu_vs_A` | `U233_nth_nu_vs_A_TKE` | `U233_nth_spectrum_vs_E` |
-| ²³⁹Pu(n,f) | `Pu239_nth_Y_vs_A` | `Pu239_nth_nu_vs_A` | `Pu239_nth_nu_vs_A_TKE` | `Pu239_nth_spectrum_vs_E` |
+| Y(A), `Y_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
+| ⟨TKE⟩(A), `TKE_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
+| σ_TKE(A), `sigma_TKE_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
+| Y(A, TKE), `Y_vs_A_TKE` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
+| ν(A), `nu_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` |
+| ν(A, TKE), `nu_vs_A_TKE` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` |
+| spectrum, `spectrum_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` |
+| ratio to a Maxwellian, `spectrum_maxwellian_ratio_vs_E` | `Cf252_sf` | `U235_nth` | | |
+
+The file of a cell is `<system>_<observable>.toml`, `config/U235_nth_TKE_vs_A.toml` for instance.
+The first four rows are what a pre-neutron Y(A, TKE) is built from: the mass yield, the mean TKE
+and its width against mass, or the joint matrix. Each is retrieved measurement by measurement,
+so that the marginals of one experiment can be taken together; the joint matrix exists for
+252-Cf alone. The width has no EXFOR code, so its configurations name, dataset by dataset, the
+column that holds it, what it holds and whose energy it is.
 
 A system is an element symbol, a mass number and an **entrance channel** — `sf` spontaneous, `nth`
 thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel decides the EXFOR
@@ -248,7 +263,7 @@ ExforFissionData.jl/
 ├── README.md
 ├── .JuliaFormatter.toml         # formatter settings shared by check.jl and CI
 ├── .gitignore
-├── config/                      # 21 configurations, <system>_<observable>.toml
+├── config/                      # 32 configurations, <system>_<observable>.toml
 ├── docs/                        # Documenter site
 │   ├── activate.jl
 │   ├── Project.toml
@@ -282,6 +297,8 @@ ExforFissionData.jl/
 │   ├── schema.jl                # the 39-column contract of the csv rendering
 │   ├── subentry.jl              # the COMMON and DATA sections of a subentry
 │   ├── reaction_codes.jl        # the tag grammar, as data
+│   ├── curation.jl              # datasets read from their subentry text; defects; repeated runs
+│   ├── widths.jl                # the width of the TKE distribution: columns, kinds, conversions
 │   ├── client.jl                # retrieval: timeout, backoff, bounded concurrency, cache
 │   ├── configuration.jl         # TOML loading and validation
 │   ├── selection.jl             # what answers the query, and why the rest does not
