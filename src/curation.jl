@@ -94,3 +94,111 @@ function curation_rejection(
         code,
     )
 end
+
+"""
+    RowDefect(heading, value, occurrences, description)
+
+Lines of one dataset's DATA table that a compilation defect makes unusable: every line whose
+`heading` column holds `value`, of which the archive is expected to hold `occurrences`.
+
+The count is a guard. An entry the archive has since corrected no longer matches it, and the
+dataset is then rejected until the defect record is reviewed, rather than losing a line that is
+now right.
+
+# Fields
+- `heading::String`: the DATA heading tested, e.g. `"MASS"`.
+- `value::Float64`: the value that marks the defective lines.
+- `occurrences::Int`: how many lines carry it.
+- `description::String`: the defect, its evidence and what is done about it, written to the run
+  record in a form that can be reported to the IAEA Nuclear Data Section.
+"""
+struct RowDefect
+    heading::String
+    value::Float64
+    occurrences::Int
+    description::String
+end
+
+"""
+Compilation defects of individual datasets, keyed by dataset identifier; see [`RowDefect`](@ref).
+The lines they mark are left out before the dataset is reduced, and the description is written
+to the run record as `archive_defects`.
+"""
+const ARCHIVE_DEFECTS = Dict{String, Vector{RowDefect}}(
+    "14101003" => [
+        RowDefect(
+            "MASS",
+            133.0,
+            2,
+            "EXFOR 14101.003 gives MASS 133 on two lines, with DATA 193 and 192 MeV, and 134 \
+             on none, so one of the two is almost certainly 134. The values are read from \
+             Fig. 7 of Whetstone 1963 (doi:10.1103/PhysRev.131.1232), which has no table to \
+             settle which; both lines are left out rather than averaged into a value nobody \
+             measured",
+        ),
+    ],
+)
+
+"""
+    defect_lines(defects, data) -> Union{BitVector,String}
+
+The lines of the DATA table `data` that `defects` mark, or the reason the defect records no
+longer match the archive: a heading absent, or a marked value found on a different number of
+lines than recorded.
+"""
+function defect_lines(defects::AbstractVector{RowDefect}, data::SubentryColumns)
+    marked = falses(line_count(data))
+    for defect in defects
+        index = column(data, defect.heading)
+        index === nothing &&
+            return "the recorded compilation defect concerns column $(defect.heading), which \
+                    the subentry no longer carries; the defect record must be reviewed"
+        lines = BitVector(map(v -> !ismissing(v) && v == defect.value, data.values[index]))
+        count(lines) == defect.occurrences || return "the subentry holds \
+            $(defect.heading) $(defect.value) on $(count(lines)) lines where the recorded \
+            compilation defect expects $(defect.occurrences); the archive may have corrected \
+            it, and the defect record must be reviewed"
+        marked .|= lines
+    end
+    return marked
+end
+
+"""
+    CorrelationGroup(members, reason)
+
+Datasets that are repeated runs of one experiment: accepted separately, each on its own file,
+and one measurement for any combination of them.
+
+# Fields
+- `members::Vector{String}`: the dataset identifiers.
+- `reason::String`: why they are one experiment.
+"""
+struct CorrelationGroup
+    members::Vector{String}
+    reason::String
+end
+
+"""
+Groups of datasets that repeat one experiment; see [`CorrelationGroup`](@ref). Each accepted
+member carries the others as `correlated_with` in the run record, so that no weighting downstream
+counts one experiment once per run.
+"""
+const CORRELATION_GROUPS = [
+    CorrelationGroup(
+        ["400170091", "400170092", "400170093", "400170094", "400170095", "400170096"],
+        "six thermal-neutron runs of one experiment (Dyachenko 1969, report YFI-8, p. 7; \
+         INDC(CCP)-008), each taken alternately with one fast-neutron run at 120 to 600 keV in \
+         the same apparatus; they agree within 0.2 MeV over the heavy-fragment peak and are \
+         one measurement for any combination, not six",
+    ),
+]
+
+"""
+    correlation_group(identifier) -> Union{CorrelationGroup,Nothing}
+
+The group of [`CORRELATION_GROUPS`](@ref) that holds `identifier`, or `nothing`.
+"""
+function correlation_group(identifier::AbstractString)
+    index = findfirst(group -> identifier in group.members, CORRELATION_GROUPS)
+    return index === nothing ? nothing : CORRELATION_GROUPS[index]
+end

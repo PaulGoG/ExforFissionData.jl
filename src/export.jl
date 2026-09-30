@@ -131,11 +131,21 @@ function _revision()
     end
 end
 
-# The reading of a curated dataset, for its entry in the run record; empty for any other.
+# What src/curation.jl records of one dataset, for its entry in the run record: the curated
+# reading, the compilation defects left out, and the runs of the same experiment. Empty for a
+# dataset it records nothing of.
 function _curation_record(identifier::AbstractString)
+    record = Dict{String, Any}()
     curation = get(CURATED_DATASETS, identifier, nothing)
-    curation === nothing && return Dict{String, Any}()
-    return Dict{String, Any}("curation" => curation.reason)
+    curation === nothing || (record["curation"] = curation.reason)
+    defects = get(ARCHIVE_DEFECTS, identifier, nothing)
+    defects === nothing || (record["archive_defects"] = [d.description for d in defects])
+    group = correlation_group(identifier)
+    if group !== nothing
+        record["correlated_with"] = filter(!=(identifier), group.members)
+        record["correlation"] = group.reason
+    end
+    return record
 end
 
 """
@@ -146,8 +156,9 @@ every dataset considered — those written, with what the reduction had to do to
 excluded, with the reason.
 
 The rejection list is the point of this file. A dataset missing from the output is otherwise
-indistinguishable from one the archive does not hold. An accepted dataset of
-[`CURATED_DATASETS`](@ref) carries the evidence for its reading as `curation`.
+indistinguishable from one the archive does not hold. An accepted dataset carries the evidence
+for a curated reading as `curation`, the compilation defects left out of it as `archive_defects`,
+and the other runs of its experiment as `correlated_with`; see src/curation.jl.
 
 The record also carries when the `listing` of datasets and each accepted dataset were obtained
 from the archive, and whether each came from the cache. Those dates are the state of the archive
@@ -198,10 +209,15 @@ function write_metadata(
             "duplicate_abscissa" => "isomers resolved first (archive total preferred, else \
                  summed in quadrature), then rows still sharing an abscissa value combined by \
                  an inverse-variance weighted mean; `abscissae_combined` counts them per dataset",
-            "abscissa_resolution" => "mass numbers are the subentry MASS column rounded to the \
-                 nearest integer, ties up; charges are ELEM; energies are the subentry columns \
-                 in MeV; a bin pair contributes its midpoint. mass_values_non_integer, \
-                 mass_rounding_max and abscissa_binned record what that did per dataset",
+            "abscissa_resolution" => "masses are never rounded: integer subentry masses are \
+                 written as they are; a mass bin with integer edges is written at each of its \
+                 masses with the bin's value and uncertainty, except for a yield, whose bin is \
+                 a sum; non-integer masses are interpolated linearly onto the integer masses \
+                 within their range, value and uncertainty alike, at each value of any other \
+                 abscissa quantity and never across more than mass_interpolation_span_u. \
+                 Charges are ELEM; energies are the subentry columns in MeV, a bin pair \
+                 contributing its midpoint. mass_treatment and the mass_ keys record what was \
+                 done per dataset",
             "archive_state" => "EXFOR as of the retrieval date recorded per dataset \
                  (retrieved_utc, UTC); the listing date is when the archive was last asked \
                  which datasets exist",
@@ -241,10 +257,20 @@ function write_metadata(
     ]
     if !isempty(combined)
         record["datasets"]["combined_warning"] =
-            "rows of these datasets shared an abscissa value after rounding and were \
-             combined by an inverse-variance weighted mean; `combined_over` names the \
+            "rows of these datasets shared an abscissa value and were combined by an \
+             inverse-variance weighted mean; `combined_over` names the \
              auxiliary columns that varied among them, and the subentry stored beside the \
              data is the reference: " * join(combined, ", ")
+    end
+    correlated = [
+        entry.dataset.identifier for
+        entry in accepted if correlation_group(entry.dataset.identifier) !== nothing
+    ]
+    if !isempty(correlated)
+        record["datasets"]["correlated_warning"] =
+            "these datasets are repeated runs of one experiment, each naming the others as \
+             `correlated_with`; any combination of them is one measurement, not one per run: " *
+            join(correlated, ", ")
     end
     relative = [
         entry.dataset.identifier for

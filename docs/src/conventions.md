@@ -40,11 +40,29 @@ The abscissa and the test for other variables come from the **subentry DATA tabl
 63 and 64, and drops the independent variables it does not recognise; it still supplies the
 ordinate, its uncertainty, the unit and the incident energy. The two are aligned row by row, the
 truncated product against the subentry's `MASS` and `ELEM` and the secondary energy against its
-`E` or `TKE`, and a dataset on which they disagree is rejected. A mass is rounded to the nearest
-integer with ties up, since ties to even would put a 1-u grid centred on half-integers, 80.5,
-81.5 and 82.5, on 80, 82 and 82; the run record gives per dataset how many masses were
-non-integer, `mass_values_non_integer`, and the largest distance rounding moved one,
-`mass_rounding_max`. A bin given as a `-MIN`, `-MAX` pair contributes its midpoint, recorded as
+`E` or `TKE`, and a dataset on which they disagree is rejected.
+
+Masses are written as integers and are never rounded to become so; `mass_treatment` in the run
+record says which of three cases applied.
+
+- **Integer masses** are written as the subentry gives them.
+- **A bin with integer edges**, `MASS-MIN` to `MASS-MAX` such as 126–127, holds each integer mass
+  from one edge to the other. The value of a mean — a kinetic energy, a multiplicity — holds for
+  every mass of its bin and is written at each with its own uncertainty, which the repetition
+  does not reduce; the widths are recorded as `mass_bin_widths_u`. A yield over several masses is
+  their sum and holds for none of them, so it is not written (`10865003` gives the yield of
+  masses 135 and 136 together). Bins that share or split an edge mass leave open which bin it
+  belongs to and are not placed.
+- **Non-integer masses** — a digitised curve, a half-integer grid — are interpolated linearly onto
+  the integer masses within their range, separately at each value of any other abscissa quantity.
+  The uncertainty is interpolated like the value, as for fully correlated neighbours, so an
+  interpolated point is never more precise than the two it lies between. Nothing is interpolated
+  across more than `mass_interpolation_span_u` = 3 u: measured tabulations sample the mass at
+  up to 2.5 u, and a wider interval is a gap in the measurement, such as the unmeasured
+  symmetric region between two branches. The integer masses in such gaps are counted as
+  `mass_gaps_skipped`.
+
+Energies from a `-MIN`, `-MAX` pair contribute the midpoint of the bin, recorded as
 `abscissa_binned`.
 
 Rows that still share an abscissa value are either genuine repetition — a chain yield measured

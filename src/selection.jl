@@ -319,7 +319,8 @@ settles what the dataset is tabulated against. The first failure is reported.
 7. the DATA table, restricted to the lines that carry a datum in this dataset's `DATA` column,
    has one line per row of the rendering and agrees with it row by row: the truncated product
    against `MASS` and `ELEM`, the secondary energy against `E` or `TKE`. Only then are the rows
-   of step 5 retained;
+   of step 5 retained, less the lines a compilation defect of [`ARCHIVE_DEFECTS`](@ref) marks —
+   and a defect record the archive no longer matches rejects the dataset;
 8. no independent variable of the DATA table other than the abscissa's own varies over the
    retained rows; see [`varying_columns`](@ref);
 9. the DATA table carries a column for every quantity of the abscissa, or its bin pair, and an
@@ -396,8 +397,15 @@ function select_dataset(screened::Screened, subentry_text::AbstractString, query
         "the csv rendering and the subentry DATA table disagree at " * misalignment,
     )
 
-    table = screened.table[screened.keep, :]
-    data = restrict(data, screened.keep)
+    keep = copy(screened.keep)
+    defects = get(ARCHIVE_DEFECTS, identifier, nothing)
+    if defects !== nothing
+        marked = defect_lines(defects, data)
+        marked isa String && return Rejection(identifier, code, marked)
+        keep .&= .!marked
+    end
+    table = screened.table[keep, :]
+    data = restrict(data, keep)
 
     varying = varying_columns(data, query.abscissa)
     if !isempty(varying)

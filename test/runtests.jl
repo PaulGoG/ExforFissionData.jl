@@ -1191,10 +1191,12 @@ include("fixtures.jl")
         # 14101003 (Whetstone 1963): the branch is blank, the masses are double-velocity ones.
         # Admitted as the pre-neutron TKE alone; the same code from 40232003, whose masses the
         # entry states were not corrected for neutron emission, stays out.
-        blank_branch(identifier) = kinetic_energy_dataset(
+        # The archive's own lines 131 to 135: MASS 133 twice, 134 never.
+        whetstone = [(131, 194.0), (132, 194.0), (133, 193.0), (133, 192.0), (135, 192.0)]
+        blank_branch(identifier; points = whetstone) = kinetic_energy_dataset(
             identifier,
             "98-CF-252(0,F)MASS,,KE,LF+HF",
-            [(126, 171.0), (127, 185.0), (128, 190.0), (129, 192.0)];
+            points;
             thermal = false,
             bib = [
                 "REACTION   (98-CF-252(0,F)MASS,,KE,LF+HF)",
@@ -1205,7 +1207,20 @@ include("fixtures.jl")
         body, text = blank_branch("14101003")
         admitted = select_dataset("14101003", body, text, tke_cf)
         @test admitted isa Dataset
-        @test reduce_dataset(admitted, tke_cf).table.TKE == [171.0, 185.0, 190.0, 192.0]
+        # Neither of the two lines at 133 is written, nor their mean; the defect is recorded.
+        reduced = reduce_dataset(admitted, tke_cf)
+        @test reduced.table.A == [131, 132, 135]
+        @test reduced.table.TKE == [194.0, 194.0, 192.0]
+        @test haskey(ExforFissionData._curation_record("14101003"), "archive_defects")
+        # Once the archive corrects the entry, the defect record no longer matches it.
+        corrected = [(131, 194.0), (132, 194.0), (133, 193.0), (134, 192.0), (135, 192.0)]
+        stale = select_dataset(
+            "14101003",
+            blank_branch("14101003"; points = corrected)...,
+            tke_cf,
+        )
+        @test stale isa Rejection
+        @test occursin("must be reviewed", stale.reason)
         post = test_query(;
             target_Z = 98,
             target_A = 252,
@@ -1276,6 +1291,12 @@ include("fixtures.jl")
             @test startswith(curation.reason, "curated: ")
         end
         @test haskey(ExforFissionData._curation_record("22780003"), "curation")
+        # Six runs of one experiment name each other, so no weighting counts them six times.
+        runs = ExforFissionData._curation_record("400170093")
+        @test sort(runs["correlated_with"]) ==
+              ["400170091", "400170092", "400170094", "400170095", "400170096"]
+        @test occursin("one measurement", runs["correlation"])
+        @test ExforFissionData.correlation_group("40235017") === nothing
         @test isempty(ExforFissionData._curation_record("10000002"))
     end
 
@@ -1404,7 +1425,8 @@ include("fixtures.jl")
         end
 
         # 23175002 arrives from the rendering as 63, 64, 66, 66: two points collapsed onto one
-        # mass number and every mass low by up to a unit.
+        # mass number and every mass low by up to a unit. The subentry masses are interpolated
+        # onto the integers they span, never rounded.
         accepted = on_mass_scale(
             [63.51, 64.91, 66.08, 66.79],
             [63, 64, 66, 66];
@@ -1412,18 +1434,61 @@ include("fixtures.jl")
         )
         @test accepted isa Dataset
         reduced = reduce_dataset(accepted, query)
-        @test reduced.table.A == [64, 65, 66, 67]
+        @test reduced.table.A == [64, 65, 66]
+        @test isapprox(
+            reduced.table.Y,
+            [1.0 + 0.49 / 1.4, 2.0 + 0.09 / 1.17, 2.0 + 1.09 / 1.17];
+            rtol = 1.0e-9,
+        )
+        @test reduced.diagnostics["mass_treatment"] == "interpolated"
         @test reduced.diagnostics["abscissae_combined"] == 0
         @test reduced.diagnostics["mass_values_non_integer"] == 4
 
-        # Ties to even would put 80.5 and 81.5 on 80 and 82, and 82.5 on 82 again.
-        for (masses, products, expected) in [
-            ([79.5, 81.5, 83.5], [79, 81, 83], [80, 82, 84]),
-            ([80.5, 81.5, 82.5], [80, 81, 82], [81, 82, 83]),
+        # A half-integer grid: every integer mass lies between two tabulated ones.
+        reduced = reduce_dataset(
+            on_mass_scale([79.5, 81.5, 83.5], [79, 81, 83]; y = [1.0, 2.0, 3.0]),
+            query,
+        )
+        @test reduced.table.A == [80, 81, 82, 83]
+        @test isapprox(reduced.table.Y, [1.25, 1.75, 2.25, 2.75]; rtol = 1.0e-9)
+
+        # Nothing is invented across a gap wider than the span: the unmeasured masses between
+        # two branches are left out and counted.
+        reduced = reduce_dataset(
+            on_mass_scale(
+                [80.5, 81.5, 90.5, 91.5],
+                [80, 81, 90, 91];
+                y = [1.0, 2.0, 3.0, 4.0],
+            ),
+            query,
+        )
+        @test reduced.table.A == [81, 91]
+        @test reduced.diagnostics["mass_gaps_skipped"] == 9
+        @test reduced.diagnostics["mass_interpolation_span_u"] ==
+              ExforFissionData.MASS_INTERPOLATION_SPAN
+
+        # An interpolated point is never more precise than its neighbours, and one next to a
+        # point quoting no uncertainty quotes none either.
+        rows = [
+            thermal(; product_za = p, y = 1.0, dy = d) for (p, d) in ((80, 0.1), (81, 0.3))
         ]
-            reduced = reduce_dataset(on_mass_scale(masses, products), query)
-            @test reduced.table.A == expected
-        end
+        text = exfor_subentry(;
+            headings = ["MASS", "DATA", "DATA-ERR"],
+            units = ["NO-DIM", "PRT/FIS", "PRT/FIS"],
+            rows = [[80.5, 1.0, 0.1], [81.5, 1.0, 0.3]],
+        )
+        reduced =
+            reduce_dataset(select_dataset("10000002", exfor_csv(rows), text, query), query)
+        @test reduced.table.A == [81]
+        @test isapprox(only(reduced.table.Y_uncertainty), 0.2; rtol = 1.0e-9)
+
+        # 22413004: the yield at the most probable mass, 136.41, is no point of Y(A).
+        reduced = reduce_dataset(on_mass_scale([136.41], [136]; y = [0.19]), query)
+        @test isempty(reduced.table)
+        @test occursin(
+            "bracket no integer mass",
+            reduced.diagnostics["mass_placement_refused"],
+        )
 
         # A variable the rendering drops is visible in the subentry.
         rows = [thermal(; product_za = a) for a in (100, 100, 101, 101)]
@@ -1491,19 +1556,66 @@ include("fixtures.jl")
             rtol = 1.0e-6,
         )
 
-        # A bin contributes its midpoint.
-        rows = [thermal(; product_za = a) for a in (100, 102)]
+        # A mean over a mass bin holds for each mass in it: 12709004 tabulates the TKE in bins
+        # 126-127, 128-129, which are written at all four masses with their own uncertainties.
+        tke = test_query(; ordinate = "total_kinetic_energy")
+        rows = [
+            thermal(;
+                product_za = a,
+                y = v,
+                dy = 1.0,
+                value_kind = "Data(MEV)",
+                reaction_code = "98-CF-252(0,F)MASS,PRE,KE,LF+HF",
+            ) for (a, v) in ((126, 189.5), (128, 190.7))
+        ]
+        binned(bins; ordinate_rows = rows) = exfor_subentry(;
+            headings = ["MASS-MIN", "MASS-MAX", "DATA", "DATA-ERR"],
+            units = ["NO-DIM", "NO-DIM", "MEV", "MEV"],
+            rows = [[lo, hi, v, 1.0] for ((lo, hi), v) in zip(bins, (189.5, 190.7))],
+        )
+        reduced = reduce_dataset(
+            select_dataset(
+                "10000002",
+                exfor_csv(rows),
+                binned([(126.0, 127.0), (128.0, 129.0)]),
+                tke,
+            ),
+            tke,
+        )
+        @test reduced.table.A == [126, 127, 128, 129]
+        @test reduced.table.TKE == [189.5, 189.5, 190.7, 190.7]
+        @test reduced.table.TKE_uncertainty == fill(1.0, 4)
+        @test reduced.diagnostics["mass_treatment"] == "bins"
+        @test reduced.diagnostics["mass_bin_widths_u"] == [2.0]
+        @test reduced.diagnostics["abscissa_binned"]
+
+        # Bins sharing an edge mass leave its owner open, and are not placed.
+        reduced = reduce_dataset(
+            select_dataset(
+                "10000002",
+                exfor_csv(rows),
+                binned([(126.0, 128.0), (128.0, 130.0)]),
+                tke,
+            ),
+            tke,
+        )
+        @test isempty(reduced.table)
+        @test occursin("edge mass", reduced.diagnostics["mass_placement_refused"])
+
+        # 10865003: the yield of masses 135 and 136, published as their sum, belongs to neither.
+        rows = [thermal(; product_za = 135, y = 12.847, dy = 0.065)]
         subentry = exfor_subentry(;
-            headings = ["MASS-MIN", "MASS-MAX", "DATA"],
-            units = ["NO-DIM", "NO-DIM", "PRT/FIS"],
-            rows = [[99.0, 101.0, 1.0], [101.0, 103.0, 1.0]],
+            headings = ["MASS-MIN", "MASS-MAX", "DATA", "DATA-ERR"],
+            units = ["NO-DIM", "NO-DIM", "PC/FIS", "PC/FIS"],
+            rows = [[135.0, 136.0, 12.847, 0.065]],
         )
         reduced = reduce_dataset(
             select_dataset("10000002", exfor_csv(rows), subentry, query),
             query,
         )
-        @test reduced.table.A == [100, 102]
-        @test reduced.diagnostics["abscissa_binned"]
+        @test isempty(reduced.table)
+        @test occursin("their sum", reduced.diagnostics["mass_placement_refused"])
+        @test reduced.diagnostics["mass_bins_refused"] == 1
 
         # The rendering and the subentry are compared row by row before either is used.
         rows = [thermal(; product_za = 100)]
@@ -1666,11 +1778,7 @@ include("fixtures.jl")
             @test !haskey(record["datasets"], "combined_warning")
             @test only(record["accepted"])["abscissae_combined"] == 0
             @test only(record["accepted"])["mass_values_non_integer"] == 2
-            @test isapprox(
-                only(record["accepted"])["mass_rounding_max"],
-                0.49;
-                rtol = 1.0e-6,
-            )
+            @test only(record["accepted"])["mass_treatment"] == "interpolated"
             written = readlines(joinpath(result.directory, only(result.accepted).file))
             @test [first(split(line, ' ')) for line in written[2:end]] == ["64", "65", "66"]
             @test haskey(record["run"], "package_version")

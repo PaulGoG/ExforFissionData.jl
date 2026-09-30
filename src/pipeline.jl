@@ -163,12 +163,14 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     for dataset in accepted_datasets
         reduced = reduce_dataset(dataset, query)
         if isempty(reduced.table)
+            refused = get(reduced.diagnostics, "mass_placement_refused", nothing)
             push!(
                 rejected,
                 Rejection(
                     dataset.identifier,
                     dataset.reaction_code,
-                    "no usable rows remained after projection onto $(query.abscissa)",
+                    "no usable rows remained after projection onto $(query.abscissa)" *
+                    (refused === nothing ? "" : ": " * refused),
                 ),
             )
             continue

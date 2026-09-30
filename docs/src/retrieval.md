@@ -52,7 +52,7 @@ the machine as well, which is useful when the records stay yours.
 | `[datasets]` | `accepted`, `rejected`, `relative` | counts |
 | | `retrieved_earliest_utc`, `retrieved_latest_utc` | the span of the dataset retrieval dates |
 | | `units_present` | every unit token among the accepted datasets |
-| | `units_warning`, `relative_warning`, `scale_warning`, `combined_warning` | present only when they apply, each naming the datasets concerned |
+| | `units_warning`, `relative_warning`, `scale_warning`, `combined_warning`, `correlated_warning` | present only when they apply, each naming the datasets concerned |
 | `[[accepted]]` | `identifier`, `author`, `year`, `file` | the dataset and the file it was written to, relative to the retrieval directory |
 | | `reaction_code`, `qualifiers` | the code the archive returned and the qualifiers recorded from it |
 | | `unit`, `unit_reported`, `unit_written`, `ordinate_factor` | the archive's unit token, the token the file is written in, and the factor between them |
@@ -62,7 +62,12 @@ the machine as well, which is useful when the records stay yours.
 | | `incident_energies_mev` | the incident energies of the rows written |
 | | `isomer_totals_used`, `isomer_states_summed`, `isomer_groups_ambiguous` | how each nuclide's isomeric rows were resolved |
 | | `abscissae_combined`, `combined_over`, `weights_imputed` | abscissa values that combined several rows, the auxiliary columns that varied among them, and rows whose weight was imputed for lack of an uncertainty |
-| | `mass_values_non_integer`, `mass_rounding_max`, `abscissa_binned` | what rounding the subentry masses did, and whether the abscissa came from a bin pair |
+| | `mass_treatment` | how the masses were placed on the integers: `integer`, `bins` or `interpolated`; `none` without a mass abscissa |
+| | `mass_values_non_integer`, `mass_interpolation_span_u`, `mass_gaps_skipped`, `mass_values_coincident` | for interpolated masses: how many were non-integer, the widest interval interpolated across, the integer masses left out in wider gaps, and the masses tabulated more than once and combined first |
+| | `mass_bin_widths_u`, `mass_bins_refused` | for mass bins: their widths in mass units, and the yield bins over several masses that were not written |
+| | `abscissa_binned` | whether any abscissa quantity came from a `-MIN`, `-MAX` pair |
+| | `curation`, `archive_defects` | for a dataset read from its subentry text, the evidence; and the compilation defects whose lines were left out |
+| | `correlated_with`, `correlation` | the other runs of the same experiment, and why they are one |
 | `[[rejected]]` | `identifier`, `reaction_code`, `reason` | the dataset, its code, and why it was excluded |
 
 ## Output layout

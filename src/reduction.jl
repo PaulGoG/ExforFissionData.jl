@@ -12,8 +12,9 @@
 #      inverse-variance weighted mean.
 #
 # The abscissa is read from the subentry DATA table, not from the csv rendering, which truncates
-# a non-integer mass and drops the variables it does not recognise. A mass is rounded to the
-# nearest integer, ties up, and what that did is recorded per dataset. What the subentry still
+# a non-integer mass and drops the variables it does not recognise. Masses are placed on the
+# integers without rounding: a bin is written at each of its masses, non-integer masses are
+# interpolated, and what that did is recorded per dataset. What the subentry still
 # cannot settle is whether rows sharing an abscissa value are a genuine repeat — a chain yield
 # measured through several nuclides — or one measurement under different auxiliary conditions,
 # a flight path or a flag; `combined_over` names the auxiliary columns that varied among them.
@@ -171,49 +172,122 @@ function _quantity_values(dataset::Dataset, quantity::AbstractString)
     )
 end
 
-# Abscissa values of every row, as a vector of tuples, the column names, and what reading them
-# from the subentry did: the number of non-integer masses, the largest distance a mass was moved
-# by rounding, and whether any quantity came from a bin pair.
-#
-# A mass is rounded to the nearest integer with ties up. Ties to even would collide a 1-u grid
-# centred on half-integers: 80.5 → 80, 81.5 → 82, 82.5 → 82.
+"""
+Largest distance in mass units between two tabulated masses across which a value is interpolated
+onto an integer mass. Measured tabulations sample the mass on grids of up to 2.5 u; a wider
+interval is a gap in the measurement — the unmeasured symmetric region of a two-branch curve, a
+sparse grid — and an integer mass inside it is left out and counted rather than invented.
+"""
+const MASS_INTERPOLATION_SPAN = 3.0
+
+"""
+Ordinates whose value for a mass bin is not the value at each mass of the bin.
+
+A yield over a bin of several masses is their sum, as 10865003 states of its masses 135 and 136;
+written at one mass it overstates that mass, and written at each it is counted once per mass.
+Every other ordinate is a mean over the events of the bin and holds for each mass in it.
+"""
+const EXTENSIVE_ORDINATES = ("yield",)
+
+# The values of each abscissa quantity for every row, in configuration order: a mass as the
+# subentry gives it, unrounded; a charge as an integer; an energy in MeV. Also the bin pair of the
+# mass when the mass came from one, and whether any quantity came from a bin pair.
 function _abscissa(dataset::Dataset, abscissa::AbstractVector{<:AbstractString})
     String[abscissa...] in ABSCISSAE ||
         throw(ArgumentError("unsupported abscissa $(abscissa)"))
-    columns = [Symbol(ABSCISSA_TOKEN[quantity]) for quantity in abscissa]
     per_quantity = Vector{Vector}(undef, length(abscissa))
-    non_integer = 0
-    rounding_max = 0.0
+    mass_bins = nothing
     binned = false
     for (position, quantity) in enumerate(abscissa)
         values, from_bins = _quantity_values(dataset, quantity)
         binned |= from_bins
-        if quantity in ("mass", "product_mass")
-            masses = Vector{Union{Missing, Int}}(undef, length(values))
-            for (i, m) in enumerate(values)
-                if ismissing(m)
-                    masses[i] = missing
-                    continue
-                end
-                A = round(Int, m, RoundNearestTiesUp)
-                if !isinteger(m)
-                    non_integer += 1
-                    rounding_max = max(rounding_max, abs(m - A))
-                end
-                masses[i] = A
-            end
-            per_quantity[position] = masses
-        elseif quantity == "charge"
-            per_quantity[position] =
-                Union{Missing, Int}[ismissing(z) ? missing : round(Int, z) for z in values]
+        if quantity in ("mass", "product_mass") && from_bins
+            _, bin_headings = ABSCISSA_HEADINGS[quantity]
+            mass_bins = (
+                _heading_values(dataset, bin_headings[1], false),
+                _heading_values(dataset, bin_headings[2], false),
+            )
+        end
+        per_quantity[position] = if quantity == "charge"
+            Union{Missing, Int}[ismissing(z) ? missing : round(Int, z) for z in values]
         else
-            per_quantity[position] = values
+            values
         end
     end
-    keys_of_row =
-        [Tuple(values[i] for values in per_quantity) for i in 1:nrow(dataset.table)]
-    resolution = (non_integer = non_integer, rounding_max = rounding_max, binned = binned)
-    return (columns, keys_of_row, resolution)
+    return (per_quantity, mass_bins, binned)
+end
+
+# The integer masses a bin holds: every integer from its lower to its upper edge when the edges of
+# all bins are integers and no two bins of one group share a mass, `nothing` otherwise. Shared or
+# fractional edges leave open which bin an edge mass belongs to, and that is not guessed.
+function _bin_members(low::AbstractVector, high::AbstractVector, groups::AbstractVector)
+    all(isinteger, low) && all(isinteger, high) && all(high .≥ low) || return nothing
+    for group in unique(groups)
+        indices = findall(==(group), groups)
+        order = sortperm(low[indices])
+        for (a, b) in zip(order, order[2:end])
+            high[indices[a]] < low[indices[b]] || return nothing
+        end
+    end
+    return [collect(round(Int, l):round(Int, h)) for (l, h) in zip(low, high)]
+end
+
+# Linear interpolation of the points `(mass, value, uncertainty, rows)` of one group onto the
+# integer masses their range spans. Points at one mass are combined first. The uncertainty is
+# interpolated like the value, as for fully correlated neighbours, so interpolation never makes a
+# point more precise than the two it comes from; where either neighbour quotes none, neither does
+# the result. Returns the interpolated points, the integer masses skipped for lying in a gap wider
+# than `MASS_INTERPOLATION_SPAN`, and the number of masses at which several points were combined.
+function _interpolate_masses(points::AbstractVector)
+    by_mass = Dict{Float64, Vector{Int}}()
+    for (i, point) in enumerate(points)
+        push!(get!(by_mass, point.mass, Int[]), i)
+    end
+    nodes = NamedTuple[]
+    combined = 0
+    for mass in sort!(collect(keys(by_mass)))
+        indices = by_mass[mass]
+        length(indices) > 1 && (combined += 1)
+        value, uncertainty, imputed = combine_measurements(
+            [points[i].value for i in indices],
+            [points[i].uncertainty for i in indices],
+        )
+        rows = reduce(vcat, [points[i].rows for i in indices])
+        push!(nodes, (; mass, value, uncertainty, rows, imputed))
+    end
+    placed = NamedTuple[]
+    skipped = 0
+    isempty(nodes) && return (placed, skipped, combined)
+    upper = 1
+    for A in ceil(Int, first(nodes).mass):floor(Int, last(nodes).mass)
+        # The first node at or above A; A never exceeds the last node.
+        while nodes[upper].mass < A
+            upper += 1
+        end
+        node = nodes[upper]
+        if node.mass == A
+            push!(placed, (; A, node.value, node.uncertainty, node.rows, node.imputed))
+            continue
+        end
+        below = nodes[upper - 1]
+        if node.mass - below.mass > MASS_INTERPOLATION_SPAN
+            skipped += 1
+            continue
+        end
+        t = (A - below.mass) / (node.mass - below.mass)
+        value = (1 - t) * below.value + t * node.value
+        uncertainty = if below.uncertainty > 0 && node.uncertainty > 0
+            (1 - t) * below.uncertainty + t * node.uncertainty
+        else
+            0.0
+        end
+        rows = vcat(below.rows, node.rows)
+        push!(
+            placed,
+            (; A, value, uncertainty, rows, imputed = below.imputed + node.imputed),
+        )
+    end
+    return (placed, skipped, combined)
 end
 
 """
@@ -221,9 +295,21 @@ end
 
 Project one accepted dataset onto its abscissa and resolve every source of duplication.
 
-Isomeric states are resolved per nuclide and incident energy, then any abscissa value still
-carrying several measurements is combined by [`combine_measurements`](@ref). The result has one
-row per abscissa value, which is the contract the written files keep.
+Isomeric states are resolved per nuclide and incident energy. The masses are then placed on the
+integers, never rounded:
+
+- integer masses are taken as they are;
+- a bin pair `MASS-MIN`, `MASS-MAX` with integer edges holds each integer mass from one edge to
+  the other, and its value is written at every one of them with its own uncertainty — for a
+  mean; a yield over more than one mass is their sum and is not written (see
+  [`EXTENSIVE_ORDINATES`](@ref)); bins with shared or fractional edges are not placed;
+- non-integer masses, a digitised curve or a half-integer grid, are interpolated linearly onto
+  the integer masses within their range, separately at each value of any other abscissa
+  quantity, never across more than [`MASS_INTERPOLATION_SPAN`](@ref).
+
+Any abscissa value still carrying several measurements is then combined by
+[`combine_measurements`](@ref). The result has one row per abscissa value, which is the contract
+the written files keep.
 
 Energy abscissae are converted to megaelectronvolts from the unit of their subentry column, and
 an ordinate that is itself an energy from its unit token — see [`ENERGY_ORDINATES`](@ref). Both
@@ -233,7 +319,9 @@ instead.
 """
 function reduce_dataset(dataset::Dataset, query)
     table = dataset.table
-    abscissa_columns, keys_of_row, resolution = _abscissa(dataset, query.abscissa)
+    abscissa_columns = [Symbol(ABSCISSA_TOKEN[quantity]) for quantity in query.abscissa]
+    coordinates, mass_bins, binned = _abscissa(dataset, query.abscissa)
+    mass_position = findfirst(in(("mass", "product_mass")), query.abscissa)
 
     raw_values = table[!, COL_Y]
     raw_uncertainties = table[!, COL_DY]
@@ -241,9 +329,10 @@ function reduce_dataset(dataset::Dataset, query)
     products = table[!, COL_PRODUCT_ZA]
     energies = table[!, COL_INCIDENT_ENERGY]
 
+    coordinate(i) = Tuple(values[i] for values in coordinates)
     usable = [
         i for i in 1:nrow(table) if
-        !ismissing(raw_values[i]) && !any(ismissing, keys_of_row[i])
+        !ismissing(raw_values[i]) && !any(ismissing, coordinate(i))
     ]
 
     # Stage one: one value per (nuclide, incident energy).
@@ -251,7 +340,7 @@ function reduce_dataset(dataset::Dataset, query)
     # Isomeric structure only exists where the product identifies a nuclide, that is where
     # `ProdZA` is charge-coded. For the bare-mass abscissae the field is a mass number alone,
     # `ProdM` says nothing, and rows sharing a mass are repeats rather than isomers — so this
-    # stage is skipped and the combination is left to stage two.
+    # stage is skipped and the combination is left to stage three.
     resolves_isomers = "charge" in query.abscissa
     per_nuclide = Dict{Any, Vector{Int}}()
     order = Any[]
@@ -263,10 +352,7 @@ function reduce_dataset(dataset::Dataset, query)
 
     outcomes = Dict(:total => 0, :summed => 0, :single => 0, :ambiguous => 0)
     imputed = 0
-    stage_keys = Any[]
-    stage_rows = Vector{Int}[]
-    stage_values = Float64[]
-    stage_uncertainties = Float64[]
+    points = NamedTuple[]
     for key in order
         indices = per_nuclide[key]
         values = [Float64(raw_values[i]) for i in indices]
@@ -274,22 +360,100 @@ function reduce_dataset(dataset::Dataset, query)
             ismissing(raw_uncertainties[i]) ? 0.0 : abs(Float64(raw_uncertainties[i]))
             for i in indices
         ]
-        value, uncertainty, outcome, points =
+        value, uncertainty, outcome, weights =
             resolve_isomers(values, uncertainties, [isomers[i] for i in indices])
         outcomes[outcome] += 1
-        imputed += points
-        push!(stage_keys, keys_of_row[first(indices)])
-        push!(stage_rows, indices)
-        push!(stage_values, value)
-        push!(stage_uncertainties, uncertainty)
+        imputed += weights
+        push!(
+            points,
+            (; at = coordinate(first(indices)), value, uncertainty, rows = indices),
+        )
     end
 
-    # Stage two: one row per abscissa value.
+    # Stage two: the masses placed on the integers.
+    masses =
+        mass_position === nothing ? Float64[] :
+        [Float64(p.at[mass_position]) for p in points]
+    treatment = if mass_position === nothing
+        "none"
+    elseif mass_bins !== nothing
+        "bins"
+    elseif all(isinteger, masses)
+        "integer"
+    else
+        "interpolated"
+    end
+    placed = NamedTuple[]
+    placement = Dict{String, Any}("mass_treatment" => treatment)
+    note = ""
+    at_mass(p, A) = Tuple(k == mass_position ? A : x for (k, x) in enumerate(p.at))
+    rest(p) = Tuple(x for (k, x) in enumerate(p.at) if k != mass_position)
+    if treatment == "none"
+        placed = [(; key = p.at, p.value, p.uncertainty, p.rows) for p in points]
+    elseif treatment == "integer"
+        placed = [
+            (; key = at_mass(p, round(Int, masses[j])), p.value, p.uncertainty, p.rows)
+            for (j, p) in enumerate(points)
+        ]
+    elseif treatment == "bins"
+        low = [Float64(mass_bins[1][first(p.rows)]) for p in points]
+        high = [Float64(mass_bins[2][first(p.rows)]) for p in points]
+        members = _bin_members(low, high, [rest(p) for p in points])
+        widths = sort!(unique(high .- low .+ 1))
+        placement["mass_bin_widths_u"] = widths
+        if members === nothing
+            note = "its mass bins share or split an edge mass, and which bin that mass belongs \
+                    to is not decided here"
+        elseif query.ordinate in EXTENSIVE_ORDINATES && any(>(1), length.(members))
+            note = "a yield over a mass bin of several masses is their sum, and has no value at \
+                    any one of them"
+            placement["mass_bins_refused"] = count(>(1), length.(members))
+        else
+            for (p, bin) in zip(points, members), A in bin
+                push!(placed, (; key = at_mass(p, A), p.value, p.uncertainty, p.rows))
+            end
+        end
+    else
+        groups = Dict{Any, Vector{NamedTuple}}()
+        group_order = Any[]
+        for (j, p) in enumerate(points)
+            group = rest(p)
+            haskey(groups, group) || push!(group_order, group)
+            push!(
+                get!(groups, group, NamedTuple[]),
+                (; mass = masses[j], p.value, p.uncertainty, p.rows),
+            )
+        end
+        skipped = 0
+        coincident = 0
+        for group in group_order
+            interpolated, gaps, combined = _interpolate_masses(groups[group])
+            skipped += gaps
+            coincident += combined
+            for point in interpolated
+                key = Tuple(
+                    k == mass_position ? point.A : group[k - (k > mass_position)] for
+                    k in eachindex(query.abscissa)
+                )
+                push!(placed, (; key, point.value, point.uncertainty, point.rows))
+                imputed += point.imputed
+            end
+        end
+        placement["mass_interpolation_span_u"] = MASS_INTERPOLATION_SPAN
+        placement["mass_gaps_skipped"] = skipped
+        placement["mass_values_coincident"] = coincident
+        isempty(placed) && (
+            note = "its $(length(points)) non-integer masses bracket no integer mass within \
+                     $(MASS_INTERPOLATION_SPAN) u"
+        )
+    end
+
+    # Stage three: one row per abscissa value.
     grouped = Dict{Any, Vector{Int}}()
     grouped_order = Any[]
-    for (i, key) in enumerate(stage_keys)
-        haskey(grouped, key) || push!(grouped_order, key)
-        push!(get!(grouped, key, Int[]), i)
+    for (i, point) in enumerate(placed)
+        haskey(grouped, point.key) || push!(grouped_order, point.key)
+        push!(get!(grouped, point.key, Int[]), i)
     end
 
     # The auxiliary subentry columns that vary among rows combined onto one abscissa value: what
@@ -307,15 +471,17 @@ function reduce_dataset(dataset::Dataset, query)
         indices = grouped[key]
         if length(indices) > 1
             combined += 1
-            rows = reduce(vcat, stage_rows[indices])
+            rows = reduce(vcat, [placed[i].rows for i in indices])
             for name in auxiliary
                 present = skipmissing(dataset.columns[rows, name])
                 length(unique(present)) > 1 && push!(combined_over, name)
             end
         end
-        value, uncertainty, points =
-            combine_measurements(stage_values[indices], stage_uncertainties[indices])
-        imputed += points
+        value, uncertainty, weights = combine_measurements(
+            [placed[i].value for i in indices],
+            [placed[i].uncertainty for i in indices],
+        )
+        imputed += weights
         push!(final_keys, key)
         push!(final_values, value)
         push!(final_uncertainties, uncertainty)
@@ -355,15 +521,17 @@ function reduce_dataset(dataset::Dataset, query)
         "isomer_groups_ambiguous" => outcomes[:ambiguous],
         "abscissae_combined" => combined,
         "combined_over" => sort!(collect(combined_over)),
-        "mass_values_non_integer" => resolution.non_integer,
-        "mass_rounding_max" => resolution.rounding_max,
-        "abscissa_binned" => resolution.binned,
+        "mass_values_non_integer" =>
+            treatment == "bins" ? 0 : count(!isinteger, masses),
+        "abscissa_binned" => binned,
         "weights_imputed" => imputed,
         "incident_energies_mev" => retained_energies .* EV_TO_MEV,
         "unit_reported" => dataset.unit,
         "unit_written" => unit_written,
         "ordinate_factor" => factor,
     )
+    merge!(diagnostics, placement)
+    isempty(note) || (diagnostics["mass_placement_refused"] = note)
 
     return ReducedDataset(
         abscissa_columns,
