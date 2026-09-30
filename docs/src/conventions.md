@@ -23,7 +23,10 @@ project that can justify them. Values in the far-asymmetric mass tails are stati
 are written unchanged, with their uncertainties.
 
 **The uncertainty column is omitted** when no row of a dataset carries one, rather than written
-as a column of zeros.
+as a column of zeros. Where the csv rendering carries no uncertainty at all but the subentry does,
+in `DATA-ERR`, `ERR-T` or `ERR-S` in that order, it is read from the subentry and put on the scale
+of the csv ordinate; `uncertainty_source` in the run record says which (`23268002` gives `ERR-S`
+on each of its 30 000 cells, and the rendering on none).
 
 **One row per abscissa value.** Several things put more than one row on an abscissa value, and
 they are not handled alike:

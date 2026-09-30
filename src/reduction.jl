@@ -189,6 +189,47 @@ Every other ordinate is a mean over the events of the bin and holds for each mas
 """
 const EXTENSIVE_ORDINATES = ("yield",)
 
+"""
+Headings of a DATA table that hold the uncertainty of the datum, in order of preference: the
+total, then the statistical part (EXFOR Dictionary 24).
+"""
+const DATUM_UNCERTAINTY_HEADINGS = ("DATA-ERR", "ERR-T", "ERR-S")
+
+# The uncertainty of each row read from the subentry, on the scale of the csv ordinate, and the
+# heading it came from; `nothing` when the subentry holds none that can be read. For a dataset
+# whose rendering carries no uncertainty at all: 23268002 gives ERR-S on every cell, and the csv
+# on none. An uncertainty in PER-CENT is relative; one in the unit of DATA is carried over by the
+# ratio of the two ordinates, which must be the same on every row.
+function _subentry_uncertainties(dataset::Dataset)
+    present = names(dataset.columns)
+    "DATA" in present || return nothing
+    index = findfirst(in(present), DATUM_UNCERTAINTY_HEADINGS)
+    index === nothing && return nothing
+    heading = DATUM_UNCERTAINTY_HEADINGS[index]
+    errors = dataset.columns[!, heading]
+    ordinate = dataset.table[!, COL_Y]
+    if dataset.units[heading] == "PER-CENT"
+        relative = Union{Missing, Float64}[
+            ismissing(e) || ismissing(v) ? missing : abs(Float64(v)) * e / 100 for
+            (e, v) in zip(errors, ordinate)
+        ]
+        return (relative, heading)
+    end
+    dataset.units[heading] == dataset.units["DATA"] || return nothing
+    datum = dataset.columns[!, "DATA"]
+    ratios = [
+        Float64(v) / d for
+        (v, d) in zip(ordinate, datum) if !ismissing(v) && !ismissing(d) && d != 0
+    ]
+    isempty(ratios) && return nothing
+    scale = median(ratios)
+    all(r -> isapprox(r, scale; rtol = 1.0e-6), ratios) || return nothing
+    return (
+        Union{Missing, Float64}[ismissing(e) ? missing : abs(e) * scale for e in errors],
+        heading,
+    )
+end
+
 # The values of each abscissa quantity for every row, in configuration order: a mass as the
 # subentry gives it, unrounded; a charge as an integer; an energy in MeV. Also the bin pair of the
 # mass when the mass came from one, and whether any quantity came from a bin pair.
@@ -325,6 +366,16 @@ function reduce_dataset(dataset::Dataset, query)
 
     raw_values = table[!, COL_Y]
     raw_uncertainties = table[!, COL_DY]
+    uncertainty_source = "csv"
+    if all(ismissing, raw_uncertainties)
+        fallback = _subentry_uncertainties(dataset)
+        if fallback === nothing
+            uncertainty_source = "none"
+        else
+            raw_uncertainties, heading = fallback
+            uncertainty_source = "subentry $(heading)"
+        end
+    end
     isomers = table[!, COL_PRODUCT_ISOMER]
     products = table[!, COL_PRODUCT_ZA]
     energies = table[!, COL_INCIDENT_ENERGY]
@@ -525,6 +576,7 @@ function reduce_dataset(dataset::Dataset, query)
             treatment == "bins" ? 0 : count(!isinteger, masses),
         "abscissa_binned" => binned,
         "weights_imputed" => imputed,
+        "uncertainty_source" => uncertainty_source,
         "incident_energies_mev" => retained_energies .* EV_TO_MEV,
         "unit_reported" => dataset.unit,
         "unit_written" => unit_written,

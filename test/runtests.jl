@@ -1481,6 +1481,41 @@ include("fixtures.jl")
         )
     end
 
+    @testset "an uncertainty the rendering drops is read from the subentry" begin
+        # 14369003 (Fraser): the csv carries no uncertainty, the subentry a DATA-ERR column.
+        query = test_query(; target_A = 235, ordinate = "total_kinetic_energy")
+        rows = [
+            exfor_row(;
+                reaction_code = "92-U-235(N,F)MASS,PRE,KE,LF+HF",
+                value_kind = "Data(EV)",
+                product_za = a,
+                y = v * 1.0e6,
+                incident_ev = 0.0253,
+            ) for (a, v) in ((100, 170.0), (101, 171.0))
+        ]
+        text(errors, unit) = exfor_subentry(;
+            headings = ["MASS", "DATA", "DATA-ERR"],
+            units = ["NO-DIM", "MEV", unit],
+            rows = [[100.0, 170.0, errors[1]], [101.0, 171.0, errors[2]]],
+            common = (headings = ["EN"], units = ["EV"], values = [0.0253]),
+        )
+        reduce(errors, unit) = reduce_dataset(
+            select_dataset("10000002", exfor_csv(rows), text(errors, unit), query),
+            query,
+        )
+        # In the unit of DATA, carried to the csv scale and then to MeV like the value.
+        reduced = reduce([1.5, 2.0], "MEV")
+        @test isapprox(reduced.table.TKE_uncertainty, [1.5, 2.0]; rtol = 1.0e-9)
+        @test reduced.diagnostics["uncertainty_source"] == "subentry DATA-ERR"
+        # In percent, relative to the value.
+        reduced = reduce([1.0, 2.0], "PER-CENT")
+        @test isapprox(reduced.table.TKE_uncertainty, [1.7, 3.42]; rtol = 1.0e-9)
+        # In any other unit, not read.
+        reduced = reduce([1.0, 2.0], "KEV")
+        @test reduced.diagnostics["uncertainty_source"] == "none"
+        @test !reduced.has_uncertainties
+    end
+
     @testset "a spectrum qualifier must agree with the channel" begin
         conflict = ExforFissionData.channel_qualifier_conflict
         @test conflict("nth", "92-U-235(N,F)ELEM/MASS,IND,FY,,FIS") == "FIS"

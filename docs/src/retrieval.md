@@ -68,6 +68,7 @@ the machine as well, which is useful when the records stay yours.
 | | `abscissa_binned` | whether any abscissa quantity came from a `-MIN`, `-MAX` pair |
 | | `curation`, `archive_defects` | for a dataset read from its subentry text, the evidence; and the compilation defects whose lines were left out |
 | | `correlated_with`, `correlation` | the other runs of the same experiment, and why they are one |
+| | `uncertainty_source` | `csv`, `subentry ERR-S` and the like where the rendering carries none and the subentry does, or `none` |
 | `[[rejected]]` | `identifier`, `reaction_code`, `reason` | the dataset, its code, and why it was excluded |
 
 ## Output layout
