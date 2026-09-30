@@ -97,7 +97,8 @@ The checks easiest to get wrong:
 - the `y:Value` column marks **upper limits** with a `Max(` prefix; those rows are bounds, not
   measurements;
 - it also marks **arbitrary units** as `ARB-UNITS`, which carry no scale and cannot be combined
-  with absolute data;
+  with absolute data. The subentry's own unit decides where the two differ: `23268002` is counts
+  in `ARB-UNITS` in its subentry and `PART/FIS` in the rendering;
 - the incident-energy window is applied **per row**, not to the dataset as a whole. An EXFOR
   dataset frequently reports one product at several energies, and admitting all of them collapses
   an excitation function into a single number;

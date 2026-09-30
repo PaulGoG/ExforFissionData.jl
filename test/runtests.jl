@@ -1457,6 +1457,28 @@ include("fixtures.jl")
         @test rejection_reason(tag_rule(["mass"], "yield"), "92-U-235(N,F)MASS,,FY") ==
               "missing required code \"PRE\" in SF5"
         @test matches(tag_rule(["mass"], "multiplicity"), "98-CF-252(0,F)MASS,PR/FRG,NU")
+
+        # An arbitrary scale the subentry states is not overruled by the csv rendering.
+        rows = [
+            exfor_row(;
+                reaction_code = "92-U-235(N,F)MASS,PRE,FY",
+                value_kind = "Data(PART/FIS)",
+                product_za = 100,
+                y = 5.0,
+                incident_ev = 0.0253,
+            ),
+        ]
+        rejected = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; unit = "ARB-UNITS"),
+            query,
+        )
+        @test rejected isa Rejection
+        @test occursin(
+            "ARB-UNITS, which the csv rendering reports as PART/FIS",
+            rejected.reason,
+        )
     end
 
     @testset "a spectrum qualifier must agree with the channel" begin

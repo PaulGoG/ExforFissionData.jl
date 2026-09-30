@@ -314,8 +314,10 @@ The csv rendering has been screened by [`screen_dataset`](@ref); the subentry DA
 settles what the dataset is tabulated against. The first failure is reported.
 
 1–5. the csv tests of [`screen_dataset`](@ref), in its order;
-6. the subentry parses, and, for a spectrum, its energies are not in the centre-of-mass frame
-   (`E-CM`, `DATA-CM`);
+6. the subentry parses; for a spectrum, its energies are not in the centre-of-mass frame
+   (`E-CM`, `DATA-CM`); and a DATA column the subentry gives in arbitrary units is taken as
+   such, whatever unit the csv rendering reports, and passes only where the observable admits a
+   relative scale;
 7. the DATA table, restricted to the lines that carry a datum in this dataset's `DATA` column,
    has one line per row of the rendering and agrees with it row by row: the truncated product
    against `MASS` and `ELEM`, the secondary energy against `E` or `TKE`. Only then are the rows
@@ -381,6 +383,20 @@ function select_dataset(screened::Screened, subentry_text::AbstractString, query
          quantities the rendering does not present as measurements",
     )
     data = restrict(subentry.data, BitVector(map(!ismissing, subentry.data.values[datum])))
+
+    # The rendering can misstate the unit: 23268002 is counts, ARB-UNITS in its subentry and
+    # PART/FIS in the csv. An arbitrary scale the subentry states is not overruled.
+    dataset_unit = screened.unit
+    subentry_unit = subentry.data.units[datum]
+    if is_relative_unit(subentry_unit) && !is_relative_unit(dataset_unit)
+        tolerates_relative_scale(query.ordinate) || return Rejection(
+            identifier,
+            code,
+            "the subentry gives DATA in $(subentry_unit), which the csv rendering reports as \
+             $(dataset_unit); the dataset has no absolute scale",
+        )
+        dataset_unit = subentry_unit
+    end
 
     rows = nrow(screened.table)
     lines = line_count(data)
@@ -494,7 +510,7 @@ function select_dataset(screened::Screened, subentry_text::AbstractString, query
         screened.year,
         screened.author,
         code,
-        screened.unit,
+        dataset_unit,
         table,
         columns,
         units,
