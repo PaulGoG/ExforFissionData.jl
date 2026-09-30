@@ -22,7 +22,7 @@ function exfor_row(;
     secondary_ev = missing,
     product_za = missing,
     isomer = missing,
-    reaction_code = "92-U-233(N,F)MASS,CHN,FY",
+    reaction_code = "92-U-233(N,F)MASS,PRE,FY",
 )
     fields = fill("", length(EXFOR_HEADER))
     show_or_blank(value) = value === missing ? "" : string(value)

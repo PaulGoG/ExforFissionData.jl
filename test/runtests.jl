@@ -1401,6 +1401,64 @@ include("fixtures.jl")
         end
     end
 
+    @testset "a yield against mass is the pre-neutron yield" begin
+        query = test_query(; target_A = 235, ordinate = "yield")
+        # A mass yield of 235-U in percent per fission, as csv rows and the subentry text.
+        function mass_yield(identifier, code, points; bib = ["REACTION   ($(code))"])
+            rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = code,
+                    value_kind = "Data(PC/FIS)",
+                    product_za = mass,
+                    y = value,
+                    dy = error,
+                    incident_ev = 0.0253,
+                ) for (mass, value, error) in points
+            ]
+            return exfor_csv(rows), exfor_subentry_for(rows; unit = "PC/FIS", bib = bib)
+        end
+
+        # 10865002 (Maeck 1978): chain yields, the post-neutron product mass.
+        chain = mass_yield(
+            "10865002",
+            "92-U-235(N,F)MASS,CHN,FY,,SPA",
+            [(83, 0.543, 0.004), (84, 1.016, 0.007), (85, 1.333, 0.007)],
+        )
+        rejected = select_dataset("10865002", chain..., query)
+        @test rejected isa Rejection
+        @test rejected.reason == "forbidden code \"CHN\" in SF5"
+
+        # 23815002 (Asghar 1980): yields against provisional masses.
+        provisional = mass_yield(
+            "23815002",
+            "92-U-235(N,F)MASS,PRV,FY,,SPA",
+            [
+                (161, 3.934e-4, 2.485e-5),
+                (162, 2.006e-4, 1.796e-5),
+                (163, 9.979e-5, 2.16e-5),
+            ],
+        )
+        rejected = select_dataset("23815002", provisional..., query)
+        @test rejected isa Rejection
+        @test rejected.reason == "forbidden code \"PRV\" in SF5"
+
+        # A yield must say it is pre-neutron; a multiplicity against mass carries no branch
+        # and is untouched by that requirement.
+        @test select_dataset(
+            "10000002",
+            mass_yield(
+                "10000002",
+                "92-U-235(N,F)MASS,PRE,FY",
+                [(83, 0.5, 0.01), (84, 1.0, 0.01)],
+            )...,
+            query,
+        ) isa Dataset
+        @test rejection_reason(tag_rule(["mass"], "yield"), "92-U-235(N,F)MASS,,FY") ==
+              "missing required code \"PRE\" in SF5"
+        @test matches(tag_rule(["mass"], "multiplicity"), "98-CF-252(0,F)MASS,PR/FRG,NU")
+    end
+
     @testset "a spectrum qualifier must agree with the channel" begin
         conflict = ExforFissionData.channel_qualifier_conflict
         @test conflict("nth", "92-U-235(N,F)ELEM/MASS,IND,FY,,FIS") == "FIS"

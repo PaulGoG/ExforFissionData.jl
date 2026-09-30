@@ -173,8 +173,10 @@ Codes rejected for every observable, besides any combination of reactions.
 | `SF5:CUM`, `SF5:(CUM)` | cumulative yield, or one the compiler could not tell from it |
 | `SF8:RAW` | uncorrected data |
 
-`CHN` (chain yields) and `REL` (relative data) are deliberately absent: excluding them removes
-datasets that are wanted, and both are recorded per dataset through [`SCALE_QUALIFIERS`](@ref).
+`REL` (relative data) is deliberately absent, since excluding it removes datasets that are
+wanted, and is recorded per dataset through [`SCALE_QUALIFIERS`](@ref). `CHN`, a chain yield,
+is a post-neutron product mass and is refused beside a pre-neutron mass by the abscissa rules
+rather than here.
 """
 const BASE_FORBID = [
     "SF9:RECOM",
@@ -196,9 +198,10 @@ const BASE_FORBID = [
 #
 #   mass                  pre-neutron fragment mass: mass-resolved, not charge-resolved, not
 #                         differential in energy, and neither independent nor secondary, which
-#                         would make it post-neutron, nor provisional (PRV): a mass from the
-#                         two fragment energies uncorrected for neutron emission. 23802002,
-#                         23815002, 23815003, 23815005 and 23588002 are provisional yields
+#                         would make it post-neutron, nor a chain (CHN), the post-neutron
+#                         product mass, nor provisional (PRV): a mass from the two fragment
+#                         energies uncorrected for neutron emission. 23802002, 23815002,
+#                         23815003, 23815005 and 23588002 are provisional yields
 #   product_mass          post-neutron fragment mass: as mass, but requiring the
 #                         independent or secondary marking and forbidding the pre-neutron one
 #   charge                fragment charge: charge-resolved, not mass-resolved
@@ -209,7 +212,16 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
     ["mass"] => TagRule(
         ["SF4:MASS"],
         String[],
-        ["TKE", "SF4:ELEM", "SF5:SEC", "SF5:(SEC)", "SF5:PRV", "SF6:DE", "SF5:IND"],
+        [
+            "TKE",
+            "SF4:ELEM",
+            "SF5:SEC",
+            "SF5:(SEC)",
+            "SF5:PRV",
+            "SF5:CHN",
+            "SF6:DE",
+            "SF5:IND",
+        ],
     ),
     ["product_mass"] => TagRule(
         ["SF4:MASS"],
@@ -233,7 +245,7 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
     ["mass", "total_kinetic_energy"] => TagRule(
         ["SF4:MASS"],
         ["TKE", "SF6:DE & SF7:LF+HF"],
-        ["SF4:ELEM", "SF5:SEC", "SF5:(SEC)", "SF5:PRV", "SF5:IND"],
+        ["SF4:ELEM", "SF5:SEC", "SF5:(SEC)", "SF5:PRV", "SF5:CHN", "SF5:IND"],
     ),
 )
 
@@ -354,6 +366,23 @@ Whether `ordinate` admits datasets in arbitrary units; see [`RELATIVE_SCALE_ORDI
 tolerates_relative_scale(ordinate::AbstractString) = ordinate in RELATIVE_SCALE_ORDINATES
 
 """
+Rules of one abscissa and ordinate together, added to the composition of the two.
+
+A yield against pre-neutron mass must carry the pre-neutron branch `PRE`. The mass abscissa
+alone admits whatever the branch leaves unsaid, and for a yield that is not pre-neutron: of the
+yields against mass the archive offers, the pre-neutron ones carry `PRE`, the post-neutron chain
+yields `CHN`, the provisional ones `PRV`. The requirement cannot sit on the mass abscissa itself,
+since a multiplicity against mass is coded `MASS,PR/FRG,NU`, the fragment's own mass, and carries
+no branch. A yield whose entry establishes a pre-neutron mass by its method without the code
+saying so is read in [`CURATED_DATASETS`](@ref).
+"""
+const OBSERVABLE_RULES = Dict{Tuple{Vector{String}, String}, TagRule}(
+    (["mass"], "yield") => TagRule(["SF5:PRE"], String[], String[]),
+    (["mass", "total_kinetic_energy"], "yield") =>
+        TagRule(["SF5:PRE"], String[], String[]),
+)
+
+"""
     tag_rule(abscissa, ordinate) -> TagRule
 
 Compose the selection rule for an observable from its abscissa and ordinate rules.
@@ -361,17 +390,18 @@ Compose the selection rule for an observable from its abscissa and ordinate rule
 `abscissa` is the list of quantities the observable is tabulated against — `["mass"]`, or
 `["mass", "total_kinetic_energy"]` for a joint index.
 
-The requirements of both are taken together and the forbidden tags of both are added to
-[`BASE_FORBID`](@ref). When both contribute a `require_any` list the observable is not
-expressible, since the two alternatives cannot be imposed independently by substring tests;
-that combination is rejected by the configuration validator rather than silently mis-selected.
+The requirements of both are taken together, with those of [`OBSERVABLE_RULES`](@ref) for the
+pair, and the forbidden tags of all are added to [`BASE_FORBID`](@ref). When both contribute a
+`require_any` list the observable is not expressible, since the two alternatives cannot be
+imposed independently; that combination is rejected by the configuration validator rather than
+silently mis-selected.
 
 # Example
 
 ```jldoctest
 julia> rule = ExforFissionData.tag_rule(["mass"], "multiplicity");
 
-julia> ExforFissionData.matches(rule, "98-CF-252(0,F)MASS,PR,FRG,NU")
+julia> ExforFissionData.matches(rule, "98-CF-252(0,F)MASS,PR/FRG,NU")
 true
 ```
 """
@@ -387,14 +417,19 @@ function tag_rule(abscissa::AbstractVector{<:AbstractString}, ordinate::Abstract
             ArgumentError(
                 "abscissa $(abscissa) and ordinate \"$(ordinate)\" both impose alternative \
                  tags ($(x.require_any) and $(y.require_any)); the combination cannot be \
-                 selected by substring tests and is not supported",
+                 selected by these tests and is not supported",
             ),
         )
     end
+    both = get(
+        OBSERVABLE_RULES,
+        (String[abscissa...], String(ordinate)),
+        TagRule(String[], String[], String[]),
+    )
     return TagRule(
-        vcat(x.require_all, y.require_all),
+        vcat(x.require_all, y.require_all, both.require_all),
         require_any,
-        vcat(BASE_FORBID, x.forbid, y.forbid),
+        vcat(BASE_FORBID, x.forbid, y.forbid, both.forbid),
     )
 end
 

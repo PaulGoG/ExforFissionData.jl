@@ -114,10 +114,16 @@ The checks easiest to get wrong:
   spectrum and is rejected;
 - the quantity code `FY` files more than yields. `MASS,PAR,ZP` is the most probable charge against
   mass, which satisfies every mass rule, so `yield` requires the `FY` tag itself: six such
-  datasets for 235-U would otherwise sit among the mass yields at values near 40.
+  datasets for 235-U would otherwise sit among the mass yields at values near 40;
+- a yield against the pre-neutron mass must carry the pre-neutron branch `PRE`, and the chain
+  yield `CHN` and the provisional yield `PRV` are refused beside it. A chain yield is a
+  post-neutron product mass, and a provisional mass is one derived from the two fragment energies
+  without correcting them for neutron emission; before the rule the `Y_vs_A` retrievals of the
+  four systems carried 69 chain and 5 provisional yields beside 51 pre-neutron ones. A
+  multiplicity against mass, `MASS,PR/FRG,NU`, carries no branch and is not affected.
 
 Reaction-code qualifiers that bear on a value's scale — `MSC`, `REL`, `CHN`, `DERIV`, `FCT` — are
-recorded per dataset without rejecting it, and so are those naming the inducing neutron spectrum,
+recorded per dataset without rejecting it where the observable admits them, and so are those naming the inducing neutron spectrum,
 except that a spectrum no measurement of the channel can have been made in rejects the dataset;
 see [Entrance channels](channels.md).
 
