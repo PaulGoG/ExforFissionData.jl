@@ -129,7 +129,9 @@ answer, in the order below, the first failure being reported.
 
 1. the dataset is non-empty and carries a reaction code;
 2. the `y:Value` column marks measurements rather than limits, and is not in arbitrary units;
-3. the reaction code satisfies the composed tag rule of the abscissa and ordinate;
+3. the reaction code satisfies the composed tag rule of the abscissa and ordinate — or, for a
+   dataset of [`CURATED_DATASETS`](@ref), the curated ordinate is the one asked for and the
+   code satisfies the abscissa rule; see [`curation_rejection`](@ref);
 4. the reaction code carries no spectrum qualifier that contradicts the entrance channel; see
    [`CHANNEL_FORBIDDEN_QUALIFIERS`](@ref);
 5. for induced fission, at least one row lies within the configured incident-energy window,
@@ -178,8 +180,12 @@ function screen_dataset(identifier::AbstractString, body::AbstractString, query)
     end
     unit = last(parse_value_kind(kind))
 
-    rule = tag_rule(query.abscissa, query.ordinate)
-    reason = rejection_reason(rule, code)
+    curation = get(CURATED_DATASETS, String(identifier), nothing)
+    reason = if curation === nothing
+        rejection_reason(tag_rule(query.abscissa, query.ordinate), code)
+    else
+        curation_rejection(curation, query.abscissa, query.ordinate, code)
+    end
     reason === nothing || return Rejection(identifier, code, reason)
     conflict = channel_qualifier_conflict(query.channel, code)
     if conflict !== nothing

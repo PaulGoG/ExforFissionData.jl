@@ -45,6 +45,7 @@ using TOML: TOML
 include("elements.jl")
 include("schema.jl")
 include("reaction_codes.jl")
+include("curation.jl")
 include("client.jl")
 include("subentry.jl")
 include("configuration.jl")

@@ -131,6 +131,13 @@ function _revision()
     end
 end
 
+# The reading of a curated dataset, for its entry in the run record; empty for any other.
+function _curation_record(identifier::AbstractString)
+    curation = get(CURATED_DATASETS, identifier, nothing)
+    curation === nothing && return Dict{String, Any}()
+    return Dict{String, Any}("curation" => curation.reason)
+end
+
 """
     write_metadata(path, configuration, accepted, rejected, listing) -> Nothing
 
@@ -139,7 +146,8 @@ every dataset considered — those written, with what the reduction had to do to
 excluded, with the reason.
 
 The rejection list is the point of this file. A dataset missing from the output is otherwise
-indistinguishable from one the archive does not hold.
+indistinguishable from one the archive does not hold. An accepted dataset of
+[`CURATED_DATASETS`](@ref) carries the evidence for its reading as `curation`.
 
 The record also carries when the `listing` of datasets and each accepted dataset were obtained
 from the archive, and whether each came from the cache. Those dates are the state of the archive
@@ -265,6 +273,7 @@ function write_metadata(
                 "retrieved_utc" => string(entry.retrieved),
                 "from_cache" => entry.from_cache,
             ),
+            _curation_record(entry.dataset.identifier),
             entry.reduced.diagnostics,
         ) for entry in accepted
     ]

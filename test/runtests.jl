@@ -1162,6 +1162,123 @@ include("fixtures.jl")
         @test rejected.reason == "forbidden tag \"MSC\""
     end
 
+    @testset "datasets read from their subentry text" begin
+        tke = test_query(; ordinate = "total_kinetic_energy")
+        tke_cf = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            ordinate = "total_kinetic_energy",
+        )
+
+        # 41109007 (Khryachkov 1991): coded exactly as the unconditional mean, and a mean over
+        # cold-fragmentation events. The same table under any other identifier passes the rule.
+        cold(identifier) = kinetic_energy_dataset(
+            identifier,
+            "92-U-235(N,F)MASS,PRE,KE,LF+HF,MXW",
+            [(80, 178.8), (81, 178.0), (82, 181.5), (83, 180.7)];
+            bib = [
+                "REACTION   (92-U-235(N,F)MASS,PRE,KE,LF+HF,MXW)",
+                "            Average kinetic energy of 2 fragments as dependence",
+                "            from LF mass.",
+            ],
+        )
+        rejected = select_dataset("41109007", cold("41109007")..., tke)
+        @test rejected isa Rejection
+        @test occursin("cold-fragmentation", rejected.reason)
+        @test select_dataset("10000002", cold("10000002")..., tke) isa Dataset
+
+        # 14101003 (Whetstone 1963): the branch is blank, the masses are double-velocity ones.
+        # Admitted as the pre-neutron TKE alone; the same code from 40232003, whose masses the
+        # entry states were not corrected for neutron emission, stays out.
+        blank_branch(identifier) = kinetic_energy_dataset(
+            identifier,
+            "98-CF-252(0,F)MASS,,KE,LF+HF",
+            [(126, 171.0), (127, 185.0), (128, 190.0), (129, 192.0)];
+            thermal = false,
+            bib = [
+                "REACTION   (98-CF-252(0,F)MASS,,KE,LF+HF)",
+                "            Total fragment kinetic energy, given as function of",
+                "            heavy fragment mass",
+            ],
+        )
+        body, text = blank_branch("14101003")
+        admitted = select_dataset("14101003", body, text, tke_cf)
+        @test admitted isa Dataset
+        @test reduce_dataset(admitted, tke_cf).table.TKE == [171.0, 185.0, 190.0, 192.0]
+        post = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            ordinate = "post_neutron_total_kinetic_energy",
+        )
+        rejected = select_dataset("14101003", body, text, post)
+        @test rejected isa Rejection
+        @test occursin("double-velocity", rejected.reason)
+        for identifier in ("40232003", "23213008")
+            rejected = select_dataset(identifier, blank_branch(identifier)..., tke_cf)
+            @test rejected isa Rejection
+            @test rejected.reason == "missing required tag \"PRE\""
+        end
+
+        # 22780003 (Hambsch 1997): coded as the energy of one fragment, holding the TKE, as the
+        # dispersion column beside it says. Nishio's 23012006 carries the same code and does
+        # hold one fragment's energy: it stays a fragment energy.
+        dispersion(values) =
+            (headings = ["MISC"], units = ["MEV"], values = [[v] for v in values])
+        body, text = kinetic_energy_dataset(
+            "22780003",
+            "98-CF-252(0,F)MASS,PRE,KE,FF",
+            [(74, 150.361), (75, 142.414), (76, 150.544), (77, 151.775)];
+            thermal = false,
+            bib = [
+                "REACTION   (98-CF-252(0,F)MASS,PRE,KE,FF)",
+                "MISC-COL   (MISC)   Dispersion of TKE distribution",
+            ],
+            extra = dispersion([10.465, 10.345, 7.5896, 9.2734]),
+        )
+        admitted = select_dataset("22780003", body, text, tke_cf)
+        @test admitted isa Dataset
+        @test reduce_dataset(admitted, tke_cf).table.A == [74, 75, 76, 77]
+        fragment = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            ordinate = "fragment_kinetic_energy",
+        )
+        rejected = select_dataset("22780003", body, text, fragment)
+        @test rejected isa Rejection
+        @test occursin("total kinetic energy", rejected.reason)
+        pu = test_query(; target_Z = 94, target_A = 239, ordinate = "total_kinetic_energy")
+        body, text = kinetic_energy_dataset(
+            "23012006",
+            "94-PU-239(N,F)MASS,PRE,KE,FF,MXW",
+            [(81, 104.26), (82, 101.73), (83, 101.5)],
+        )
+        rejected = select_dataset("23012006", body, text, pu)
+        @test rejected isa Rejection
+        @test rejected.reason == "missing required tag \"LF+HF\""
+        @test select_dataset(
+            "23012006",
+            body,
+            text,
+            test_query(;
+                target_Z = 94,
+                target_A = 239,
+                ordinate = "fragment_kinetic_energy",
+            ),
+        ) isa Dataset
+
+        # Every curated reading names an ordinate the package has, or none, and says why.
+        for (identifier, curation) in ExforFissionData.CURATED_DATASETS
+            @test length(identifier) in (8, 9)
+            @test curation.ordinate === nothing || curation.ordinate in ORDINATES
+            @test startswith(curation.reason, "curated: ")
+        end
+        @test haskey(ExforFissionData._curation_record("22780003"), "curation")
+        @test isempty(ExforFissionData._curation_record("10000002"))
+    end
+
     @testset "a spectrum qualifier must agree with the channel" begin
         conflict = ExforFissionData.channel_qualifier_conflict
         @test conflict("nth", "92-U-235(N,F)ELEM/MASS,IND,FY,,FIS") == "FIS"
