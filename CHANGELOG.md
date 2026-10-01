@@ -6,6 +6,12 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-01
+
+One rule change: whether a multiplicity coded without `FRG` is per fragment or per fission is
+settled by its data, and its scale is recorded rather than required, so that five datasets
+refused by 0.2.1 are written, two each for 252-Cf and 239-Pu and one for 235-U.
+
 ### Changed
 
 - Prompt multiplicities against mass coded without `FRG` are classified by their data alone, and
@@ -244,7 +250,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/PaulGoG/ExforFissionData.jl/releases/tag/v0.1.0

@@ -201,7 +201,7 @@ itself is referred to, cite the software:
 @software{gogita2026exforfissiondata,
   author  = {Gogîță, Paul-Adrian},
   title   = {ExforFissionData.jl: retrieval of experimental fission observables from the IAEA EXFOR archive},
-  version = {0.2.1},
+  version = {0.2.2},
   year    = {2026},
   url     = {https://github.com/PaulGoG/ExforFissionData.jl}
 }
