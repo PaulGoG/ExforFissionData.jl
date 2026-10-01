@@ -9,7 +9,77 @@
 # test of the selection still applies to it.
 
 """
+    PairSum(deviation, uncertainty, yields, own_yields)
+
+The scale of a prompt multiplicity tabulated against fragment mass on both sides of symmetry,
+from its pair sum S = ν(A) + ν(A₀ − A) weighted with the light-fragment yield. It is recorded
+beside the reading and never decides it.
+
+# Fields
+- `deviation::Float64`: S/(kν̄) − 1, with k = 1 for a multiplicity per fragment and 2 per fission.
+- `uncertainty::Float64`: the standard deviation of `deviation`, from those of S and ν̄; `NaN`
+  where the dataset states no uncertainty.
+- `yields::String`: the dataset identifier of the Y(A) that S is weighted with.
+- `own_yields::Bool`: whether that Y(A) is of the same experiment; otherwise it is the fallback
+  for the system.
+"""
+struct PairSum
+    deviation::Float64
+    uncertainty::Float64
+    yields::String
+    own_yields::Bool
+end
+
+"""
+Standard deviations within which a pair sum is consistent with ν̄; see [`scale_consistent`](@ref).
+"""
+const PAIR_SUM_TOLERANCE_SIGMAS = 3
+
+"""
+    scale_consistent(pair_sum) -> Union{Bool,Nothing}
+
+Whether the pair sum agrees with ν̄ within [`PAIR_SUM_TOLERANCE_SIGMAS`](@ref) standard
+deviations, or `nothing` where the dataset states no uncertainty to weigh it by.
+"""
+scale_consistent(pair_sum::PairSum) =
+    isnan(pair_sum.uncertainty) ? nothing :
+    abs(pair_sum.deviation) <= PAIR_SUM_TOLERANCE_SIGMAS * pair_sum.uncertainty
+
+"""
+What a reading of the complement test rests on: the data alone, or the data corroborated by the
+publication, consulted.
+"""
+const CLASSIFICATION_BASES = ("data", "data+paper")
+
+"""
+    ComplementReading(basis[, pair_sum])
+
+How the complement test reads a prompt multiplicity against fragment mass coded without `FRG`.
+
+# Fields
+- `basis::String`: one of [`CLASSIFICATION_BASES`](@ref).
+- `pair_sum::Union{Nothing,PairSum}`: the scale, for a dataset tabulated on both sides of
+  symmetry; `nothing` for one tabulated on one side or against mass and TKE.
+
+# Throws
+- `ArgumentError` for a basis outside [`CLASSIFICATION_BASES`](@ref).
+"""
+struct ComplementReading
+    basis::String
+    pair_sum::Union{Nothing, PairSum}
+    function ComplementReading(basis::String, pair_sum::Union{Nothing, PairSum} = nothing)
+        basis in CLASSIFICATION_BASES || throw(
+            ArgumentError(
+                "classification basis \"$(basis)\" is not one of $(CLASSIFICATION_BASES)",
+            ),
+        )
+        return new(basis, pair_sum)
+    end
+end
+
+"""
     Curation([abscissa,] ordinate, reason[, notes[, unit]])
+    Curation(ordinate, reason, complement)
 
 What one dataset holds, established from its subentry text rather than from its reaction code.
 
@@ -25,6 +95,8 @@ What one dataset holds, established from its subentry text rather than from its 
   under its own key.
 - `unit::Union{Nothing,String}`: the unit the data are in where the subentry heads them with
   another, `"ARB-UNITS"` for event counts headed `NO-DIM`; `nothing` leaves the unit as read.
+- `complement::Union{Nothing,ComplementReading}`: for a multiplicity against mass coded without
+  `FRG` and read by the complement test, its basis and scale; `nothing` otherwise.
 """
 struct Curation
     abscissa::Union{Nothing, Vector{String}}
@@ -32,42 +104,52 @@ struct Curation
     reason::String
     notes::Dict{String, String}
     unit::Union{Nothing, String}
+    complement::Union{Nothing, ComplementReading}
 end
 
 Curation(ordinate::Union{Nothing, String}, reason::String) =
-    Curation(nothing, ordinate, reason, Dict{String, String}(), nothing)
+    Curation(nothing, ordinate, reason, Dict{String, String}(), nothing, nothing)
+Curation(ordinate::String, reason::String, complement::ComplementReading) =
+    Curation(nothing, ordinate, reason, Dict{String, String}(), nothing, complement)
 Curation(abscissa::Vector{String}, ordinate::String, reason::String) =
-    Curation(abscissa, ordinate, reason, Dict{String, String}(), nothing)
+    Curation(abscissa, ordinate, reason, Dict{String, String}(), nothing, nothing)
 Curation(abscissa, ordinate, reason, notes::Dict{String, String}) =
-    Curation(abscissa, ordinate, reason, notes, nothing)
+    Curation(abscissa, ordinate, reason, notes, nothing, nothing)
+Curation(abscissa, ordinate, reason, notes::Dict{String, String}, unit) =
+    Curation(abscissa, ordinate, reason, notes, unit, nothing)
 
 # The prompt multiplicity against fragment mass is per fragment when SF5 carries FRG and per
 # fission, the multiplicity of the fragment pair against one fragment's mass, when it does not.
 # The archive holds per-fragment data coded without FRG as well, so each dataset coded MASS,PR,NU
 # that a ν(A) or ν(A, TKE) retrieval meets is read from its data with the complement test of
-# docs/src/conventions.md, and the test values are written beside the reading.
+# docs/src/conventions.md; the test values are written beside the reading, and the basis and the
+# scale of the reading in its ComplementReading.
 
 const _NUBAR = "nubar of the IAEA neutron data standards 2017, doi:10.1016/j.nds.2018.02.002"
 
 """
 Readings of prompt-neutron multiplicities against fragment mass coded without `FRG`, keyed by
-dataset identifier; see [`Curation`](@ref). Each is decided from the data by the complement test
-under the fissioning nucleus of mass number `A_0`:
+dataset identifier; see [`Curation`](@ref). Each is decided from the data alone by the complement
+test under the fissioning nucleus of mass number `A_0`. For a dataset with both halves, whose
+pairs `(A, A_0 - A)` span at least 90 % of the light-fragment yield, `S` is the pair sum
+`nu(A) + nu(A_0 - A)` weighted with that yield and `D = nu(A) - nu(A_0 - A)`:
 
-- per fragment: `nu(A) - nu(A_0 - A)` changes sign along the sawtooth, beyond its uncertainties,
-  and the pair sum `nu(A) + nu(A_0 - A)` weighted with the light-fragment yield agrees with
-  `nubar` within three standard deviations;
-- per fission: `nu(A) = nu(A_0 - A)`, or, for a dataset tabulated on one side of symmetry, `nu(A)`
-  equals the pair sum of a per-fragment dataset of the same entry.
+- per fragment: `|S/nubar - 1| <= 0.25`, and `D = 0` is rejected: `D` changes sign along the
+  sawtooth, beyond its uncertainties;
+- per fission: `|S/nubar - 2| <= 0.5`, and `D = 0` holds.
 
-A dataset is read per fragment only when the test is unambiguous and the publication, consulted,
-agrees. Datasets per fission keep the reading of their code, `multiplicity_per_fission`. Those
-the test cannot decide, those per fragment whose pair sum misses `nubar` or whose publication
-could not be consulted, and those that hold no multiplicity against mass are refused under every
-ordinate, with the test values as the reason.
+A dataset tabulated on one side of symmetry, or against mass and TKE, is compared with a
+per-fragment dataset instead: per fragment it equals `nu_FRG(A)`, per fission the pair sum
+`nu_FRG(A) + nu_FRG(A_0 - A)`. Datasets per fission keep the reading of their code,
+`multiplicity_per_fission`. Those the test cannot decide, and those that hold no multiplicity
+against mass, are refused under every ordinate, with the test values as the reason.
+
+The scale does not decide the reading. Each reading carries a [`ComplementReading`](@ref): whether
+the publication, consulted, corroborates it, and, for a dataset with both halves, the deviation of
+`S` from what the reading predicts, [`PairSum`](@ref).
 """
 const MULTIPLICITY_READINGS = Dict{String, Curation}(
-    # Per fragment, coded without FRG.
+    # Per fragment, coded without FRG; the publication corroborates the reading.
     "23268005" => Curation(
         "multiplicity",
         "curated: per fragment, though coded without FRG. Over 50 pairs (A, A_0 - A), A_0 = 252, \
@@ -78,6 +160,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          (doi:10.1103/PhysRevC.90.064611, p. 064611-6) plots it as the multiplicity of a fragment \
          of mass A, from a matrix of 'the true number of neutrons emitted by a fragment with mass \
          m*', normalised to a total of 3.759",
+        ComplementReading("data+paper", PairSum(-0.0004, 0.0043, "23268003", true)),
     ),
     "23118006" => Curation(
         "multiplicity",
@@ -88,6 +171,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          3.764 +- 0.016, the $(_NUBAR). Fig. 5 of Zeynalov 2011 (doi:10.3938/jkps.59.1396, p. \
          1398), 'PFN multiplicity as a function of FF mass', is this sawtooth, set beside the \
          per-fragment data of Budtz-Jorgensen 1988",
+        ComplementReading("data+paper", PairSum(0.0023, 0.0072, "23118002", true)),
     ),
     "23175008" => Curation(
         "multiplicity",
@@ -100,6 +184,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          'the neutron multiplicity versus mass nu(A)', normalised so that both fragments together \
          emit 3.7632; the article itself, Nucl. Phys. A 490, 307 \
          (doi:10.1016/0375-9474(88)90508-8), was not consulted",
+        ComplementReading("data+paper", PairSum(-0.0198, 0.0498, "23175002", true)),
     ),
     "23175010" => Curation(
         "multiplicity",
@@ -113,106 +198,125 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          117 to 132' against TKE, 'approximated for each fragment by a straight line', and the \
          pair quantity apart, in its Fig. 12; the article itself, Nucl. Phys. A 490, 307 \
          (doi:10.1016/0375-9474(88)90508-8), was not consulted",
-    ),
-    "41689004" => Curation(
-        nothing,
-        "curated: not read: the test reads it per fragment, but the publication could not be \
-         consulted to confirm it. The entry is 'Number and spectra of neutrons for fixed \
-         fragments' (Yad. Fiz. 25, 723 (1977), Fig. 2). Over 9 pairs (A, A_0 - A) of its 4-u grid, \
-         A_0 = 252, nu(A) - nu(A_0 - A) changes sign along the sawtooth and reaches 2.43, a median \
-         7 times its uncertainty; the pair sum weighted with the yield of 23268003 is 3.95 +- 0.07 \
-         against 3.764 +- 0.016, the $(_NUBAR), 2.5 standard deviations above it",
-    ),
-    "41502005" => Curation(
-        nothing,
-        "curated: not read: the test reads it per fragment, but the publication, AIP Conf. Proc. \
-         769, 1003 (2005, doi:10.1063/1.1945175), could not be consulted to confirm it. Over 10 \
-         pairs (A, A_0 - A) of its 4-u grid, A_0 = 236, nu(A) - nu(A_0 - A) changes sign along the \
-         sawtooth and reaches 2.72, a median 7 times its uncertainty; the pair sum weighted with \
-         the yield of 21981006 is 2.469 +- 0.034 against 2.425 +- 0.011, the $(_NUBAR)",
-    ),
-    "41502007" => Curation(
-        nothing,
-        "curated: not read: the test reads it per fragment, but the publication, AIP Conf. Proc. \
-         769, 1003 (2005, doi:10.1063/1.1945175), could not be consulted to confirm it. In the \
-         0.296 eV resonance, over 9 pairs (A, A_0 - A) of its 4-u grid, A_0 = 240, nu(A) - nu(A_0 \
-         - A) changes sign along the sawtooth and reaches 2.74, chi2 per pair 14 against zero; the \
-         pair sum weighted with the yield of 21981007 is 2.82 +- 0.11 against the thermal 2.878 +- \
-         0.013, the $(_NUBAR)",
+        ComplementReading("data+paper"),
     ),
     "21834009" => Curation(
         "multiplicity",
         "curated: per fragment, though coded without FRG; the REACTION text reads 'average number \
          of neutrons emitted per fragment'. Over 45 pairs (A, A_0 - A), A_0 = 236, nu(A) - nu(A_0 \
          - A) changes sign along the sawtooth, with chi2 per pair 28 against zero; the pair sum \
-         weighted with the yield of 21981006 is 2.498 +- 0.023 against 2.484, nubar at 0.5 MeV in \
-         ENDF/B-VIII.0 (doi:10.1016/j.nds.2018.02.001). Table VIII of KfK-3220 (1981, \
-         doi:10.5445/IR/270016605) gives 'the average number of neutrons emitted per fragment', \
-         negative values included",
+         weighted with the yield of 21834002, the same measurement at the same energy, is 2.484 +- \
+         0.023 against 2.484, nubar at 0.5 MeV in ENDF/B-VIII.0 (doi:10.1016/j.nds.2018.02.001), \
+         taken without an uncertainty. Table VIII of KfK-3220 (1981, doi:10.5445/IR/270016605) \
+         gives 'the average number of neutrons emitted per fragment', negative values included",
+        ComplementReading("data+paper", PairSum(0.0, 0.0091, "21834002", true)),
     ),
     "21834010" => Curation(
         "multiplicity",
         "curated: per fragment, though coded without FRG; the REACTION text reads 'average number \
          of neutrons emitted per fragment'. Over 45 pairs (A, A_0 - A), A_0 = 236, nu(A) - nu(A_0 \
          - A) changes sign along the sawtooth, with chi2 per pair 14 against zero; the pair sum \
-         weighted with the yield of 21981006 is 3.240 +- 0.047 against 3.141, nubar at 5.55 MeV in \
-         ENDF/B-VIII.0 (doi:10.1016/j.nds.2018.02.001). Table VIII of KfK-3220 (1981, \
+         weighted with the yield of 21834003, the same measurement at the same energy, is 3.256 +- \
+         0.046 against 3.141, nubar at 5.55 MeV in ENDF/B-VIII.0 (doi:10.1016/j.nds.2018.02.001), \
+         taken without an uncertainty, 3.7 % above it. Table VIII of KfK-3220 (1981, \
          doi:10.5445/IR/270016605) gives 'the average number of neutrons emitted per fragment', \
          negative values included",
+        ComplementReading("data+paper", PairSum(0.0366, 0.0145, "21834003", true)),
+    ),
+    # Per fragment, coded without FRG, by the data alone; the publication was not consulted.
+    "41689004" => Curation(
+        "multiplicity",
+        "curated: per fragment, though coded without FRG, by the data alone; the publication, \
+         Yad. Fiz. 25, 723 (1977), 'Number and spectra of neutrons for fixed fragments', Fig. 2, \
+         was not consulted. Over 9 pairs (A, A_0 - A) of its 4-u grid, A_0 = 252, nu(A) - nu(A_0 - \
+         A) changes sign along the sawtooth and reaches 2.43, a median 7 times its uncertainty, \
+         chi2 per pair 45 against zero; the pair sum weighted with the yield of 23268003, the \
+         252-Cf fallback, the entry having no Y(A), is 3.95 +- 0.07 against 3.764 +- 0.016, the \
+         $(_NUBAR), 4.8 % above it",
+        ComplementReading("data", PairSum(0.0480, 0.0192, "23268003", false)),
+    ),
+    "41502005" => Curation(
+        "multiplicity",
+        "curated: per fragment, though coded without FRG, by the data alone; the publication, AIP \
+         Conf. Proc. 769, 1003 (2005, doi:10.1063/1.1945175), was not consulted. Over 10 pairs \
+         (A, A_0 - A) of its 4-u grid, A_0 = 236, nu(A) - nu(A_0 - A) changes sign along the \
+         sawtooth and reaches 2.72, a median 7 times its uncertainty, chi2 per pair 105 against \
+         zero; the pair sum weighted with the yield of 21981006, the 235-U fallback, the entry \
+         having no Y(A), is 2.469 +- 0.034 against 2.425 +- 0.011, the $(_NUBAR), 1.8 % above it",
+        ComplementReading("data", PairSum(0.0182, 0.0148, "21981006", false)),
+    ),
+    "41502007" => Curation(
+        "multiplicity",
+        "curated: per fragment, though coded without FRG, by the data alone; the publication, AIP \
+         Conf. Proc. 769, 1003 (2005, doi:10.1063/1.1945175), was not consulted. In the 0.296 eV \
+         resonance, over 9 pairs (A, A_0 - A) of its 4-u grid, A_0 = 240, nu(A) - nu(A_0 - A) \
+         changes sign along the sawtooth and reaches 2.74, chi2 per pair 14 against zero; the pair \
+         sum weighted with the yield of 21981007, the 239-Pu fallback, the entry having no Y(A), \
+         is 2.82 +- 0.10 against the thermal 2.878 +- 0.013, the $(_NUBAR), 2.0 % below it",
+        ComplementReading("data", PairSum(-0.0201, 0.0367, "21981007", false)),
     ),
     "41712005" => Curation(
-        nothing,
-        "curated: not read: the test reads it per fragment, but the publication, Yad. Fiz. 48, \
-         1635 (1988), 'Multiplicity distributions of neutrons from individual fragments', could \
-         not be consulted to confirm it. It holds two mass groups, 108 to 126 and 126 to 145, A_0 \
-         = 252; read at the mean TKE of 41712003, it differs from the per-fragment nu(A) of \
-         41712002 by 0.57 rms and from its pair sum by 2.06. Its 18-u groups would not be placed \
-         on the masses in any case",
-    ),
-    # Per fragment by the shape of the data, but not established by the sum.
-    "22650004" => Curation(
-        nothing,
-        "curated: not read. By its shape it is per fragment, though coded without FRG: over 42 \
-         pairs (A, A_0 - A), A_0 = 240, nu(A) - nu(A_0 - A) changes sign along the sawtooth and \
-         reaches 4.19, a median 5 times its uncertainty. The pair sum does not establish the \
-         normalisation: weighted with the yield of 22650002, the same measurement, it is 2.989 +- \
-         0.011 against 2.878 +- 0.013, the $(_NUBAR), 3.9 % and 6.5 standard deviations above it, \
-         and 2.914 +- 0.010 with the yield of 21981007. The author abstract of Tsuchiya 2000 \
-         (doi:10.1080/18811248.2000.9714976) calls nu(m*) a sawtooth; the article could not be \
-         consulted",
-    ),
-    "41502006" => Curation(
-        nothing,
-        "curated: not read. By its shape it is per fragment, though coded without FRG: over 9 \
-         pairs (A, A_0 - A) of its 4-u grid, A_0 = 240, nu(A) - nu(A_0 - A) changes sign along the \
-         sawtooth and reaches 3.41, a median 7 times its uncertainty. The pair sum does not \
-         establish the normalisation: weighted with the yield of 21981007 it is 2.570 +- 0.036 \
-         against 2.878 +- 0.013, the $(_NUBAR), 10.7 % below it, while 41502007 of the same \
-         measurement in the 0.296 eV resonance gives 2.82 +- 0.11. The publication, AIP Conf. \
-         Proc. 769, 1003 (2005, doi:10.1063/1.1945175), could not be consulted",
+        "multiplicity",
+        "curated: per fragment, though coded without FRG, by the data alone; the publication, Yad. \
+         Fiz. 48, 1635 (1988), 'Multiplicity distributions of neutrons from individual \
+         fragments', was not consulted. It holds two mass groups against TKE, 108 to 126 and 126 \
+         to 145, A_0 = 252, and so no pair; read at the mean TKE of 41712003, it differs from the \
+         per-fragment nu(A) of 41712002 by 0.57 rms and from its pair sum by 2.06",
+        ComplementReading("data"),
     ),
     "14652004" => Curation(
-        nothing,
-        "curated: not read. By its shape it is per fragment, though coded without FRG: the entry \
-         deduces it from the difference of double-energy and double-velocity mass distributions, \
-         and over 16 pairs (A, A_0 - A), A_0 = 252, nu(A) - nu(A_0 - A) changes sign along the \
-         sawtooth and reaches 2.96. The pair sum weighted with the yield of 23268003 is 3.738 \
-         against 3.764 +- 0.016, the $(_NUBAR), but no uncertainty is tabulated, so the agreement \
-         cannot be weighed; the publication, Phys. Rev. 133, B603 (1964, \
-         doi:10.1103/PhysRev.133.B603), could not be consulted",
+        "multiplicity",
+        "curated: per fragment, though coded without FRG, by the data alone; the publication, \
+         Phys. Rev. 133, B603 (1964, doi:10.1103/PhysRev.133.B603), was not consulted. The entry \
+         deduces it from the difference of double-energy and double-velocity mass distributions. \
+         Over 16 pairs (A, A_0 - A), A_0 = 252, nu(A) - nu(A_0 - A) reaches 2.96 and changes sign \
+         once along the sawtooth, negative at the 9 lightest masses and positive at the 7 \
+         heaviest. No uncertainty is tabulated; noise about zero would order 16 signs into two \
+         runs with a probability of 1.7e-4. The pair sum weighted with the yield of 23268003, the \
+         252-Cf fallback, the entry's own Y(A) being post-neutron, is 3.738 against 3.764 +- \
+         0.016, the $(_NUBAR), 0.7 % below it, with no uncertainty to weigh it by",
+        ComplementReading("data", PairSum(-0.0069, NaN, "23268003", false)),
+    ),
+    # Per fragment, with a pair sum off the scale of nubar.
+    "22650004" => Curation(
+        "multiplicity",
+        "curated: per fragment, though coded without FRG, by the data alone; the article, \
+         Tsuchiya 2000 (doi:10.1080/18811248.2000.9714976), was not consulted, and its abstract \
+         calls nu(m*) a sawtooth. Over 42 pairs (A, A_0 - A), A_0 = 240, nu(A) - nu(A_0 - A) \
+         changes sign along the sawtooth and reaches 4.19, a median 5 times its uncertainty, chi2 \
+         per pair 105 against zero. Its scale is not that of nubar: the pair sum weighted with \
+         the yield of 22650002, the same measurement, is 2.989 +- 0.011 against 2.878 +- 0.013, \
+         the $(_NUBAR), 3.9 % and 6.3 standard deviations above it, and 2.914 +- 0.010 with the \
+         yield of 21981007",
+        ComplementReading("data", PairSum(0.0387, 0.0061, "22650002", true)),
+    ),
+    "41502006" => Curation(
+        "multiplicity",
+        "curated: per fragment, though coded without FRG, by the data alone; the publication, AIP \
+         Conf. Proc. 769, 1003 (2005, doi:10.1063/1.1945175), was not consulted. Over 9 pairs \
+         (A, A_0 - A) of its 4-u grid, A_0 = 240, nu(A) - nu(A_0 - A) changes sign along the \
+         sawtooth and reaches 3.41, a median 7 times its uncertainty, chi2 per pair 74 against \
+         zero. Its scale is not that of nubar: the pair sum weighted with the yield of 21981007, \
+         the 239-Pu fallback, the entry having no Y(A), is 2.570 +- 0.036 against 2.878 +- 0.013, \
+         the $(_NUBAR), 10.7 % and 8.1 standard deviations below it, while 41502007 of the same \
+         measurement in the 0.296 eV resonance gives 2.82 +- 0.10",
+        ComplementReading("data", PairSum(-0.1071, 0.0133, "21981007", false)),
     ),
     # Per fission, as coded.
     "22660006" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded. nu(A) = nu(A_0 - A) at all 42 pairs (A, A_0 - A), A_0 = \
          234, and nu(A) is the pair sum of the per-fragment 22660005 of the same entry at all 85 \
-         masses",
+         masses; the pair sum weighted with the yield of 21981005, the 233-U fallback, the entry \
+         having no Y(A), is 5.029 +- 0.006, 1.1 % above twice 2.487 +- 0.011, the $(_NUBAR)",
+        ComplementReading("data", PairSum(0.0110, 0.0046, "21981005", false)),
     ),
     "23213012" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded, against the light-fragment mass. It is the pair sum \
          nu_FRG(A) + nu_FRG(A_0 - A) of the per-fragment 23213014 of the same entry, A_0 = 252, to \
          0.038 rms over 23 masses, and differs from nu_FRG(A) by 1.99 rms",
+        ComplementReading("data"),
     ),
     "41720003" => Curation(
         "multiplicity_per_fission",
@@ -221,24 +325,28 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          A = 130.6 where one heavy fragment emits 0.8, and from its pair sum by 0.83 rms, the \
          difference lying near symmetry; weighted with the yield of 23268003 it is 3.70 against \
          3.764 +- 0.016, the $(_NUBAR)",
+        ComplementReading("data"),
     ),
     "23012007" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded, against the heavy-fragment mass. It is the pair sum \
          nu_FRG(A) + nu_FRG(A_0 - A) of the per-fragment 23012008 of the same entry, A_0 = 240, to \
          0.012 rms over 29 masses, and differs from nu_FRG(A) by 1.63 rms",
+        ComplementReading("data"),
     ),
     "41397003" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded, against the heavy-fragment mass. It is the pair sum \
          nu_FRG(A) + nu_FRG(A_0 - A) of the per-fragment 41397002 of the same entry, A_0 = 240, to \
          0.016 rms over 26 masses, and differs from nu_FRG(A) by 1.76 rms",
+        ComplementReading("data"),
     ),
     "41694004" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded, against the heavy-fragment mass. Against the per-fragment \
          41694003 of the same entry, A_0 = 240, chi2 per mass is 1.3 as the pair sum nu_FRG(A) + \
          nu_FRG(A_0 - A) and 33 as nu_FRG(A), over 30 masses",
+        ComplementReading("data"),
     ),
     "41720005" => Curation(
         "multiplicity_per_fission",
@@ -247,12 +355,14 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          A = 130.3 where one heavy fragment emits 0.4, and from its pair sum by 0.86 rms, the \
          difference lying near symmetry; weighted with the yield of 21981007 it is 3.09 against \
          2.878 +- 0.013, the $(_NUBAR)",
+        ComplementReading("data"),
     ),
     "41397006" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded, against the heavy-fragment mass. It is the pair sum \
          nu_FRG(A) + nu_FRG(A_0 - A) of the per-fragment 41397004 of the same entry, A_0 = 234, to \
          0.033 rms over 25 masses, chi2 per mass 0.02, against 131 as nu_FRG(A)",
+        ComplementReading("data"),
     ),
     "21095003" => Curation(
         "multiplicity_per_fission",
@@ -260,6 +370,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          a function of the mass of the heavy fragment'. It is the pair sum of the per-fragment \
          21095002 and 21095004 of the same entry, A_0 = 236, to 0.018 rms over 11 masses, against \
          1.00 rms as nu_FRG(A)",
+        ComplementReading("data"),
     ),
     "21095005" => Curation(
         "multiplicity_per_fission",
@@ -267,24 +378,28 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          function of the heavy fragment mass'. It is the pair sum of the per-fragment 21095002 and \
          21095004 of the same entry, A_0 = 236, to within rounding over 11 masses, against 1.66 \
          rms as nu_FRG(A)",
+        ComplementReading("data"),
     ),
     "22464005" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded, against the heavy-fragment mass. It is the pair sum of \
          the per-fragment 22464004 of the same entry, A_0 = 236, to within rounding over 29 \
          masses, against 1.48 rms as nu_FRG(A)",
+        ComplementReading("data"),
     ),
     "41397007" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded, against the heavy-fragment mass. It is the pair sum \
          nu_FRG(A) + nu_FRG(A_0 - A) of the per-fragment 41397005 of the same entry, A_0 = 236, to \
          0.13 rms over 30 masses, chi2 per mass 0.18, against 65 as nu_FRG(A)",
+        ComplementReading("data"),
     ),
     "41516013" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded, against the heavy-fragment mass. It is the pair sum \
          nu_FRG(A) + nu_FRG(A_0 - A) of the per-fragment 41516012 of the same entry, A_0 = 236, to \
          0.022 rms over 49 masses, chi2 per mass 0.13, against 771 as nu_FRG(A)",
+        ComplementReading("data"),
     ),
     "23268007" => Curation(
         "multiplicity_per_fission",
@@ -294,6 +409,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          252, with chi2 per cell 0.02 over 1092 cells, against 217 as nu_FRG(A, TKE); Figs. 13 and \
          14 of Goeoek 2014 (doi:10.1103/PhysRevC.90.064611) plot it as 'the average total neutron \
          multiplicity of the pair of fragments'",
+        ComplementReading("data+paper"),
     ),
     "22660009" => Curation(
         "multiplicity_per_fission",
@@ -301,12 +417,14 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          versus fragment mass for specific 5 MeV TKE bins', against the heavy-fragment mass. At \
          equal TKE it is the pair sum of the per-fragment 22660008 of the same entry, A_0 = 234, \
          to within rounding over 150 cells, against 2.04 rms as nu_FRG(A, TKE)",
+        ComplementReading("data"),
     ),
     "22464009" => Curation(
         "multiplicity_per_fission",
         "curated: per fission, as coded, against the heavy-fragment mass. At equal TKE it is the \
          pair sum of the per-fragment 22464007 of the same entry, A_0 = 236, to within rounding \
          over 134 cells, against 1.80 rms as nu_FRG(A, TKE)",
+        ComplementReading("data"),
     ),
     "14838002" => Curation(
         "multiplicity_per_fission",
@@ -315,6 +433,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          23268008 (Goeoek 2014) at equal TKE, chi2 per cell is 29 as the pair sum and 851 as one \
          fragment over 180 cells; read at the mean TKE of 23268004, it differs from the pair sum \
          of the per-fragment 23268005 by 0.17 rms and from nu(A) by 1.92",
+        ComplementReading("data"),
     ),
     # Undecided.
     "23118007" => Curation(

@@ -154,57 +154,85 @@ excluded correctly and unhelpfully unless it is read from its data.
 multiplicity of the fragment pair tabulated against one fragment's mass. The archive codes
 per-fragment data the second way too, so every dataset coded `MASS,PR,NU` that a ν(A) or
 ν(A, TKE) retrieval meets is read from its data by a complement test, A₀ being the mass of the
-fissioning nucleus:
+fissioning nucleus. The data alone decide the reading; its scale is recorded beside it and decides
+nothing; a publication, where consulted, corroborates it.
 
-- **Per fragment:** D = ν(A) − ν(A₀ − A) changes sign along the sawtooth, beyond its
-  uncertainties, and the pair sum S = ν(A) + ν(A₀ − A), weighted with the light-fragment yield,
-  agrees with ν̄ within three standard deviations. S is the pair multiplicity of that mass split
-  and varies with it, for 252-Cf from about 3.2 to 4.6, so only its yield-weighted mean is ν̄,
-  never each S. ν̄ is the total average neutron yield of the IAEA neutron data standards 2017
-  ([doi:10.1016/j.nds.2018.02.002](https://doi.org/10.1016/j.nds.2018.02.002), Table 11), or of
-  ENDF/B-VIII.0 at a fast incident energy; its delayed part, below 0.7 %, the test does not
-  resolve. The yield is that of the same measurement where its entry has one.
-- **Per fission:** D = 0. A dataset tabulated on one side of symmetry holds no pair, and is
-  compared instead with a per-fragment dataset of its own entry: per fission it equals that
-  dataset's pair sum ν_FRG(A) + ν_FRG(A₀ − A), per fragment ν_FRG(A).
-- **Against mass and TKE:** D is formed at equal TKE. The pair sum at fixed TKE is not ν̄, so
-  the sum is tested through the dataset's own entry: ν being close to linear in TKE, its mean over
-  the TKE distribution at fixed mass is its value at the mean TKE, which must reproduce the
-  per-fragment ν(A).
+**Reading.** A dataset has both halves when its pairs (A, A₀ − A) span at least 90 % of the
+light-fragment yield. For such a dataset D = ν(A) − ν(A₀ − A), and S is the pair sum
+ν(A) + ν(A₀ − A) weighted with the light-fragment yield:
 
-A complement is taken at a tabulated mass, or interpolated linearly across at most 4 u. A dataset
-is read per fragment only when the test is unambiguous and its publication, consulted, agrees;
-one per fragment by its shape whose sum misses ν̄, or whose publication could not be consulted,
-is refused under both readings. Every reading carries its test values as `curation` in the run
+- **Per fragment:** |S/ν̄ − 1| ≤ 0.25, and D = 0 is rejected: D changes sign along the sawtooth,
+  with a χ² per pair beyond 1 + 3√(2/n) over the n pairs that state an uncertainty. A dataset
+  that states none is tested on the signs of D instead: noise about zero would order them into
+  so few runs with a probability below 0.27 %, the same three standard deviations.
+- **Per fission:** |S/ν̄ − 2| ≤ 0.5, and D = 0 holds.
+
+Each band is a quarter of the distance between the two readings, so the reading never hinges on
+the scale. S is the pair multiplicity of each mass split and varies with it, for 252-Cf from about
+3.2 to 4.6, so only its yield-weighted mean over pairs covering the yield is ν̄. ν̄ is the total
+average neutron yield of the IAEA neutron data standards 2017
+([doi:10.1016/j.nds.2018.02.002](https://doi.org/10.1016/j.nds.2018.02.002), Table 11), or of
+ENDF/B-VIII.0 ([doi:10.1016/j.nds.2018.02.001](https://doi.org/10.1016/j.nds.2018.02.001)) at a
+fast incident energy; its delayed part, below 0.7 %, the test does not resolve.
+
+A dataset tabulated on one side of symmetry holds no pair, and is compared with a per-fragment
+dataset of its own entry instead: per fragment it equals ν_FRG(A), per fission the pair sum
+ν_FRG(A) + ν_FRG(A₀ − A), and one reading must fit at least twice as well as the other, by χ²
+where uncertainties are stated, else by rms. Against mass and TKE, D is formed at equal TKE. The
+pair sum at fixed TKE is not ν̄, so the dataset is read at the mean TKE of its entry, ν being close
+to linear in TKE, and compared in the same way with a one-dimensional per-fragment ν(A), or cell
+by cell with the joint per-fragment ν(A, TKE) of another experiment. Where several comparisons
+apply they must agree. Anything else is undecided, and refused under both readings. A complement
+is taken at a tabulated mass, or interpolated linearly across at most 4 u.
+
+**Scale.** For a dataset with both halves the run record carries `pair_sum_deviation`,
+S/(kν̄) − 1 with k = 1 per fragment and 2 per fission; `pair_sum_deviation_uncertainty`, from the
+uncertainties of S and ν̄; and `pair_sum_yields`, the Y(A) that S is weighted with. That is the
+experiment's own where its entry has a pre-neutron Y(A) (`pair_sum_yields_own = true`), else the
+fallback for the system: `23268003` (Göök 2014) for 252-Cf, `21981005`, `21981006` and
+`21981007` (Geltenbort 1985) for 233-U, 235-U and 239-Pu. `scale_consistent` is false where the
+deviation exceeds three standard deviations, and absent where the dataset states no uncertainty.
+A dataset whose scale is not that of ν̄ is accepted on its reading, its values uncorrected, and
+named in `pair_sum_warning`.
+
+**Basis.** `classification_basis` is `data` where the data alone decide and `data+paper` where
+the publication, consulted, agrees. Every reading carries its test values as `curation` in the run
 record, or as the reason it was refused (`MULTIPLICITY_READINGS` in `src/curation.jl`).
 
 Read per fragment, and accepted where the configuration's incident-energy window admits them:
 
-| Subentry | Complement test | Publication |
-| :--- | :--- | :--- |
-| `23268005` (Göök 2014) | 50 pairs; S weighted 3.763 ± 0.003, ν̄ 3.764 ± 0.016 | Fig. 10, [doi:10.1103/PhysRevC.90.064611](https://doi.org/10.1103/PhysRevC.90.064611) |
-| `23118006` (Zeynalov 2011) | 46 pairs; 3.773 ± 0.022 | Fig. 5, [doi:10.3938/jkps.59.1396](https://doi.org/10.3938/jkps.59.1396) |
-| `23175008` (Budtz-Jørgensen 1988) | 53 pairs; 3.69 ± 0.19 | Fig. 11 of INDC(NDS)-220, the same contribution as [doi:10.1016/0375-9474(88)90508-8](https://doi.org/10.1016/0375-9474(88)90508-8) |
-| `23175010` (Budtz-Jørgensen 1988), ν(A, TKE) | D at equal TKE, χ² per pair 16; at the mean TKE 0.46 from `23175008`, 2.03 from its pair sum | Fig. 13 of INDC(NDS)-220 |
-| `21834009`, `21834010` (Müller 1981), 235-U at 0.5 and 5.55 MeV | 45 pairs; 2.498 ± 0.023 and 3.240 ± 0.047 against 2.484 and 3.141 | Table VIII of KfK-3220, [doi:10.5445/IR/270016605](https://doi.org/10.5445/IR/270016605) |
+| Subentry | Complement test | S/ν̄ − 1, yields | Basis |
+| :--- | :--- | :--- | :--- |
+| `23268005` (Göök 2014) | 50 pairs; χ² per pair 2553 | −0.0004 ± 0.0043, own | `data+paper`: Fig. 10, [doi:10.1103/PhysRevC.90.064611](https://doi.org/10.1103/PhysRevC.90.064611) |
+| `23118006` (Zeynalov 2011) | 46 pairs; χ² per pair 186 | +0.0023 ± 0.0072, own | `data+paper`: Fig. 5, [doi:10.3938/jkps.59.1396](https://doi.org/10.3938/jkps.59.1396) |
+| `23175008` (Budtz-Jørgensen 1988) | 53 pairs; χ² per pair 37 | −0.020 ± 0.050, own | `data+paper`: Fig. 11 of INDC(NDS)-220, the same contribution as [doi:10.1016/0375-9474(88)90508-8](https://doi.org/10.1016/0375-9474(88)90508-8) |
+| `23175010` (Budtz-Jørgensen 1988), ν(A, TKE) | D at equal TKE, χ² per pair 16; at the mean TKE 0.46 rms from `23175008`, 2.03 from its pair sum | — | `data+paper`: Fig. 13 of INDC(NDS)-220 |
+| `21834009`, `21834010` (Müller 1981), 235-U at 0.5 and 5.55 MeV | 45 pairs each; χ² per pair 28 and 14 | +0.000 ± 0.009 and +0.037 ± 0.015, own at the same energy | `data+paper`: Table VIII of KfK-3220, [doi:10.5445/IR/270016605](https://doi.org/10.5445/IR/270016605) |
+| `41689004` (Piksaykin 1977) | 9 pairs; χ² per pair 45 | +0.048 ± 0.019, fallback | `data` |
+| `41502005` (Batenkov 2005), 235-U | 10 pairs; χ² per pair 105 | +0.018 ± 0.015, fallback | `data` |
+| `41502007` (Batenkov 2005), 239-Pu at 0.296 eV | 9 pairs; χ² per pair 14 | −0.020 ± 0.037, fallback | `data` |
+| `41712005` (Alkhazov 1988), ν(A, TKE) | two mass groups; at the mean TKE 0.57 rms from `41712002`, 2.06 from its pair sum | — | `data` |
+| `14652004` (Britt 1964) | 16 pairs, no uncertainty; one change of sign, 1.7 × 10⁻⁴ as noise | −0.007, fallback; not weighed | `data` |
+| `22650004` (Tsuchiya 2000) | 42 pairs; χ² per pair 105 | +0.039 ± 0.006, own; **not consistent** | `data` |
+| `41502006` (Batenkov 2005) | 9 pairs; χ² per pair 74 | −0.107 ± 0.013, fallback; **not consistent** | `data` |
+
+No shipped configuration writes `21834009` and `21834010`, at fast energies; `41502007`, in the
+resonance, outside the thermal window of `Pu239_nth`; or `41712005`, whose 18-u mass groups are
+not placed on the masses.
 
 Refused under both readings:
 
 | Subentry | Why |
 | :--- | :--- |
-| `22650004` (Tsuchiya 2000) | per fragment by its shape; S weighted with its own yield 2.989 ± 0.011 against ν̄ 2.878 ± 0.013, 3.9 % above |
-| `41502006` (Batenkov 2005) | per fragment by its shape; S 2.570 ± 0.036 against 2.878, 10.7 % below |
-| `41502005`, `41502007` (Batenkov 2005) | the test reads them per fragment; the publication could not be consulted |
-| `41689004` (Piksaykin 1977), `41712005` (Alkhazov 1988) | the same; `41712005` holds 18-u mass groups besides |
-| `14652004` (Britt 1964) | per fragment by its shape, but with no uncertainty to weigh S by |
-| `23118007` (Zeynalov 2011), ν(A, TKE) | undecided: near-symmetric bins alone, between the two readings at the mean TKE |
+| `23118007` (Zeynalov 2011), ν(A, TKE) | undecided: near-symmetric bins alone; at the mean TKE between the two readings, so the comparisons disagree |
 | `14387005`, `41673002`, `41674002`, `41674003` | tabulated against the mass ratio, not a fragment mass |
 
 The remaining seventeen are per fission, as coded, and stay with
-`ordinate = "multiplicity_per_fission"`: `22660006`, where D = 0 at every pair, and sixteen on one
-side of symmetry that equal the pair sum of a per-fragment dataset of their entry, the joint
-`23268007` (Göök 2014) among them, which the paper's Figs. 13 and 14 plot as "the average total
-neutron multiplicity of the pair of fragments". Beyond `A ≈ 180`, `23268005` reports values from
+`ordinate = "multiplicity_per_fission"`: `22660006`, where D = 0 at every pair and S/(2ν̄) − 1
+is +0.011 ± 0.005 on the fallback yields, and sixteen on one side of symmetry that equal the pair
+sum of a per-fragment dataset of their entry, the joint `23268007` (Göök 2014) among them, which
+the paper's Figs. 13 and 14 plot as "the average total neutron multiplicity of the pair of
+fragments", its basis `data+paper`. Beyond `A ≈ 180`, `23268005` reports values from
 11 to 104 with uncertainties as large: the complement there is `A ≲ 70`, the yield vanishes and
 the extraction diverges. They are written unchanged, since nothing is dropped on the basis of its
 value.

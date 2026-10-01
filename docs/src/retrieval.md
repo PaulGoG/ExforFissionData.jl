@@ -52,7 +52,7 @@ the machine as well, which is useful when the records stay yours.
 | `[datasets]` | `accepted`, `rejected`, `relative` | counts |
 | | `retrieved_earliest_utc`, `retrieved_latest_utc` | the span of the dataset retrieval dates |
 | | `units_present` | every unit token among the accepted datasets |
-| | `units_warning`, `relative_warning`, `scale_warning`, `combined_warning`, `correlated_warning` | present only when they apply, each naming the datasets concerned |
+| | `units_warning`, `relative_warning`, `scale_warning`, `pair_sum_warning`, `combined_warning`, `correlated_warning` | present only when they apply, each naming the datasets concerned |
 | `[[accepted]]` | `identifier`, `author`, `year`, `file` | the dataset and the file it was written to, relative to the retrieval directory |
 | | `reaction_code`, `qualifiers` | the code the archive returned and the qualifiers recorded from it |
 | | `unit`, `unit_reported`, `unit_written`, `ordinate_factor` | the archive's unit token, the token the file is written in, and the factor between them |
@@ -72,6 +72,10 @@ the machine as well, which is useful when the records stay yours.
 | | `uncertainty_zero_rows`, `uncertainty_absent_rows` | the lines stating a zero uncertainty, written as zero, and those stating none, written `NaN` wherever the column is written |
 | | `curation`, `archive_defects` | for a dataset read from its subentry text, the evidence; and the compilation defects whose lines were left out |
 | | `tke_grid_inference`, `mass_marginal` | further statements of a curated reading, such as the TKE grid and the mass marginal of 23268002 |
+| | `classification_basis` | for a multiplicity against mass coded without `FRG`: `data` where the complement test alone decides its reading, `data+paper` where the publication, consulted, agrees |
+| | `pair_sum_deviation`, `pair_sum_deviation_uncertainty` | for such a multiplicity tabulated on both sides of symmetry: S/(kν̄) − 1, the pair sum weighted with the light-fragment yield against ν̄ (k = 1 per fragment, 2 per fission), and its standard deviation, absent where the dataset states no uncertainty |
+| | `pair_sum_yields`, `pair_sum_yields_own` | the Y(A) the pair sum is weighted with, and whether it is of the same experiment rather than the fallback for the system |
+| | `scale_consistent` | whether `pair_sum_deviation` lies within three standard deviations of zero; recorded only, never a reason to refuse, and absent where no uncertainty is stated |
 | | `mass_range` | the smallest and largest mass written |
 | | `width_column`, `width_unit`, `width_holds`, `width_of`, `width_is`, `width_conversion` | for σ_TKE: the column and its unit, what it holds and whose energy, what the written width is, and how it was converted |
 | | `width_note`, `width_rows_excluded`, `misc_columns` | for σ_TKE: evidence beyond the configuration's reading, widths not written with the reason, and every `MISC-COL` definition of the subentry quoted |

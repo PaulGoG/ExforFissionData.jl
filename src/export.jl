@@ -133,14 +133,16 @@ function _revision()
 end
 
 # What src/curation.jl records of one dataset, for its entry in the run record: the curated
-# reading, the compilation defects left out, and the runs of the same experiment. Empty for a
-# dataset it records nothing of.
+# reading with its basis and scale, the compilation defects left out, and the runs of the same
+# experiment. Empty for a dataset it records nothing of.
 function _curation_record(identifier::AbstractString)
     record = Dict{String, Any}()
     curation = get(CURATED_DATASETS, identifier, nothing)
     if curation !== nothing
         record["curation"] = curation.reason
         merge!(record, curation.notes)
+        curation.complement === nothing ||
+            merge!(record, _complement_record(curation.complement))
     end
     defects = get(ARCHIVE_DEFECTS, identifier, nothing)
     defects === nothing || (record["archive_defects"] = [d.description for d in defects])
@@ -148,6 +150,24 @@ function _curation_record(identifier::AbstractString)
     if group !== nothing
         record["correlated_with"] = filter(!=(identifier), group.members)
         record["correlation"] = group.reason
+    end
+    return record
+end
+
+# The basis of a complement-test reading and, where the pair sum is formed, its scale. The
+# uncertainty and `scale_consistent` are left out where the dataset states no uncertainty: TOML
+# would carry a NaN, and an absent key cannot be mistaken for a value.
+function _complement_record(complement::ComplementReading)
+    record = Dict{String, Any}("classification_basis" => complement.basis)
+    pair_sum = complement.pair_sum
+    pair_sum === nothing && return record
+    record["pair_sum_deviation"] = pair_sum.deviation
+    record["pair_sum_yields"] = pair_sum.yields
+    record["pair_sum_yields_own"] = pair_sum.own_yields
+    consistent = scale_consistent(pair_sum)
+    if consistent !== nothing
+        record["pair_sum_deviation_uncertainty"] = pair_sum.uncertainty
+        record["scale_consistent"] = consistent
     end
     return record
 end
@@ -162,7 +182,10 @@ excluded, with the reason.
 The rejection list is the point of this file. A dataset missing from the output is otherwise
 indistinguishable from one the archive does not hold. An accepted dataset carries the evidence
 for a curated reading as `curation`, the compilation defects left out of it as `archive_defects`,
-and the other runs of its experiment as `correlated_with`; see src/curation.jl. The record of a
+and the other runs of its experiment as `correlated_with`; see src/curation.jl. A multiplicity
+read by the complement test carries `classification_basis` and, where its pair sum is formed,
+`pair_sum_deviation` with its uncertainty, the yields it was weighted with, and
+`scale_consistent`; see [`ComplementReading`](@ref). The record of a
 joint yield Y(A, TKE) lists the slices of the distribution the archive holds for the system,
 [`SLICE_DATASETS`](@ref), as `slices`.
 
@@ -253,6 +276,17 @@ function write_metadata(
             keys(SCALE_QUALIFIERS),
         )
     ]
+    off_scale = [
+        entry.dataset.identifier for entry in accepted if
+        get(_curation_record(entry.dataset.identifier), "scale_consistent", true) == false
+    ]
+    if !isempty(off_scale)
+        record["datasets"]["pair_sum_warning"] =
+            "the pair sum of these datasets, weighted with the light-fragment yield, misses \
+             nubar by more than $(PAIR_SUM_TOLERANCE_SIGMAS) standard deviations; their reading \
+             stands, their scale is not that of nubar and is not corrected, and \
+             `pair_sum_deviation` on each gives it: " * join(off_scale, ", ")
+    end
     if !isempty(flagged)
         record["datasets"]["scale_warning"] =
             "these datasets carry a reaction-code qualifier that bears on their scale — see \

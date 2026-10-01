@@ -6,6 +6,34 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Prompt multiplicities against mass coded without `FRG` are classified by their data alone, and
+  the scale of the reading is recorded rather than required. A dataset tabulated on both sides of
+  symmetry is read per fragment when its pair sum S, weighted with the light-fragment yield, lies
+  within 25 % of ν̄ and ν(A) = ν(A₀ − A) is rejected, and per fission when S lies within 25 % of
+  2ν̄ and the equality holds. A consulted publication corroborates a reading but no longer
+  decides it. Five datasets refused by 0.2.1 are accepted: `14652004` (Britt 1964) and
+  `41689004` (Piksaykin 1977) for 252-Cf, `22650004` (Tsuchiya 2000) and `41502006` (Batenkov
+  2005) for 239-Pu, and `41502005` (Batenkov 2005) for 235-U. Accepted ν(A) sets rise from 13 to
+  15 for 252-Cf, from 5 to 7 for 239-Pu and from 10 to 11 for thermal 235-U; 233-U, 235-U in the
+  resonance region and every ν(A, TKE) are unchanged. `41502007` and `41712005` are read per
+  fragment too, but lie in the 0.296 eV resonance and in 18-u mass groups, and are not written.
+  `23118007` (Zeynalov 2011) remains undecided, and the four sets against the mass ratio refused.
+- The pair sums of `21834009` and `21834010` (Müller 1981) are weighted with the yields of the
+  same measurement at the same incident energy, `21834002` and `21834003`, rather than the
+  thermal yields of Geltenbort 1985.
+
+### Added
+
+- The run record of each multiplicity read by the complement test carries
+  `classification_basis`, `data` or `data+paper`, and, for a dataset tabulated on both sides of
+  symmetry, `pair_sum_deviation` with its uncertainty, the yields it was weighted with
+  (`pair_sum_yields`, `pair_sum_yields_own`) and `scale_consistent`, false beyond three standard
+  deviations and absent where no uncertainty is stated. `pair_sum_warning` names the accepted
+  datasets whose scale is not that of ν̄, `22650004` at +3.9 ± 0.6 % and `41502006` at
+  −10.7 ± 1.3 %; their values are written uncorrected.
+
 ## [0.2.1] - 2026-10-01
 
 Two corrections to what 0.2.0 writes. A missing uncertainty is written `NaN` rather than 0, and

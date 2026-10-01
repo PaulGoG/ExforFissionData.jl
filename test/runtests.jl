@@ -1855,11 +1855,45 @@ include("fixtures.jl")
         @test occursin("23213014", refused.reason)
         @test select_dataset("23213012", mehta..., pair) isa Dataset
 
-        # 14652004 (Britt 1964): per fragment by its shape, but with no uncertainty to weigh the
-        # pair sum by; refused under both readings.
+        # 14652004 (Britt 1964): per fragment by the data alone, with no uncertainty to weigh the
+        # pair sum by, so its scale is recorded without a verdict.
         britt = multiplicity("14652004", sawtooth)
-        @test select_dataset("14652004", britt..., nu) isa Rejection
+        @test select_dataset("14652004", britt..., nu) isa Dataset
         @test select_dataset("14652004", britt..., pair) isa Rejection
+        record = ExforFissionData._curation_record("14652004")
+        @test record["classification_basis"] == "data"
+        @test isapprox(record["pair_sum_deviation"], -0.007; atol = 0.001)
+        @test !haskey(record, "scale_consistent")
+        @test !haskey(record, "pair_sum_deviation_uncertainty")
+
+        # 22650004 (Tsuchiya 2000): per fragment by the data, with a pair sum 3.9 % above nubar
+        # on its own yields. The scale is recorded and flagged; it does not refuse the dataset.
+        pu(ordinate) = test_query(; target_Z = 94, target_A = 239, ordinate = ordinate)
+        rows = [
+            exfor_row(;
+                dataset_id = "22650004",
+                reaction_code = "94-PU-239(N,F)MASS,PR,NU",
+                value_kind = "Data(PRT/FIS)",
+                product_za = mass,
+                y = value,
+                incident_ev = 0.0253,
+            ) for (mass, value) in sawtooth
+        ]
+        tsuchiya = (exfor_csv(rows), exfor_subentry_for(rows; unit = "PRT/FIS"))
+        @test select_dataset("22650004", tsuchiya..., pu("multiplicity")) isa Dataset
+        @test select_dataset("22650004", tsuchiya..., pu("multiplicity_per_fission")) isa
+              Rejection
+        record = ExforFissionData._curation_record("22650004")
+        @test record["scale_consistent"] == false
+        @test isapprox(record["pair_sum_deviation"], 0.039; atol = 0.001)
+        @test record["pair_sum_deviation_uncertainty"] > 0
+        @test record["pair_sum_yields"] == "22650002"
+        @test record["pair_sum_yields_own"] == true
+        @test record["classification_basis"] == "data"
+        @test ExforFissionData._curation_record("23268005")["scale_consistent"] == true
+        @test ExforFissionData._curation_record("23268005")["classification_basis"] ==
+              "data+paper"
+        @test_throws ArgumentError ExforFissionData.ComplementReading("paper")
 
         # A one-dimensional reading stays out of nu(A, TKE), a joint one out of nu(A).
         joint = cf("multiplicity"; abscissa = ["mass", "total_kinetic_energy"])
@@ -1879,13 +1913,20 @@ include("fixtures.jl")
         refused = select_dataset("404200022", multiplicity("404200022", sawtooth)..., nu)
         @test startswith(refused.reason, "provisional masses")
 
-        # Every reading states its test.
+        # Every reading states its test; a dataset read carries its basis, one refused none, and
+        # a pair sum is formed only by a dataset with both halves, whose reason states it.
         for (identifier, reading) in ExforFissionData.MULTIPLICITY_READINGS
             @test reading.ordinate in ("multiplicity", "multiplicity_per_fission", nothing)
             @test reading.abscissa === nothing
             @test occursin("A_0 = ", reading.reason) ||
                   occursin("MASS-RATIO", reading.reason)
             @test ExforFissionData.CURATED_DATASETS[identifier] === reading
+            @test (reading.ordinate === nothing) == (reading.complement === nothing)
+            reading.complement === nothing && continue
+            pair_sum = reading.complement.pair_sum
+            pair_sum === nothing && continue
+            @test occursin("the yield of $(pair_sum.yields)", reading.reason)
+            @test abs(pair_sum.deviation) < 0.25
         end
     end
 
