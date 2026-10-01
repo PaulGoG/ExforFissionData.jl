@@ -202,6 +202,12 @@ function screen_dataset(
         width = mapped_width(widths, identifier)
         ordinate = width === nothing ? "total_kinetic_energy" : width.of
     end
+    # Provisional masses disqualify a dataset against pre-neutron mass whatever its code says,
+    # so this reason is given first.
+    if "mass" in query.abscissa
+        provisional = provisional_mass(identifier)
+        provisional === nothing || return Rejection(identifier, code, provisional)
+    end
     curation = get(CURATED_DATASETS, String(identifier), nothing)
     reason = something(
         slice_rejection(identifier, query.abscissa, ordinate),
@@ -213,10 +219,6 @@ function screen_dataset(
         Some(nothing),
     )
     reason === nothing || return Rejection(identifier, code, reason)
-    if "mass" in query.abscissa
-        provisional = provisional_mass(identifier)
-        provisional === nothing || return Rejection(identifier, code, provisional)
-    end
     if query.ordinate == WIDTH_ORDINATE && width === nothing
         return Rejection(
             identifier,

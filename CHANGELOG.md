@@ -15,6 +15,30 @@ Notable changes to ExforFissionData.jl. The format follows
   1963). A zero is written only where EXFOR states it, as on two lines of `23764004`. The run
   record counts the lines stating a zero uncertainty, `uncertainty_zero_rows`, and those stating
   none, `uncertainty_absent_rows`, and states the convention beside `absent_uncertainty`.
+- Prompt multiplicities against fragment mass coded without `FRG` are read from their data by a
+  complement test instead of being refused as pair data whatever they hold. A dataset is read per
+  fragment when ν(A) − ν(A₀ − A) changes sign along the sawtooth and the pair sum weighted with
+  the light-fragment yield agrees with ν̄ of the IAEA standards 2017
+  ([doi:10.1016/j.nds.2018.02.002](https://doi.org/10.1016/j.nds.2018.02.002)), and its
+  publication agrees; per fission when ν(A) = ν(A₀ − A) or, on one side of symmetry, when it
+  equals the pair sum of a per-fragment dataset of its entry. Read per fragment and accepted:
+  `23268005` (Göök 2014, [doi:10.1103/PhysRevC.90.064611](https://doi.org/10.1103/PhysRevC.90.064611)),
+  `23118006` (Zeynalov 2011, [doi:10.3938/jkps.59.1396](https://doi.org/10.3938/jkps.59.1396)),
+  `23175008` and, against mass and TKE, `23175010` (Budtz-Jørgensen 1988,
+  [doi:10.1016/0375-9474(88)90508-8](https://doi.org/10.1016/0375-9474(88)90508-8)). Accepted
+  ν(A) sets for 252-Cf rise from 10 to 13 and ν(A, TKE) sets from 7 to 8; 235-U, 239-Pu and 233-U
+  are unchanged. Seventeen datasets are per fission, as coded, among them `23268007`, `22660006`
+  and `41397006`. Refused under both readings, with the test values as the reason: `22650004`
+  (Tsuchiya 2000) and `41502006` (Batenkov 2005), per fragment by their shape but with a pair
+  sum 3.9 % above and 10.7 % below ν̄; `41502005`, `41502007`, `41689004` and `41712005`, whose
+  publications could not be consulted; `14652004` (Britt 1964), which states no uncertainty;
+  `23118007`, which the test does not decide; and four datasets against the mass ratio. The
+  readings, with their test values, are in `src/curation.jl` and in each run record.
+
+### Changed
+
+- An entry whose masses are provisional is refused for that reason before its reaction code is
+  tested, so its record names it: `404200022` and `40420003` no longer appear as missing `FRG`.
 
 ## [0.2.0] - 2026-10-01
 

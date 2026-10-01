@@ -1312,11 +1312,13 @@ include("fixtures.jl")
         rejected = select_dataset("14101003", body, text, post)
         @test rejected isa Rejection
         @test occursin("double-velocity", rejected.reason)
-        for identifier in ("40232003", "23213008")
-            rejected = select_dataset(identifier, blank_branch(identifier)..., tke_cf)
-            @test rejected isa Rejection
-            @test rejected.reason == "missing required code \"PRE\" in SF5"
-        end
+        rejected = select_dataset("23213008", blank_branch("23213008")..., tke_cf)
+        @test rejected isa Rejection
+        @test rejected.reason == "missing required code \"PRE\" in SF5"
+        # 40232003 states its masses provisional, which is the reason given first.
+        rejected = select_dataset("40232003", blank_branch("40232003")..., tke_cf)
+        @test rejected isa Rejection
+        @test startswith(rejected.reason, "provisional masses")
 
         # 22780003 (Hambsch 1997): coded as the energy of one fragment, holding the TKE, as the
         # dispersion column beside it says. Nishio's 23012006 carries the same code and does
@@ -1774,6 +1776,117 @@ include("fixtures.jl")
         @test isnan(reduced.table.nu_uncertainty[3])
         @test reduced.diagnostics["uncertainty_zero_rows"] == 1
         @test reduced.diagnostics["uncertainty_absent_rows"] == 1
+    end
+
+    @testset "a multiplicity coded without FRG" begin
+        cf(ordinate; abscissa = ["mass"]) = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = abscissa,
+            ordinate = ordinate,
+        )
+        nu, pair = cf("multiplicity"), cf("multiplicity_per_fission")
+        function multiplicity(identifier, points)
+            rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = "98-CF-252(0,F)MASS,PR,NU",
+                    value_kind = "Data(PRT/FIS)",
+                    product_za = mass,
+                    y = value,
+                ) for (mass, value) in points
+            ]
+            return exfor_csv(rows), exfor_subentry_for(rows; unit = "PRT/FIS")
+        end
+        sawtooth = ((128, 0.9), (129, 0.8), (130, 0.7))
+
+        # 23268005 (Goeoek 2014): per fragment by the complement test, though coded without FRG.
+        goeoek = multiplicity("23268005", sawtooth)
+        @test select_dataset("23268005", goeoek..., nu) isa Dataset
+        refused = select_dataset("23268005", goeoek..., pair)
+        @test refused isa Rejection
+        @test startswith(refused.reason, "curated: per fragment")
+        @test occursin("3.763 +- 0.003", refused.reason)
+
+        # The per-fragment readings beside it, 23175008 (Budtz-Jorgensen 1988) and 23118006
+        # (Zeynalov 2011), enter nu(A); the 233-U pair multiplicities 22660006 (Nishio 1998,
+        # nu(A) = nu(A_0 - A) at every pair) and 41397006 (Apalin 1965, the pair sum of 41397004)
+        # do not, and stay with the multiplicity per fission.
+        for identifier in ("23175008", "23118006")
+            @test select_dataset(identifier, multiplicity(identifier, sawtooth)..., nu) isa
+                  Dataset
+        end
+        u233(ordinate) = test_query(; ordinate = ordinate)
+        for identifier in ("22660006", "41397006")
+            rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = "92-U-233(N,F)MASS,PR,NU,,MXW",
+                    value_kind = "Data(PRT/FIS)",
+                    product_za = mass,
+                    y = value,
+                    incident_ev = 0.0253,
+                ) for (mass, value) in ((140, 2.9), (141, 3.0), (142, 3.1))
+            ]
+            pair_data = (exfor_csv(rows), exfor_subentry_for(rows; unit = "PRT/FIS"))
+            refused = select_dataset(identifier, pair_data..., u233("multiplicity"))
+            @test refused isa Rejection
+            @test startswith(refused.reason, "curated: per fission")
+            @test select_dataset(
+                identifier,
+                pair_data...,
+                u233("multiplicity_per_fission"),
+            ) isa Dataset
+        end
+
+        # The rule is not loosened: the same code under any other identifier stays per fission.
+        other = multiplicity("99999002", sawtooth)
+        refused = select_dataset("99999002", other..., nu)
+        @test refused isa Rejection
+        @test refused.reason == "missing required code \"FRG\" in SF5"
+        @test select_dataset("99999002", other..., pair) isa Dataset
+
+        # 23213012 (Mehta 1973): per fission, the pair sum of 23213014 of the same entry; refused
+        # as per fragment with the test values.
+        mehta = multiplicity("23213012", ((100, 3.9), (101, 4.0), (102, 4.1)))
+        refused = select_dataset("23213012", mehta..., nu)
+        @test refused isa Rejection
+        @test occursin("23213014", refused.reason)
+        @test select_dataset("23213012", mehta..., pair) isa Dataset
+
+        # 14652004 (Britt 1964): per fragment by its shape, but with no uncertainty to weigh the
+        # pair sum by; refused under both readings.
+        britt = multiplicity("14652004", sawtooth)
+        @test select_dataset("14652004", britt..., nu) isa Rejection
+        @test select_dataset("14652004", britt..., pair) isa Rejection
+
+        # A one-dimensional reading stays out of nu(A, TKE), a joint one out of nu(A).
+        joint = cf("multiplicity"; abscissa = ["mass", "total_kinetic_energy"])
+        @test select_dataset("23268005", goeoek..., joint) isa Rejection
+        budtz = ExforFissionData.MULTIPLICITY_READINGS["23175010"]
+        code = "98-CF-252(0,F)MASS,PR,NU/TKE"
+        @test ExforFissionData.curation_rejection(
+            budtz,
+            joint.abscissa,
+            "multiplicity",
+            code,
+        ) === nothing
+        @test ExforFissionData.curation_rejection(budtz, ["mass"], "multiplicity", code) ==
+              "forbidden code \"TKE\""
+
+        # Provisional masses are named before any reading: 404200022 (Zakharova 1979).
+        refused = select_dataset("404200022", multiplicity("404200022", sawtooth)..., nu)
+        @test startswith(refused.reason, "provisional masses")
+
+        # Every reading states its test.
+        for (identifier, reading) in ExforFissionData.MULTIPLICITY_READINGS
+            @test reading.ordinate in ("multiplicity", "multiplicity_per_fission", nothing)
+            @test reading.abscissa === nothing
+            @test occursin("A_0 = ", reading.reason) ||
+                  occursin("MASS-RATIO", reading.reason)
+            @test ExforFissionData.CURATED_DATASETS[identifier] === reading
+        end
     end
 
     @testset "an uncertainty the rendering drops is read from the subentry" begin
