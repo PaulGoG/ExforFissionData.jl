@@ -1600,6 +1600,29 @@ include("fixtures.jl")
         @test rejected isa Rejection
         @test occursin("Y(A, TKE)", rejected.reason)
 
+        # 41425015 and 41425016 (Vorobiev 2001): coded as the pre-neutron yield, but 3 u off
+        # every inclusive measurement; refused with the evidence, whatever the code admits.
+        for identifier in ("41425015", "41425016")
+            rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = "98-CF-252(0,F)MASS,PRE,FY",
+                    value_kind = "Data(PC/FIS)",
+                    product_za = mass,
+                    y = value,
+                ) for (mass, value) in ((106, 6.5), (146, 6.5))
+            ]
+            rejected = select_dataset(
+                identifier,
+                exfor_csv(rows),
+                exfor_subentry_for(rows; unit = "PC/FIS"),
+                mass_only,
+            )
+            @test rejected isa Rejection
+            @test startswith(rejected.reason, "curated: unfolded for")
+            @test occursin("NUt=0", rejected.reason)
+        end
+
         # 22413013 (Dematte 1997): raw counts of 240-Pu(sf), which the rendering calls
         # PC/FIS/MEV and the subentry NO-DIM, read as arbitrary units.
         pu240 = test_query(;

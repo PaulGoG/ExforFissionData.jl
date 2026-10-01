@@ -247,6 +247,18 @@ and gives the unit as `PART/FIS`. It is read from its subentry (`src/curation.jl
 `Cf252_sf_Y_vs_A_TKE` in counts, under `relative/`, with its uncertainties, and rejected by
 `Cf252_sf_Y_vs_A` as the joint distribution it is.
 
+Two more are refused for `ordinate = "yield"` although their code is that of the pre-neutron
+yield. `41425015` and `41425016` (Vorobiev 2001), `98-CF-252(0,F)MASS,PRE,FY`, are unfolded from
+the neutron multiplicity matrices in 4π and 2×2π geometry, and both lie about 3 u off every
+inclusive measurement: they peak at A = 106 and 146 where the nine other ²⁵²Cf yields covering
+both halves peak at 107 to 108 and 143 to 145, and their mean heavy mass is 146.7 and 146.2
+against 142.9 to 143.6. The ν(A) of the same measurement, `41425014`, has its sawtooth minimum at
+A = 130 as the others do, so the mass scale of the entry is sound and `41425014` stays. The
+subentries place the yields on Fig. 11a "(NUt=0)" of Dushin et al.
+([doi:10.1016/j.nima.2003.09.029](https://doi.org/10.1016/j.nima.2003.09.029)) without saying
+what that denotes. A selection of events without neutrons does not explain the shift: such events
+favour heavy masses near A_H = 132 and would lower the mean heavy mass.
+
 One more is known for `ordinate = "spectrum"`, and it is a mislabelled unit rather than a
 mislabelled quantity. `40064031` (Kroshkin, 1970), `98-CF-252(0,F),PR,NU/DE,,REL`, heads its
 energy column `MEV` over values running from 5.128 to 2132.8. The subentry contradicts itself:

@@ -14,6 +14,15 @@ Notable changes to ExforFissionData.jl. The format follows
   spectrum). The run record keeps the author verbatim, and spellings EXFOR gives one person in
   different entries stay distinct.
 
+### Fixed
+
+- The 252-Cf pre-neutron yields `41425015` and `41425016` (Vorobiev 2001) are refused as not the
+  inclusive yield they are coded as. Both lie about 3 u off every inclusive measurement, with
+  peaks at A = 106 and 146 and a mean heavy mass of 146.7 and 146.2 against 142.9 to 143.6 for
+  the nine other yields covering both halves; the ν(A) of the same measurement, `41425014`, sits
+  where the others do and stays. Their subentries place them on Fig. 11a "(NUt=0)" of Dushin et
+  al. ([doi:10.1016/j.nima.2003.09.029](https://doi.org/10.1016/j.nima.2003.09.029)) without
+  saying what that denotes. Accepted Y(A) sets for 252-Cf fall from 15 to 13.
 ## [0.2.2] - 2026-10-01
 
 One rule change: whether a multiplicity coded without `FRG` is per fragment or per fission is

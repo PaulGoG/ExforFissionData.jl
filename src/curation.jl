@@ -470,6 +470,21 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
     ),
 )
 
+# Entry 41425 (Vorobiev 2001) gives its pre-neutron mass yields as unfolded from the neutron
+# multiplicity matrices, in 4-pi (015) and 2x2-pi (016) geometry, and places them on Fig. 11a
+# '(NUt=0)' of its methods paper, which the entry does not explain.
+_vorobiev_yield(geometry, mean_heavy_mass, figures) = "curated: unfolded for $(geometry) \
+     geometry, this yield is not the inclusive pre-neutron mass yield. It lies about 3 u off \
+     every inclusive measurement: its peaks lie at A = 106 and 146, where the nine pre-neutron \
+     Y(A) accepted for 252-Cf over both halves peak at 107 to 108 and 143 to 145, and its mean \
+     heavy mass is $(mean_heavy_mass) against 142.9 to 143.6 for those nine (143.4 for Goeoek \
+     2014, 23268003). The mass scale of the entry is not at fault: the nu(A) of 41425014, of the same \
+     measurement, has its sawtooth minimum at A = 130, as the other measurements do. Nor does a \
+     selection of events without neutrons explain it, since such events favour heavy masses near \
+     the closed shells at A_H = 132 and would lower the mean heavy mass, not raise it. The \
+     subentry places the data on $(figures) of Dushin 2004 (doi:10.1016/j.nima.2003.09.029) and \
+     does not say what NUt=0 denotes; the article could not be consulted"
+
 """
 Datasets whose ordinate is read from the subentry text, keyed by dataset identifier; see
 [`Curation`](@ref).
@@ -482,6 +497,7 @@ Datasets whose ordinate is read from the subentry text, keyed by dataset identif
 | `23268002` | `98-CF-252(0,F)MASS,PRE,FY,,MSC` | Y(A, TKE), in counts |
 | `22413013` | `94-PU-240(0,F)MASS,PRE,FY/DE,,RAW` | Y(A, TKE), in raw counts |
 | `40420062` | `98-CF-252(0,F)MASS,PRE,FY/DE,LF+HF,RAW` | none: a joint histogram against provisional masses |
+| `41425015`, `41425016` | `98-CF-252(0,F)MASS,PRE,FY` | none: a yield 3 u off the inclusive one, from Fig. 11a (NUt=0) |
 
 The criterion for a blank branch field is kinematic. A double-velocity measurement yields
 pre-neutron masses and energies directly, since isotropic neutron emission leaves the mean
@@ -559,6 +575,12 @@ const CURATED_DATASETS = merge(
             Dict{String, String}(),
             "ARB-UNITS",
         ),
+        "41425015" => Curation(
+            nothing,
+            _vorobiev_yield("4-pi", "146.7", "Fig. 10 and Fig. 11a '(NUt=0)'"),
+        ),
+        "41425016" =>
+            Curation(nothing, _vorobiev_yield("2x2-pi", "146.2", "Fig. 11a '(NUt=0)'")),
         "40420062" => Curation(
             nothing,
             "curated: a joint histogram of event counts in 1.5-u mass and 2.5-MeV TKE bins, coded \
