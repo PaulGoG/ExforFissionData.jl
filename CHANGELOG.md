@@ -6,6 +6,12 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-01
+
+Two corrections to what 0.2.0 writes. A missing uncertainty is written `NaN` rather than 0, and
+prompt multiplicities against mass coded without `FRG` are read from their data, so that 252-Cf
+gains three per-fragment ν(A) sets and one ν(A, TKE) set.
+
 ### Fixed
 
 - A missing uncertainty is written `NaN`, never 0. A row whose uncertainty the archive leaves
@@ -210,6 +216,7 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/PaulGoG/ExforFissionData.jl/releases/tag/v0.1.0
