@@ -41,7 +41,8 @@ number of decimals would keep a multiplicity of order 1 and destroy a spectrum o
 
 The uncertainty column is written only when at least one row carries one; a dataset quoting none
 yields a two-column file, which a reader accepts and which is honest about what the archive
-holds. Line endings are `\\n`.
+holds. Where the column is written, a row without an uncertainty holds `NaN`, so that it cannot
+be read as a stated zero. Line endings are `\\n`.
 
 The header names the abscissa columns, then the ordinate, then its uncertainty — for example
 `A nu nu_uncertainty`, or `Z A_p Y Y_uncertainty` for a joint abscissa. Every name is the ASCII
@@ -210,7 +211,11 @@ function write_metadata(
             "ordinate_normalisation" => "none applied; the unit token of each dataset is \
                  recorded below",
             "absent_uncertainty" => "the uncertainty column is omitted when no row of a \
-                 dataset carries one",
+                 dataset carries one. Where it is written, a row without one is NaN, never 0, \
+                 and so is a row interpolated next to such a row or combined only from such \
+                 rows; a 0 is written only where EXFOR states it. Per dataset, \
+                 `uncertainty_zero_rows` counts the subentry lines stating a zero uncertainty \
+                 and `uncertainty_absent_rows` those stating none",
             "duplicate_abscissa" => "isomers resolved first (archive total preferred, else \
                  summed in quadrature), then rows still sharing an abscissa value combined by \
                  an inverse-variance weighted mean; `abscissae_combined` counts them per dataset",

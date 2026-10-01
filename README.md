@@ -225,7 +225,8 @@ A dataset identifier with a ninth character, such as `400170021`, is a pointer i
 shared by several datasets, and the text stored beside it is that whole subentry.
 
 Data files are space-separated with a single header line — `A nu nu_uncertainty`, or `A nu` where
-the archive quotes no uncertainty:
+the archive quotes no uncertainty. Where it quotes one on some rows only, the others hold `NaN`,
+never zero:
 
 ```
 A nu nu_uncertainty

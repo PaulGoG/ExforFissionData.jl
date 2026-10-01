@@ -197,11 +197,14 @@ include("fixtures.jl")
         @test isapprox(uncertainty, 1 / sqrt(1 / 0.01 + 1 / 1.0); rtol = 1.0e-6)
         @test uncertainty < 0.1
 
-        # With no uncertainties anywhere the result is the unweighted mean and carries none.
+        # With no positive uncertainty the result is the unweighted mean: a zero where every point
+        # states zero, NaN where any states none, which must not read as a stated zero.
         value, uncertainty, imputed = combine_measurements([1.0, 3.0], [0.0, 0.0])
         @test isapprox(value, 2.0; rtol = 1.0e-6)
         @test uncertainty == 0.0
         @test imputed == 0
+        @test isnan(combine_measurements([1.0, 3.0], [NaN, NaN])[2])
+        @test isnan(combine_measurements([1.0, 3.0], [NaN, 0.0])[2])
 
         # A point quoting none is kept, at the median of the positive weights.
         _, _, imputed = combine_measurements([1.0, 2.0, 3.0], [0.1, 0.0, 0.2])
@@ -1673,6 +1676,104 @@ include("fixtures.jl")
         # Only an abscissa of pre-neutron mass inherits the defect.
         @test ExforFissionData.provisional_mass("40420005") !== nothing
         @test ExforFissionData.provisional_mass("40421005") === nothing
+    end
+
+    @testset "an uncertainty the archive leaves blank" begin
+        # 41397004 (Apalin 1965): nu(A) of 233-U digitised with ERR-S on some points only. Its
+        # first and middle lines, as the subentry gives them.
+        query = test_query(; ordinate = "multiplicity")
+        lines = [
+            (82.43, 0.4321, 0.0671),
+            (83.49, 0.5053, 0.0671),
+            (84.38, 0.6212, 0.0549),
+            (85.92, 0.7554, missing),
+            (87.16, 0.8347, missing),
+            (88.28, 0.8714, missing),
+            (105.17, 1.8109, missing),
+            (106.41, 2.1465, missing),
+            (107.41, 2.4027, 0.0610),
+            (108.83, 2.4637, 0.0732),
+            (110.72, 2.4393, 0.0976),
+        ]
+        rows = [
+            exfor_row(;
+                dataset_id = "41397004",
+                reaction_code = "92-U-233(N,F)MASS,PR/FRG,NU,,MXW",
+                value_kind = "Data(PRT/FIS)",
+                # The rendering truncates the mass.
+                product_za = floor(Int, mass),
+                y = value,
+                dy = error,
+                incident_ev = 0.0253,
+            ) for (mass, value, error) in lines
+        ]
+        text = exfor_subentry(;
+            subentry = "41397004",
+            bib = ["REACTION   (92-U-233(N,F)MASS,PR/FRG,NU,,MXW)"],
+            common = (headings = ["EN"], units = ["EV"], values = [0.0253]),
+            headings = ["MASS", "DATA", "ERR-S"],
+            units = ["NO-DIM", "PRT/FIS", "PRT/FIS"],
+            rows = [Union{Missing, Float64}[m, v, e] for (m, v, e) in lines],
+        )
+        reduced =
+            reduce_dataset(select_dataset("41397004", exfor_csv(rows), text, query), query)
+        @test reduced.has_uncertainties
+        @test reduced.diagnostics["uncertainty_absent_rows"] == 5
+        @test reduced.diagnostics["uncertainty_zero_rows"] == 0
+        # Every written mass interpolated from a line with a blank ERR-S is NaN, and every other
+        # carries the interpolated uncertainty.
+        masses = [m for (m, _, _) in lines]
+        blank = Dict(m => ismissing(e) for (m, _, e) in lines)
+        for (A, σ) in zip(reduced.table.A, reduced.table.nu_uncertainty)
+            above = findfirst(≥(A), masses)
+            bracket = masses[above] == A ? [masses[above]] : masses[[above - 1, above]]
+            if any(m -> blank[m], bracket)
+                @test isnan(σ)
+            else
+                @test isfinite(σ) && σ > 0
+            end
+        end
+        @test 85 in reduced.table.A && 107 in reduced.table.A
+        # Written as NaN, never as 0.
+        mktempdir() do directory
+            path = joinpath(directory, "41397004.dat")
+            write_dataset(path, reduced; significant_digits = 7)
+            written = Dict(
+                parse(Int, first(split(line))) => last(split(line)) for
+                line in readlines(path)[2:end]
+            )
+            @test written[85] == "NaN"
+            @test written[108] != "NaN" && parse(Float64, written[108]) > 0
+        end
+
+        # A zero the archive states is kept, and counted.
+        stated = [
+            exfor_row(;
+                dataset_id = "10000002",
+                value_kind = "Data(PRT/FIS)",
+                reaction_code = "92-U-233(N,F)MASS,PR/FRG,NU",
+                product_za = mass,
+                y = 1.0,
+                dy = error,
+                incident_ev = 0.0253,
+            ) for (mass, error) in ((100, 0.0), (101, 0.1), (102, missing))
+        ]
+        reduced = reduce_dataset(
+            select_dataset(
+                "10000002",
+                exfor_csv(stated),
+                exfor_subentry_for(
+                    stated;
+                    bib = ["REACTION   (92-U-233(N,F)MASS,PR/FRG,NU)"],
+                ),
+                query,
+            ),
+            query,
+        )
+        @test reduced.table.nu_uncertainty[1] == 0.0
+        @test isnan(reduced.table.nu_uncertainty[3])
+        @test reduced.diagnostics["uncertainty_zero_rows"] == 1
+        @test reduced.diagnostics["uncertainty_absent_rows"] == 1
     end
 
     @testset "an uncertainty the rendering drops is read from the subentry" begin

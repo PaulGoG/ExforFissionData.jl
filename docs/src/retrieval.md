@@ -69,6 +69,7 @@ the machine as well, which is useful when the records stay yours.
 | | `tke_heading`, `tke_convention`, `tke_step_mev`, `tke_bin_widths_mev` | for a TKE abscissa: the heading it was read from, point values or bins written at their midpoints, the spacings of the written values, and the bin widths |
 | | `normalisation` | for a yield, what its subentry unit says of the scale: percent per fission summing to 200 %, per fission, or arbitrary units such as counts |
 | | `uncertainty_source` | `csv`, `subentry ERR-S` and the like where the rendering carries none and the subentry does, or `none` |
+| | `uncertainty_zero_rows`, `uncertainty_absent_rows` | the lines stating a zero uncertainty, written as zero, and those stating none, written `NaN` wherever the column is written |
 | | `curation`, `archive_defects` | for a dataset read from its subentry text, the evidence; and the compilation defects whose lines were left out |
 | | `tke_grid_inference`, `mass_marginal` | further statements of a curated reading, such as the TKE grid and the mass marginal of 23268002 |
 | | `mass_range` | the smallest and largest mass written |

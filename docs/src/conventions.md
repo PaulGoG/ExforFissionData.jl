@@ -23,7 +23,12 @@ project that can justify them. Values in the far-asymmetric mass tails are stati
 are written unchanged, with their uncertainties.
 
 **The uncertainty column is omitted** when no row of a dataset carries one, rather than written
-as a column of zeros. Where the csv rendering carries no uncertainty at all but the subentry does,
+as a column of zeros. **A missing uncertainty is `NaN`, never zero.** Where some rows of a
+dataset carry an uncertainty and others leave it blank — `41397004` (Apalin 1965) has it on 22 of
+its 52 lines — a row without one is written `NaN`, and so is a row interpolated next to such a
+row, or combined only from such rows; a zero is written only where EXFOR states one, as the empty
+cells of `23268002` do. The run record counts, per dataset, the lines stating a zero uncertainty
+as `uncertainty_zero_rows` and those stating none as `uncertainty_absent_rows`. Where the csv rendering carries no uncertainty at all but the subentry does,
 in `DATA-ERR`, `ERR-T` or `ERR-S` in that order, it is read from the subentry and put on the scale
 of the csv ordinate; `uncertainty_source` in the run record says which (`23268002` gives `ERR-S`
 on each of its 30 000 cells, and the rendering on none).
@@ -61,7 +66,8 @@ record says which of three cases applied.
 - **Non-integer masses** — a digitised curve, a half-integer grid — are interpolated linearly onto
   the integer masses within their range, separately at each value of any other abscissa quantity.
   The uncertainty is interpolated like the value, as for fully correlated neighbours, so an
-  interpolated point is never more precise than the two it lies between. Nothing is interpolated
+  interpolated point is never more precise than the two it lies between; where either neighbour
+  has none, the interpolated uncertainty is `NaN`. Nothing is interpolated
   across more than `mass_interpolation_span_u` = 3 u: measured tabulations sample the mass at
   up to 2.5 u, and a wider interval is a gap in the measurement, such as the unmeasured
   symmetric region between two branches. The integer masses in such gaps are counted as

@@ -30,8 +30,9 @@ An observable tabulated against its abscissa, reduced from one dataset.
 - `table::DataFrame`: the abscissa columns, then the ordinate, then its uncertainty. Every
   column is named for the quantity it holds, the uncertainty as `<ordinate>_uncertainty`, so
   that a frame read out of this type says what it carries without the file name to explain it.
-- `has_uncertainties::Bool`: whether any row carries a non-zero uncertainty. When false the
-  uncertainty column is omitted on export rather than written as a column of zeros.
+- `has_uncertainties::Bool`: whether any row carries an uncertainty. When false the uncertainty
+  column is omitted on export. Where it is written, a row without an uncertainty holds `NaN`,
+  never zero; a zero is one the archive states.
 - `diagnostics::Dict{String,Any}`: what the reduction had to do — isomer totals used, isomer
   sums taken, ambiguous groups, duplicates combined, distinct incident energies retained.
 """
@@ -58,12 +59,13 @@ uncertainty_column(ordinate_column::Symbol) = Symbol(ordinate_column, "_uncertai
 
 Combine repeat measurements of one quantity by an inverse-variance weighted mean.
 
-Points with a positive uncertainty carry weight `1/σ²`. Points quoting none carry no information
-about their own weight; rather than discarding them they are given the median of the positive
-weights, and the number so treated is returned as `imputed`. The median is what a point of unknown
-precision is worth among its neighbours: it neither privileges such a point nor throws away the
-measurement. Where no point quotes an uncertainty the result is the unweighted mean with a zero
-uncertainty, which marks a point as unweighted rather than as perfectly measured.
+Points with a positive uncertainty carry weight `1/σ²`. Points quoting none (`NaN`) or a zero
+carry no information about their own weight; rather than discarding them they are given the
+median of the positive weights, and the number so treated is returned as `imputed`. The median
+is what a point of unknown precision is worth among its neighbours: it neither privileges such a
+point nor throws away the measurement. Where no point quotes a positive uncertainty the result is
+the unweighted mean, with an uncertainty of zero if every point states zero and `NaN` otherwise:
+an unknown uncertainty is never written as zero.
 
 The combined uncertainty is `1/sqrt(Σ w)`, the uncertainty of the weighted mean.
 """
@@ -74,7 +76,8 @@ function combine_measurements(
     length(values) == 1 && return (Float64(values[1]), Float64(uncertainties[1]), 0)
     positive = findall(>(0), uncertainties)
     if isempty(positive)
-        return (sum(values) / length(values), 0.0, 0)
+        stated = all(iszero, uncertainties)
+        return (sum(values) / length(values), stated ? 0.0 : NaN, 0)
     end
     weights = Vector{Float64}(undef, length(values))
     reference = median(1 ./ (Float64.(uncertainties[positive]) .^ 2))
@@ -263,12 +266,12 @@ function _width_values(
         v = values[i]
         ismissing(v) && continue
         (!ismissing(tabulated[i]) && tabulated[i] in excluded) && continue
-        e = abs(coalesce(errors[i], 0.0))
+        e = ismissing(errors[i]) ? NaN : abs(Float64(errors[i]))
         if width.holds == "variance"
             variance = v * VARIANCE_UNIT_FACTORS[unit]
             variance < 0 && continue
             s = sqrt(variance)
-            d = s > 0 ? e * VARIANCE_UNIT_FACTORS[unit] / (2 * s) : 0.0
+            d = s > 0 ? e * VARIANCE_UNIT_FACTORS[unit] / (2 * s) : NaN
         else
             per_sigma = Dict(
                 "standard_deviation" => 1.0,
@@ -377,8 +380,8 @@ end
 # Linear interpolation of the points `(mass, value, uncertainty, rows)` of one group onto the
 # integer masses their range spans. Points at one mass are combined first. The uncertainty is
 # interpolated like the value, as for fully correlated neighbours, so interpolation never makes a
-# point more precise than the two it comes from; where either neighbour quotes none, neither does
-# the result. Returns the interpolated points, the integer masses skipped for lying in a gap wider
+# point more precise than the two it comes from; where either neighbour quotes none (`NaN`),
+# neither does the result. Returns the interpolated points, the integer masses skipped for lying in a gap wider
 # than `MASS_INTERPOLATION_SPAN`, and the number of masses at which several points were combined.
 function _interpolate_masses(points::AbstractVector)
     by_mass = Dict{Float64, Vector{Int}}()
@@ -418,11 +421,7 @@ function _interpolate_masses(points::AbstractVector)
         end
         t = (A - below.mass) / (node.mass - below.mass)
         value = (1 - t) * below.value + t * node.value
-        uncertainty = if below.uncertainty > 0 && node.uncertainty > 0
-            (1 - t) * below.uncertainty + t * node.uncertainty
-        else
-            0.0
-        end
+        uncertainty = (1 - t) * below.uncertainty + t * node.uncertainty
         rows = vcat(below.rows, node.rows)
         push!(
             placed,
@@ -522,6 +521,11 @@ function reduce_dataset(
         push!(get!(per_nuclide, key, Int[]), i)
     end
 
+    # A blank uncertainty is unknown and is carried as NaN; a zero is the archive's own.
+    uncertainty_zero_rows =
+        count(i -> !ismissing(raw_uncertainties[i]) && iszero(raw_uncertainties[i]), usable)
+    uncertainty_absent_rows = count(i -> ismissing(raw_uncertainties[i]), usable)
+
     outcomes = Dict(:total => 0, :summed => 0, :single => 0, :ambiguous => 0)
     imputed = 0
     points = NamedTuple[]
@@ -529,7 +533,7 @@ function reduce_dataset(
         indices = per_nuclide[key]
         values = [Float64(raw_values[i]) for i in indices]
         uncertainties = [
-            ismissing(raw_uncertainties[i]) ? 0.0 : abs(Float64(raw_uncertainties[i]))
+            ismissing(raw_uncertainties[i]) ? NaN : abs(Float64(raw_uncertainties[i]))
             for i in indices
         ]
         value, uncertainty, outcome, weights =
@@ -705,6 +709,8 @@ function reduce_dataset(
         "abscissa_binned" => binned,
         "weights_imputed" => imputed,
         "uncertainty_source" => uncertainty_source,
+        "uncertainty_zero_rows" => uncertainty_zero_rows,
+        "uncertainty_absent_rows" => uncertainty_absent_rows,
         "incident_energies_mev" => retained_energies .* EV_TO_MEV,
         "unit_reported" => dataset.unit,
         "unit_written" => unit_written,
@@ -750,7 +756,7 @@ function reduce_dataset(
         abscissa_columns,
         ordinate_column,
         result,
-        any(>(0), final_uncertainties),
+        any(!isnan, final_uncertainties),
         diagnostics,
     )
 end

@@ -6,6 +6,16 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A missing uncertainty is written `NaN`, never 0. A row whose uncertainty the archive leaves
+  blank, while other rows of its dataset carry one, was written with a zero, and so was a row
+  interpolated next to it, indistinguishable from a stated zero; 2975 rows of 57 files change,
+  among them 40 of the 69 of `41397004` (Apalin 1965) and 49 of the 60 of `140650021` (Bowman
+  1963). A zero is written only where EXFOR states it, as on two lines of `23764004`. The run
+  record counts the lines stating a zero uncertainty, `uncertainty_zero_rows`, and those stating
+  none, `uncertainty_absent_rows`, and states the convention beside `absent_uncertainty`.
+
 ## [0.2.0] - 2026-10-01
 
 The fragment-yield input of a pre-neutron Y(A, TKE) — the mass yield, the mean total kinetic
