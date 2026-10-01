@@ -168,6 +168,7 @@ function _complement_record(complement::ComplementReading)
     pair_sum = complement.pair_sum
     pair_sum === nothing && return record
     record["pair_sum_deviation"] = pair_sum.deviation
+    record["pair_sum_nubar"] = pair_sum.nubar
     record["pair_sum_yields"] = pair_sum.yields
     record["pair_sum_yields_own"] = pair_sum.own_yields
     consistent = scale_consistent(pair_sum)

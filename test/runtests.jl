@@ -1821,6 +1821,56 @@ include("fixtures.jl")
         @test reduced.diagnostics["uncertainty_absent_rows"] == 1
     end
 
+    @testset "a multiplicity headed PC/FIS" begin
+        # 22650004 (Tsuchiya 2000) heads nu PC/FIS; the csv rendering divides it by 100.
+        query = test_query(; ordinate = "multiplicity")
+        tabulated = ((100, 2.5, 0.2), (101, 2.7, 0.3))
+        rows(scales) = [
+            exfor_row(;
+                reaction_code = "92-U-233(N,F)MASS,PR/FRG,NU",
+                product_za = mass,
+                y = value * scale,
+                dy = error * scale,
+                incident_ev = 0.0253,
+            ) for ((mass, value, error), scale) in zip(tabulated, scales)
+        ]
+        text = exfor_subentry(;
+            headings = ["MASS", "DATA", "DATA-ERR"],
+            units = ["NO-DIM", "PC/FIS", "PC/FIS"],
+            rows = [[Float64(mass), value, error] for (mass, value, error) in tabulated],
+        )
+        dataset = select_dataset("10000002", exfor_csv(rows((0.01, 0.01))), text, query)
+        @test dataset isa Dataset
+        reduced = reduce_dataset(dataset, query)
+        @test reduced.table.nu ≈ [2.5, 2.7] rtol = 1.0e-12
+        @test reduced.table.nu_uncertainty ≈ [0.2, 0.3] rtol = 1.0e-12
+        @test reduced.diagnostics["unit_reported"] == "PC/FIS"
+        @test reduced.diagnostics["unit_written"] == "PART/FIS"
+        @test reduced.diagnostics["ordinate_factor"] == 1.0
+        @test occursin("miscoding", reduced.diagnostics["unit_miscoded"])
+
+        # Without one factor between the rendering and the subentry, the scale is unknown.
+        refused = select_dataset("10000002", exfor_csv(rows((0.01, 0.1))), text, query)
+        @test refused isa Rejection
+        @test occursin("one factor", refused.reason)
+
+        # A yield in PC/FIS is a percentage, and stays as the rendering gives it.
+        yield_query = test_query()
+        yield_rows = [
+            exfor_row(; product_za = mass, y = value, incident_ev = 0.0253) for
+            (mass, value, _) in tabulated
+        ]
+        yield_text = exfor_subentry(;
+            rows = [[Float64(mass), value] for (mass, value, _) in tabulated],
+        )
+        reduced = reduce_dataset(
+            select_dataset("10000002", exfor_csv(yield_rows), yield_text, yield_query),
+            yield_query,
+        )
+        @test reduced.table.Y ≈ [2.5, 2.7] rtol = 1.0e-12
+        @test !haskey(reduced.diagnostics, "unit_miscoded")
+    end
+
     @testset "a multiplicity coded without FRG" begin
         cf(ordinate; abscissa = ["mass"]) = test_query(;
             target_Z = 98,
@@ -2842,6 +2892,7 @@ of = "$(of)"
     end
 
     include("subentry_tests.jl")
+    include("written_tables.jl")
 
     @testset "quality" begin
         Aqua.test_all(ExforFissionData)

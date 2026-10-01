@@ -553,6 +553,19 @@ const ENERGY_ORDINATES = (
 )
 
 """
+Ordinates that count neutrons per fission.
+
+A count of order one is never a percentage. A subentry that heads one of these
+[`PERCENT_PER_FISSION`](@ref) has miscoded the unit, and its values are the multiplicity itself;
+the csv rendering, converting the token, divides them by 100. Such a dataset is written on the
+scale of its subentry; see [`rendering_scale`](@ref).
+"""
+const MULTIPLICITY_ORDINATES = ("multiplicity", "multiplicity_per_fission")
+
+"""The unit token of a percentage per fission, `PC/FIS`."""
+const PERCENT_PER_FISSION = "PC/FIS"
+
+"""
 Abscissae whose values are energies, converted to MeV from the unit their subentry column is
 headed with.
 """

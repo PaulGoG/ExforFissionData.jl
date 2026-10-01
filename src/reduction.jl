@@ -206,11 +206,29 @@ total, then the statistical part (EXFOR Dictionary 24).
 """
 const DATUM_UNCERTAINTY_HEADINGS = ("DATA-ERR", "ERR-T", "ERR-S")
 
+"""
+    rendering_scale(ordinate, datum) -> Union{Float64,Nothing}
+
+The factor by which the csv rendering restates the subentry DATA values `datum` as its
+`ordinate`, line by line, when it is one factor on every line with both present and a non-zero
+datum, within a relative 1e-6; `nothing` otherwise, or when no line has both.
+"""
+function rendering_scale(ordinate::AbstractVector, datum::AbstractVector)
+    ratios = [
+        Float64(v) / d for
+        (v, d) in zip(ordinate, datum) if !ismissing(v) && !ismissing(d) && d != 0
+    ]
+    isempty(ratios) && return nothing
+    scale = median(ratios)
+    all(r -> isapprox(r, scale; rtol = 1.0e-6), ratios) || return nothing
+    return scale
+end
+
 # The uncertainty of each row read from the subentry, on the scale of the csv ordinate, and the
 # heading it came from; `nothing` when the subentry holds none that can be read. For a dataset
 # whose rendering carries no uncertainty at all: 23268002 gives ERR-S on every cell, and the csv
-# on none. An uncertainty in PER-CENT is relative; one in the unit of DATA is carried over by the
-# ratio of the two ordinates, which must be the same on every row.
+# on none. An uncertainty in PER-CENT is relative; one in the unit of DATA is carried over by
+# the rendering scale of the two ordinates, which must be the same on every row.
 function _subentry_uncertainties(dataset::Dataset)
     present = names(dataset.columns)
     "DATA" in present || return nothing
@@ -227,14 +245,8 @@ function _subentry_uncertainties(dataset::Dataset)
         return (relative, heading)
     end
     dataset.units[heading] == dataset.units["DATA"] || return nothing
-    datum = dataset.columns[!, "DATA"]
-    ratios = [
-        Float64(v) / d for
-        (v, d) in zip(ordinate, datum) if !ismissing(v) && !ismissing(d) && d != 0
-    ]
-    isempty(ratios) && return nothing
-    scale = median(ratios)
-    all(r -> isapprox(r, scale; rtol = 1.0e-6), ratios) || return nothing
+    scale = rendering_scale(ordinate, dataset.columns[!, "DATA"])
+    scale === nothing && return nothing
     return (
         Union{Missing, Float64}[ismissing(e) ? missing : abs(e) * scale for e in errors],
         heading,
@@ -457,7 +469,8 @@ Energy abscissae are converted to megaelectronvolts from the unit of their suben
 an ordinate that is itself an energy from its unit token — see [`ENERGY_ORDINATES`](@ref). Both
 are exact conversions of a value with the factor recorded. No *normalisation* is ever applied:
 that convention differs between consumers and cannot be undone, so the unit token is recorded
-instead.
+instead. A multiplicity whose subentry heads it `PC/FIS` is written as the subentry tabulates
+it, on the scale of a number per fission; see [`MULTIPLICITY_ORDINATES`](@ref).
 """
 function reduce_dataset(
     dataset::Dataset,
@@ -495,6 +508,22 @@ function reduce_dataset(
             raw_uncertainties, heading = fallback
             uncertainty_source = "subentry $(heading)"
         end
+    end
+    # A multiplicity headed PC/FIS is the multiplicity itself under a miscoded unit; it is
+    # written as the subentry tabulates it, undoing the rendering's division by 100. Selection
+    # has checked that one factor relates the two on every line.
+    unit_reported = dataset.unit
+    miscoded = nothing
+    if query.ordinate in MULTIPLICITY_ORDINATES &&
+       get(dataset.units, "DATA", nothing) == PERCENT_PER_FISSION
+        scale = something(rendering_scale(table[!, COL_Y], dataset.columns[!, "DATA"]))
+        raw_values = raw_values ./ scale
+        raw_uncertainties = raw_uncertainties ./ scale
+        unit_reported = PERCENT_PER_FISSION
+        miscoded = "the subentry heads DATA $(PERCENT_PER_FISSION), a percentage, but a \
+                    multiplicity counts neutrons per fission and is of order one: the token is \
+                    a miscoding, and the values are written as the subentry tabulates them, \
+                    where the csv rendering restates them by a factor $(scale)"
     end
     isomers = table[!, COL_PRODUCT_ISOMER]
     products = table[!, COL_PRODUCT_ZA]
@@ -712,11 +741,12 @@ function reduce_dataset(
         "uncertainty_zero_rows" => uncertainty_zero_rows,
         "uncertainty_absent_rows" => uncertainty_absent_rows,
         "incident_energies_mev" => retained_energies .* EV_TO_MEV,
-        "unit_reported" => dataset.unit,
+        "unit_reported" => unit_reported,
         "unit_written" => unit_written,
         "ordinate_factor" => factor,
     )
     merge!(diagnostics, placement)
+    miscoded === nothing || (diagnostics["unit_miscoded"] = miscoded)
     isempty(note) || (diagnostics["mass_placement_refused"] = note)
     if mass_position !== nothing && !isempty(final_keys)
         written = [key[mass_position] for key in final_keys]

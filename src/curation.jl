@@ -9,7 +9,7 @@
 # test of the selection still applies to it.
 
 """
-    PairSum(deviation, uncertainty, yields, own_yields)
+    PairSum(deviation, uncertainty, nubar, yields, own_yields)
 
 The scale of a prompt multiplicity tabulated against fragment mass on both sides of symmetry,
 from its pair sum S = ν(A) + ν(A₀ − A) weighted with the light-fragment yield. It is recorded
@@ -19,6 +19,8 @@ beside the reading and never decides it.
 - `deviation::Float64`: S/(kν̄) − 1, with k = 1 for a multiplicity per fragment and 2 per fission.
 - `uncertainty::Float64`: the standard deviation of `deviation`, from those of S and ν̄; `NaN`
   where the dataset states no uncertainty.
+- `nubar::Float64`: the ν̄ S is compared with, so that S = kν̄(1 + `deviation`) can be formed
+  again from the written table.
 - `yields::String`: the dataset identifier of the Y(A) that S is weighted with.
 - `own_yields::Bool`: whether that Y(A) is of the same experiment; otherwise it is the fallback
   for the system.
@@ -26,6 +28,7 @@ beside the reading and never decides it.
 struct PairSum
     deviation::Float64
     uncertainty::Float64
+    nubar::Float64
     yields::String
     own_yields::Bool
 end
@@ -160,7 +163,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          (doi:10.1103/PhysRevC.90.064611, p. 064611-6) plots it as the multiplicity of a fragment \
          of mass A, from a matrix of 'the true number of neutrons emitted by a fragment with mass \
          m*', normalised to a total of 3.759",
-        ComplementReading("data+paper", PairSum(-0.0004, 0.0043, "23268003", true)),
+        ComplementReading("data+paper", PairSum(-0.0004, 0.0043, 3.764, "23268003", true)),
     ),
     "23118006" => Curation(
         "multiplicity",
@@ -171,7 +174,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          3.764 +- 0.016, the $(_NUBAR). Fig. 5 of Zeynalov 2011 (doi:10.3938/jkps.59.1396, p. \
          1398), 'PFN multiplicity as a function of FF mass', is this sawtooth, set beside the \
          per-fragment data of Budtz-Jorgensen 1988",
-        ComplementReading("data+paper", PairSum(0.0023, 0.0072, "23118002", true)),
+        ComplementReading("data+paper", PairSum(0.0023, 0.0072, 3.764, "23118002", true)),
     ),
     "23175008" => Curation(
         "multiplicity",
@@ -184,7 +187,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          'the neutron multiplicity versus mass nu(A)', normalised so that both fragments together \
          emit 3.7632; the article itself, Nucl. Phys. A 490, 307 \
          (doi:10.1016/0375-9474(88)90508-8), was not consulted",
-        ComplementReading("data+paper", PairSum(-0.0198, 0.0498, "23175002", true)),
+        ComplementReading("data+paper", PairSum(-0.0198, 0.0498, 3.764, "23175002", true)),
     ),
     "23175010" => Curation(
         "multiplicity",
@@ -209,7 +212,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          0.023 against 2.484, nubar at 0.5 MeV in ENDF/B-VIII.0 (doi:10.1016/j.nds.2018.02.001), \
          taken without an uncertainty. Table VIII of KfK-3220 (1981, doi:10.5445/IR/270016605) \
          gives 'the average number of neutrons emitted per fragment', negative values included",
-        ComplementReading("data+paper", PairSum(0.0, 0.0091, "21834002", true)),
+        ComplementReading("data+paper", PairSum(0.0, 0.0091, 2.4836, "21834002", true)),
     ),
     "21834010" => Curation(
         "multiplicity",
@@ -221,7 +224,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          taken without an uncertainty, 3.7 % above it. Table VIII of KfK-3220 (1981, \
          doi:10.5445/IR/270016605) gives 'the average number of neutrons emitted per fragment', \
          negative values included",
-        ComplementReading("data+paper", PairSum(0.0366, 0.0145, "21834003", true)),
+        ComplementReading("data+paper", PairSum(0.0366, 0.0145, 3.1411, "21834003", true)),
     ),
     # Per fragment, coded without FRG, by the data alone; the publication was not consulted.
     "41689004" => Curation(
@@ -233,7 +236,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          chi2 per pair 45 against zero; the pair sum weighted with the yield of 23268003, the \
          252-Cf fallback, the entry having no Y(A), is 3.95 +- 0.07 against 3.764 +- 0.016, the \
          $(_NUBAR), 4.8 % above it",
-        ComplementReading("data", PairSum(0.0480, 0.0192, "23268003", false)),
+        ComplementReading("data", PairSum(0.0480, 0.0192, 3.764, "23268003", false)),
     ),
     "41502005" => Curation(
         "multiplicity",
@@ -243,7 +246,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          sawtooth and reaches 2.72, a median 7 times its uncertainty, chi2 per pair 105 against \
          zero; the pair sum weighted with the yield of 21981006, the 235-U fallback, the entry \
          having no Y(A), is 2.469 +- 0.034 against 2.425 +- 0.011, the $(_NUBAR), 1.8 % above it",
-        ComplementReading("data", PairSum(0.0182, 0.0148, "21981006", false)),
+        ComplementReading("data", PairSum(0.0182, 0.0148, 2.425, "21981006", false)),
     ),
     "41502007" => Curation(
         "multiplicity",
@@ -253,7 +256,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          changes sign along the sawtooth and reaches 2.74, chi2 per pair 14 against zero; the pair \
          sum weighted with the yield of 21981007, the 239-Pu fallback, the entry having no Y(A), \
          is 2.82 +- 0.10 against the thermal 2.878 +- 0.013, the $(_NUBAR), 2.0 % below it",
-        ComplementReading("data", PairSum(-0.0201, 0.0367, "21981007", false)),
+        ComplementReading("data", PairSum(-0.0201, 0.0367, 2.878, "21981007", false)),
     ),
     "41712005" => Curation(
         "multiplicity",
@@ -275,7 +278,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          runs with a probability of 1.7e-4. The pair sum weighted with the yield of 23268003, the \
          252-Cf fallback, the entry's own Y(A) being post-neutron, is 3.738 against 3.764 +- \
          0.016, the $(_NUBAR), 0.7 % below it, with no uncertainty to weigh it by",
-        ComplementReading("data", PairSum(-0.0069, NaN, "23268003", false)),
+        ComplementReading("data", PairSum(-0.0069, NaN, 3.764, "23268003", false)),
     ),
     # Per fragment, with a pair sum off the scale of nubar.
     "22650004" => Curation(
@@ -287,8 +290,10 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          per pair 105 against zero. Its scale is not that of nubar: the pair sum weighted with \
          the yield of 22650002, the same measurement, is 2.989 +- 0.011 against 2.878 +- 0.013, \
          the $(_NUBAR), 3.9 % and 6.3 standard deviations above it, and 2.914 +- 0.010 with the \
-         yield of 21981007",
-        ComplementReading("data", PairSum(0.0387, 0.0061, "22650002", true)),
+         yield of 21981007. The subentry heads DATA and DATA-ERR PC/FIS, a miscoding: the values, \
+         0.70 to 5.36, are neutrons per fission, and are written as tabulated, not divided by 100 \
+         as the csv rendering has them",
+        ComplementReading("data", PairSum(0.0387, 0.0061, 2.878, "22650002", true)),
     ),
     "41502006" => Curation(
         "multiplicity",
@@ -300,7 +305,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          the 239-Pu fallback, the entry having no Y(A), is 2.570 +- 0.036 against 2.878 +- 0.013, \
          the $(_NUBAR), 10.7 % and 8.1 standard deviations below it, while 41502007 of the same \
          measurement in the 0.296 eV resonance gives 2.82 +- 0.10",
-        ComplementReading("data", PairSum(-0.1071, 0.0133, "21981007", false)),
+        ComplementReading("data", PairSum(-0.1071, 0.0133, 2.878, "21981007", false)),
     ),
     # Per fission, as coded.
     "22660006" => Curation(
@@ -309,7 +314,7 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
          234, and nu(A) is the pair sum of the per-fragment 22660005 of the same entry at all 85 \
          masses; the pair sum weighted with the yield of 21981005, the 233-U fallback, the entry \
          having no Y(A), is 5.029 +- 0.006, 1.1 % above twice 2.487 +- 0.011, the $(_NUBAR)",
-        ComplementReading("data", PairSum(0.0110, 0.0046, "21981005", false)),
+        ComplementReading("data", PairSum(0.0110, 0.0046, 2.487, "21981005", false)),
     ),
     "23213012" => Curation(
         "multiplicity_per_fission",

@@ -55,7 +55,8 @@ the machine as well, which is useful when the records stay yours.
 | | `units_warning`, `relative_warning`, `scale_warning`, `pair_sum_warning`, `combined_warning`, `correlated_warning` | present only when they apply, each naming the datasets concerned |
 | `[[accepted]]` | `identifier`, `author`, `year`, `file` | the dataset and the file it was written to, relative to the retrieval directory |
 | | `reaction_code`, `qualifiers` | the code the archive returned and the qualifiers recorded from it |
-| | `unit`, `unit_reported`, `unit_written`, `ordinate_factor` | the archive's unit token, the token the file is written in, and the factor between them |
+| | `unit`, `unit_reported`, `unit_written`, `ordinate_factor` | the unit token of the csv rendering; the token the values are reported in, the rendering's unless the subentry overrules it; the token the file is written in; and the factor between the reported and the written values |
+| | `unit_miscoded` | for a multiplicity whose subentry heads it `PC/FIS`: that the token is a miscoding, and that the values are written as the subentry tabulates them |
 | | `relative` | whether the dataset is in arbitrary units and lies under `relative/` |
 | | `retrieved_utc`, `from_cache` | when the csv response was obtained and whether from the cache |
 | | `rows_retrieved`, `rows_written` | rows the archive returned, rows the file holds |
@@ -74,6 +75,7 @@ the machine as well, which is useful when the records stay yours.
 | | `tke_grid_inference`, `mass_marginal` | further statements of a curated reading, such as the TKE grid and the mass marginal of 23268002 |
 | | `classification_basis` | for a multiplicity against mass coded without `FRG`: `data` where the complement test alone decides its reading, `data+paper` where the publication, consulted, agrees |
 | | `pair_sum_deviation`, `pair_sum_deviation_uncertainty` | for such a multiplicity tabulated on both sides of symmetry: S/(kν̄) − 1, the pair sum weighted with the light-fragment yield against ν̄ (k = 1 per fragment, 2 per fission), and its standard deviation, absent where the dataset states no uncertainty |
+| | `pair_sum_nubar` | the ν̄ the pair sum is compared with, so that S = kν̄(1 + `pair_sum_deviation`) can be formed again from the written table |
 | | `pair_sum_yields`, `pair_sum_yields_own` | the Y(A) the pair sum is weighted with, and whether it is of the same experiment rather than the fallback for the system |
 | | `scale_consistent` | whether `pair_sum_deviation` lies within three standard deviations of zero; recorded only, never a reason to refuse, and absent where no uncertainty is stated |
 | | `mass_range` | the smallest and largest mass written |

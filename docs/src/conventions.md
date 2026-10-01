@@ -114,6 +114,12 @@ The checks easiest to get wrong:
 - it also marks **arbitrary units** as `ARB-UNITS`, which carry no scale and cannot be combined
   with absolute data. The subentry's own unit decides where the two differ: `23268002` is counts
   in `ARB-UNITS` in its subentry and `PART/FIS` in the rendering;
+- a **multiplicity headed `PC/FIS`** is the multiplicity under a miscoded unit, since a count of
+  neutrons per fission is of order one and never a percentage. The rendering follows the token
+  and divides the values by 100; they are written as the subentry tabulates them, with
+  `unit_reported = "PC/FIS"` and the reading stated as `unit_miscoded`, and only where one factor
+  relates the rendering to the subentry on every line. `22650004` (Tsuchiya 2000) is the one
+  dataset this concerns among the shipped configurations;
 - the incident-energy window is applied **per row**, not to the dataset as a whole. An EXFOR
   dataset frequently reports one product at several energies, and admitting all of them collapses
   an excitation function into a single number;

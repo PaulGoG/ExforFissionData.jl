@@ -64,6 +64,7 @@ julia plotting/coverage.jl data/{Cf252_sf,U235_nth,U233_nth,Pu239_nth}/nu_vs_A  
 julia -e 'include("activate.jl"); Pkg.test()'                      # test suite
 julia plotting/runtests.jl                                         # figure-helper tests
 julia check.jl                                                     # format, then test
+EXFORFISSIONDATA_TREE=~/data julia check.jl                        # also check a tree's tables
 julia check.jl --check                                             # fail on formatting diffs
 julia docs/make.jl                                                 # build the documentation
 julia -i activate.jl                                               # REPL in the environment
@@ -89,7 +90,7 @@ length(result.accepted), length(result.rejected)
 | Curated readings, compilation defects, width columns | tested; every dataset read from its subentry text, every defect and every width conversion carries a test built from that subentry |
 | Reduction: isomers, energy windows, other independent variables | tested on fixtures; the rejections checked against the live datasets that prompted them. The abscissa and the other variables are read from the subentry DATA table, aligned with the rendering row by row |
 | Retrieval: cache, backoff, bounded concurrency | in use; result order independent of completion order, and the concurrency bound verified at limits 1, 3 and 4 |
-| Export and run record | in use |
+| Export and run record | in use; the pair sums recorded for ν(A) are formed again from the written tables by `test/written_tables.jl` whenever a retrieval tree is present |
 | `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
 | Static QA | Aqua, JET and ExplicitImports in the suite; formatting gated against a JuliaFormatter pinned in `formatter/Project.toml` |
 
@@ -316,7 +317,8 @@ ExforFissionData.jl/
 │   ├── Project.toml
 │   ├── runtests.jl
 │   ├── fixtures.jl              # synthetic responses in the layout of the csv rendering
-│   └── subentry_tests.jl        # the subentry parser
+│   ├── subentry_tests.jl        # the subentry parser
+│   └── written_tables.jl        # a retrieval tree's tables against its records, when present
 └── .github/
     ├── dependabot.yml           # weekly updates for the julia and github-actions ecosystems
     └── workflows/

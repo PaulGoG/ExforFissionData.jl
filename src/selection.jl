@@ -578,6 +578,19 @@ function select_dataset(
         end
     end
 
+    # A multiplicity headed PC/FIS is written on its subentry's scale, which needs the csv
+    # rendering to restate every line by one factor.
+    if query.ordinate in MULTIPLICITY_ORDINATES && subentry_unit == PERCENT_PER_FISSION
+        rendering_scale(table[!, COL_Y], data.values[column(data, "DATA")]) === nothing &&
+            return Rejection(
+                identifier,
+                code,
+                "the subentry heads the multiplicity $(PERCENT_PER_FISSION), a miscoding of \
+                 a number per fission, and the csv rendering does not restate its lines by \
+                 one factor, so the scale of the subentry cannot be recovered",
+            )
+    end
+
     columns, units = _column_table(data)
     return Dataset(
         identifier,

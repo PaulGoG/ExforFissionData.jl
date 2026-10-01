@@ -23,8 +23,22 @@ Notable changes to ExforFissionData.jl. The format follows
   where the others do and stays. Their subentries place them on Fig. 11a "(NUt=0)" of Dushin et
   al. ([doi:10.1016/j.nima.2003.09.029](https://doi.org/10.1016/j.nima.2003.09.029)) without
   saying what that denotes. Accepted Y(A) sets for 252-Cf fall from 15 to 13.
+- A multiplicity whose subentry heads it `PC/FIS` is written as the subentry tabulates it, on the
+  scale of a number per fission. The token is a miscoding, since a count of neutrons per fission
+  is never a percentage, and the csv rendering follows it by dividing the values by 100: 0.2.2
+  wrote `22650004` (Tsuchiya 2000, 239-Pu ν(A)) as 0.007 to 0.054 instead of 0.70 to 5.36, while
+  its record stated the pair sum of the tabulated values, 2.989. The record now gives
+  `unit_reported = "PC/FIS"` and `unit_miscoded`; a dataset whose rendering does not restate it
+  by one factor on every line is refused. No other table changes.
 - Batenkov's datasets are labelled 2004, EXFOR's reference year, in the notes of 0.2.1 and 0.2.2
   and in the documentation, as in their file names.
+
+### Added
+
+- `pair_sum_nubar` in the run record, the ν̄ a pair sum is compared with, so that the pair sum
+  S = kν̄(1 + `pair_sum_deviation`) can be formed again from the written table.
+  `test/written_tables.jl` does so for every such ν(A) of a retrieval tree, the one named by
+  `EXFORFISSIONDATA_TREE` or the repository's `data/`, and is skipped without one.
 
 ## [0.2.2] - 2026-10-01
 
