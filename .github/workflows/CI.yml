@@ -43,7 +43,10 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
+      # Runs triggered by Dependabot receive no repository secrets, and Codecov refuses a
+      # tokenless upload from a branch of this repository.
       - uses: codecov/codecov-action@v7
+        if: github.actor != 'dependabot[bot]'
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}

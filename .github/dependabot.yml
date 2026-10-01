@@ -18,6 +18,13 @@ updates:
       - "/test"
     schedule:
       interval: "weekly"
+    # Dependabot reads no version for the standard libraries and rewrites their compat entries
+    # to "1, < 0.0.1"; those entries are kept by hand.
+    ignore:
+      - dependency-name: "Dates"
+      - dependency-name: "Statistics"
+      - dependency-name: "TOML"
+      - dependency-name: "Test"
     groups:
       julia-dependencies:
         patterns:
