@@ -6,6 +6,11 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-01
+
+Corrections to what 0.2.2 writes: the 239-Pu ν(A) of Tsuchiya 2000 on its proper scale, two
+252-Cf yields that are not the inclusive yield refused, and file names without apostrophes.
+
 ### Changed
 
 - The first author in a file name keeps only the characters `[A-Za-z0-9.-]`, so that no file name
@@ -284,7 +289,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.1.0...v0.2.0
