@@ -121,7 +121,7 @@ in exactly that way, and where the documentation says "consumers" it means those
 Prompt neutron multiplicity against fragment mass, one panel per fissioning system, as the
 `*_nu_vs_A` configurations return it. Each frame advances through the datasets the archive offers
 for that query in the order the pipeline processes them; a dataset enters the axes only where its
-reaction code answers the query, and otherwise advances the tally alone. Thirty datasets kept of
+reaction code answers the query, and otherwise advances the tally alone. Thirty-two datasets kept of
 824 considered — the remainder are other quantities filed under the same target and reaction, and
 the run record names every one of them with the reason it was left out.
 

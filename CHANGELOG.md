@@ -39,6 +39,7 @@ Notable changes to ExforFissionData.jl. The format follows
 
 - An entry whose masses are provisional is refused for that reason before its reaction code is
   tested, so its record names it: `404200022` and `40420003` no longer appear as missing `FRG`.
+- The README figure is redrawn from the retrievals of this version.
 
 ## [0.2.0] - 2026-10-01
 
