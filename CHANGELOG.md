@@ -23,6 +23,9 @@ Notable changes to ExforFissionData.jl. The format follows
   where the others do and stays. Their subentries place them on Fig. 11a "(NUt=0)" of Dushin et
   al. ([doi:10.1016/j.nima.2003.09.029](https://doi.org/10.1016/j.nima.2003.09.029)) without
   saying what that denotes. Accepted Y(A) sets for 252-Cf fall from 15 to 13.
+- Batenkov's datasets are labelled 2004, EXFOR's reference year, in the notes of 0.2.1 and 0.2.2
+  and in the documentation, as in their file names.
+
 ## [0.2.2] - 2026-10-01
 
 One rule change: whether a multiplicity coded without `FRG` is per fragment or per fission is
@@ -38,7 +41,7 @@ refused by 0.2.1 are written, two each for 252-Cf and 239-Pu and one for 235-U.
   2ν̄ and the equality holds. A consulted publication corroborates a reading but no longer
   decides it. Five datasets refused by 0.2.1 are accepted: `14652004` (Britt 1964) and
   `41689004` (Piksaykin 1977) for 252-Cf, `22650004` (Tsuchiya 2000) and `41502006` (Batenkov
-  2005) for 239-Pu, and `41502005` (Batenkov 2005) for 235-U. Accepted ν(A) sets rise from 13 to
+  2004) for 239-Pu, and `41502005` (Batenkov 2004) for 235-U. Accepted ν(A) sets rise from 13 to
   15 for 252-Cf, from 5 to 7 for 239-Pu and from 10 to 11 for thermal 235-U; 233-U, 235-U in the
   resonance region and every ν(A, TKE) are unchanged. `41502007` and `41712005` are read per
   fragment too, but lie in the 0.296 eV resonance and in 18-u mass groups, and are not written.
@@ -86,7 +89,7 @@ gains three per-fragment ν(A) sets and one ν(A, TKE) set.
   ν(A) sets for 252-Cf rise from 10 to 13 and ν(A, TKE) sets from 7 to 8; 235-U, 239-Pu and 233-U
   are unchanged. Seventeen datasets are per fission, as coded, among them `23268007`, `22660006`
   and `41397006`. Refused under both readings, with the test values as the reason: `22650004`
-  (Tsuchiya 2000) and `41502006` (Batenkov 2005), per fragment by their shape but with a pair
+  (Tsuchiya 2000) and `41502006` (Batenkov 2004), per fragment by their shape but with a pair
   sum 3.9 % above and 10.7 % below ν̄; `41502005`, `41502007`, `41689004` and `41712005`, whose
   publications could not be consulted; `14652004` (Britt 1964), which states no uncertainty;
   `23118007`, which the test does not decide; and four datasets against the mass ratio. The

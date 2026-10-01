@@ -209,12 +209,12 @@ Read per fragment, and accepted where the configuration's incident-energy window
 | `23175010` (Budtz-Jørgensen 1988), ν(A, TKE) | D at equal TKE, χ² per pair 16; at the mean TKE 0.46 rms from `23175008`, 2.03 from its pair sum | — | `data+paper`: Fig. 13 of INDC(NDS)-220 |
 | `21834009`, `21834010` (Müller 1981), 235-U at 0.5 and 5.55 MeV | 45 pairs each; χ² per pair 28 and 14 | +0.000 ± 0.009 and +0.037 ± 0.015, own at the same energy | `data+paper`: Table VIII of KfK-3220, [doi:10.5445/IR/270016605](https://doi.org/10.5445/IR/270016605) |
 | `41689004` (Piksaykin 1977) | 9 pairs; χ² per pair 45 | +0.048 ± 0.019, fallback | `data` |
-| `41502005` (Batenkov 2005), 235-U | 10 pairs; χ² per pair 105 | +0.018 ± 0.015, fallback | `data` |
-| `41502007` (Batenkov 2005), 239-Pu at 0.296 eV | 9 pairs; χ² per pair 14 | −0.020 ± 0.037, fallback | `data` |
+| `41502005` (Batenkov 2004), 235-U | 10 pairs; χ² per pair 105 | +0.018 ± 0.015, fallback | `data` |
+| `41502007` (Batenkov 2004), 239-Pu at 0.296 eV | 9 pairs; χ² per pair 14 | −0.020 ± 0.037, fallback | `data` |
 | `41712005` (Alkhazov 1988), ν(A, TKE) | two mass groups; at the mean TKE 0.57 rms from `41712002`, 2.06 from its pair sum | — | `data` |
 | `14652004` (Britt 1964) | 16 pairs, no uncertainty; one change of sign, 1.7 × 10⁻⁴ as noise | −0.007, fallback; not weighed | `data` |
 | `22650004` (Tsuchiya 2000) | 42 pairs; χ² per pair 105 | +0.039 ± 0.006, own; **not consistent** | `data` |
-| `41502006` (Batenkov 2005) | 9 pairs; χ² per pair 74 | −0.107 ± 0.013, fallback; **not consistent** | `data` |
+| `41502006` (Batenkov 2004) | 9 pairs; χ² per pair 74 | −0.107 ± 0.013, fallback; **not consistent** | `data` |
 
 No shipped configuration writes `21834009` and `21834010`, at fast energies; `41502007`, in the
 resonance, outside the thermal window of `Pu239_nth`; or `41712005`, whose 18-u mass groups are
