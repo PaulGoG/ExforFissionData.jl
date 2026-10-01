@@ -97,6 +97,10 @@ data/Cf252_sf/nu_vs_A/
     └── 41425014_A.S.Vorobiev_2001.txt    # the original EXFOR subentry
 ```
 
+The author in a file name keeps only the characters `[A-Za-z0-9.-]`, so that EXFOR's
+`P.P.D'yachenko` is written `40235003_P.P.Dyachenko_1969.dat`. The run record keeps the author
+verbatim, and spellings that EXFOR gives one person in different entries are not merged.
+
 A dataset identifier with a ninth character, such as `400170021`, is a pointer into a subentry
 shared by several datasets, and the text stored beside it is that whole subentry.
 

@@ -6,6 +6,14 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The first author in a file name keeps only the characters `[A-Za-z0-9.-]`, so that no file name
+  needs quoting: `40235003_P.P.D'yachenko_1969.dat` is now `40235003_P.P.Dyachenko_1969.dat`, and
+  likewise `40235017` (235-U ⟨TKE⟩(A) and σ_TKE(A)) and `40472003` (Kotel'nikova 1975, 252-Cf
+  spectrum). The run record keeps the author verbatim, and spellings EXFOR gives one person in
+  different entries stay distinct.
+
 ## [0.2.2] - 2026-10-01
 
 One rule change: whether a multiplicity coded without `FRG` is per fragment or per fission is

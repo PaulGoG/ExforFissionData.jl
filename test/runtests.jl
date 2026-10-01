@@ -1,6 +1,6 @@
 using Test
 using TOML
-using DataFrames: nrow
+using DataFrames: DataFrame, nrow
 using ExforFissionData
 using ExforFissionData:
     AcceptedDataset,
@@ -470,6 +470,26 @@ include("fixtures.jl")
     end
 
     @testset "export" begin
+        # The author in a file name keeps [A-Za-z0-9.-] alone; spellings are not merged.
+        stem(author) = ExforFissionData.dataset_stem(
+            Dataset(
+                "40235003",
+                1969,
+                author,
+                "",
+                "",
+                DataFrame(),
+                DataFrame(),
+                Dict{String, String}(),
+            ),
+        )
+        @test stem("P.P.D'yachenko") == "40235003_P.P.Dyachenko_1969"
+        @test stem("P.P.Dyachenko") == stem("P.P.D'yachenko")
+        @test stem("P.P.Djachenko") == "40235003_P.P.Djachenko_1969"
+        @test stem("Ding Shengyao") == "40235003_DingShengyao_1969"
+        @test stem("F.-J.Hambsch") == "40235003_F.-J.Hambsch_1969"
+        @test stem("'") == "40235003_unknown_1969"
+
         query = test_query()
         directory = mktempdir()
 

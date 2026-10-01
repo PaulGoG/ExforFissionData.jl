@@ -25,9 +25,15 @@ end
 The file stem of one dataset: identifier, first author and year, e.g.
 `"21685003_A.Goeoek_2014"`. The accession leads back to the measurement; the author and year are
 what a figure legend keys on.
+
+The author keeps only the characters `[A-Za-z0-9.-]`, so that `P.P.D'yachenko` is written
+`P.P.Dyachenko`: an apostrophe or a space in a file name has to be quoted in every shell and
+script that touches it. Nothing else is normalised, and spellings EXFOR gives the same person in
+different entries stay distinct. The run record keeps the author verbatim.
 """
 function dataset_stem(dataset::Dataset)
-    author = replace(dataset.author, r"\s+" => "")
+    author = replace(dataset.author, r"[^A-Za-z0-9.-]" => "")
+    isempty(author) && (author = "unknown")
     return string(dataset.identifier, '_', author, '_', dataset.year)
 end
 
