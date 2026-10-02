@@ -28,6 +28,11 @@ One EXFOR dataset, parsed and accepted for a query.
   unique by a suffix, a second `FLAG` becoming `FLAG_1`.
 - `units::Dict{String,String}`: the unit of each heading of `columns`, the first occurrence of a
   repeated heading deciding.
+- `record::Dict{String,Any}`: what selection read of the dataset beyond its columns, written to
+  the run record under the same keys: `ordinate_frame` and `ordinate_frame_evidence` of a mean
+  neutron energy, `maxwellian_temperature_mev` and `maxwellian_temperature_source` of a ratio
+  to a Maxwellian, `ratio_numerator`, `ratio_denominator` and `ratio_orientation` of a ratio
+  of two spectra. Empty for every other dataset, and for the eight-argument constructor.
 """
 struct Dataset
     identifier::String
@@ -38,7 +43,20 @@ struct Dataset
     table::DataFrame
     columns::DataFrame
     units::Dict{String, String}
+    record::Dict{String, Any}
 end
+
+Dataset(identifier, year, author, reaction_code, unit, table, columns, units) = Dataset(
+    identifier,
+    year,
+    author,
+    reaction_code,
+    unit,
+    table,
+    columns,
+    units,
+    Dict{String, Any}(),
+)
 
 """
     Screened
@@ -131,7 +149,9 @@ answer, in the order below, the first failure being reported.
 2. the `y:Value` column marks measurements rather than limits, and is not in arbitrary units;
 3. the reaction code satisfies the composed tag rule of the abscissa and ordinate — or, for a
    dataset of [`CURATED_DATASETS`](@ref), the curated ordinate is the one asked for and the
-   code satisfies the abscissa rule; see [`curation_rejection`](@ref). A slice of the joint
+   code satisfies the abscissa rule; see [`curation_rejection`](@ref). Under the ordinate
+   [`REFERENCE_RATIO_ORDINATE`](@ref) the code is instead the ratio of the spectrum of the
+   system and that of 252-Cf(sf); see [`spectrum_ratio`](@ref). A slice of the joint
    distribution is not Y(A, TKE) ([`SLICE_DATASETS`](@ref)), and a pre-neutron mass abscissa
    refuses the entries whose masses are provisional ([`PROVISIONAL_MASS_ENTRIES`](@ref));
 4. the reaction code carries no spectrum qualifier that contradicts the entrance channel; see
@@ -211,7 +231,11 @@ function screen_dataset(
     curation = get(CURATED_DATASETS, String(identifier), nothing)
     reason = something(
         slice_rejection(identifier, query.abscissa, ordinate),
-        if curation === nothing
+        if ordinate == REFERENCE_RATIO_ORDINATE
+            # The one ordinate read from a combination of reaction codes.
+            ratio = spectrum_ratio(code, system_reaction(query), query.channel)
+            ratio isa String ? ratio : nothing
+        elseif curation === nothing
             rejection_reason(tag_rule(query.abscissa, ordinate), code)
         else
             curation_rejection(curation, query.abscissa, ordinate, code)
@@ -333,6 +357,61 @@ function _misalignment(table::DataFrame, data::SubentryColumns)
     return nothing
 end
 
+"""
+Relative tolerance within which a value of the csv rendering restates the value of its subentry
+line. The rendering writes six significant digits, 101.9375 MeV as `1.01938e+8` eV, so the two
+differ by up to five parts in a million.
+"""
+const RENDERING_TOLERANCE = 1.0e-5
+
+# The first row on which the ordinate of the csv rendering and the datum column `datum` of the
+# DATA table disagree as energies, described, or `nothing` when they agree; both are compared in
+# MeV. A unit that is no energy is described likewise.
+function _ordinate_misalignment(
+    table::DataFrame,
+    data::SubentryColumns,
+    datum::Int,
+    unit::AbstractString,
+)
+    heading = data.headings[datum]
+    rendered = energy_factor(unit)
+    tabulated = energy_factor(data.units[datum])
+    (rendered === nothing || tabulated === nothing) &&
+        return "the ordinate: the rendering gives it in $(unit) and the subentry heads \
+                $(heading) $(data.units[datum]), which are not both energy units this \
+                package converts"
+    ordinate = table[!, COL_Y]
+    for i in 1:nrow(table)
+        value = data.values[datum][i]
+        (ismissing(ordinate[i]) || ismissing(value)) && continue
+        isapprox(ordinate[i] * rendered, value * tabulated; rtol = RENDERING_TOLERANCE) ||
+            return "row $(i): csv y $(ordinate[i]) $(unit) against subentry $(heading) \
+                    $(value) $(data.units[datum])"
+    end
+    return nothing
+end
+
+"""
+    neutron_energy_refusal(ordinate, unit) -> Union{String,Nothing}
+
+The reason the values `ordinate`, in `unit`, are not mean neutron energies, or `nothing` when
+none exceeds [`MAXIMUM_NEUTRON_KINETIC_ENERGY`](@ref): the number of rows above the bound and
+the largest value, or a unit that is no energy.
+"""
+function neutron_energy_refusal(ordinate::AbstractVector, unit::AbstractString)
+    factor = energy_factor(unit)
+    factor === nothing &&
+        return "the ordinate is in $(unit), which is not an energy unit this package converts"
+    values = Float64[v * factor for v in skipmissing(ordinate)]
+    above = count(>(MAXIMUM_NEUTRON_KINETIC_ENERGY), values)
+    above == 0 && return nothing
+    return "$(above) of $(length(values)) rows hold more than \
+            $(MAXIMUM_NEUTRON_KINETIC_ENERGY) MeV, up to \
+            $(round(maximum(values); sigdigits = 4)) MeV, which no mean neutron energy \
+            reaches: the column holds another energy, a fragment kinetic energy for one, \
+            under the code of a neutron energy"
+end
+
 # The DATA columns as a table, one column per heading, and the unit of each heading.
 function _column_table(data::SubentryColumns)
     units = Dict{String, String}()
@@ -357,19 +436,27 @@ settles what the dataset is tabulated against. The first failure is reported.
 6. the subentry parses; for a spectrum, its energies are not in the centre-of-mass frame
    (`E-CM`, `DATA-CM`); and a DATA column the subentry gives in arbitrary units is taken as
    such, whatever unit the csv rendering reports, and passes only where the observable admits a
-   relative scale;
-7. the DATA table, restricted to the lines that carry a datum in this dataset's `DATA` column,
-   has one line per row of the rendering and agrees with it row by row: the truncated product
-   against `MASS` and `ELEM`, the secondary energy against `E` or `TKE`. Only then are the rows
-   of step 5 retained, less the lines a compilation defect of [`ARCHIVE_DEFECTS`](@ref) marks —
-   and a defect record the archive no longer matches rejects the dataset;
-8. no independent variable of the DATA table other than the abscissa's own varies over the
-   retained rows; see [`varying_columns`](@ref);
+   relative scale. A mean neutron energy exceeds [`MAXIMUM_NEUTRON_KINETIC_ENERGY`](@ref) on
+   no row of step 5; see [`neutron_energy_refusal`](@ref);
+7. the DATA table, restricted to the lines that carry a datum in this dataset's datum column —
+   `DATA`, or `DATA-CM` for an ordinate of [`CENTRE_OF_MASS_ORDINATES`](@ref); see
+   [`datum_heading`](@ref) — has one line per row of the rendering and agrees with it row by
+   row: the truncated product against `MASS` and `ELEM`, the secondary energy against `E` or
+   `TKE`, and for those ordinates the value itself against the datum column. Only then are the
+   rows of step 5 retained, less the lines a compilation defect of [`ARCHIVE_DEFECTS`](@ref)
+   marks — and a defect record the archive no longer matches rejects the dataset;
+8. a mean neutron energy is not stated to be in the laboratory frame; see
+   [`ordinate_frame`](@ref). No independent variable of the DATA table other than the abscissa's
+   own varies over the retained rows; see [`varying_columns`](@ref);
 9. the DATA table carries a column for every quantity of the abscissa, or its bin pair, and an
    energy column is in a unit [`energy_factor`](@ref) converts;
 10. the product identification is consistent with the abscissa: present and mass-coded for the
     fragment-mass abscissae, present and charge-coded for the charge abscissae, and absent for
-    the energy abscissae.
+    the energy abscissae;
+11. a spectrum given as a ratio to a Maxwellian states the temperature of that Maxwellian; see
+    [`maxwellian_temperature`](@ref). A ratio to the spectrum of 252-Cf(sf) has no variable
+    headed for its numerator or denominator alone (`-NM`, `-DN`), so that both spectra are taken
+    at one outgoing energy.
 
 Step 5 is a row filter rather than a whole-dataset test. An EXFOR dataset frequently reports the
 same product at several incident energies; admitting all of them and combining them later would
@@ -422,7 +509,8 @@ function select_dataset(
     # The rendering writes one row per line that carries a datum: a line whose DATA field is
     # blank — the pointed column of another dataset holds the value there — has no row. The
     # DATA table is restricted to the lines with a datum before the two are compared.
-    datum = column(subentry.data, "DATA")
+    datum_name = datum_heading(query.ordinate, subentry.data.headings)
+    datum = datum_name === nothing ? nothing : column(subentry.data, datum_name)
     datum === nothing && return Rejection(
         identifier,
         code,
@@ -430,6 +518,14 @@ function select_dataset(
          quantities the rendering does not present as measurements",
     )
     data = restrict(subentry.data, BitVector(map(!ismissing, subentry.data.values[datum])))
+
+    # A fragment energy coded as a neutron energy is named for what it is before anything else
+    # is asked of its table.
+    if query.ordinate in CENTRE_OF_MASS_ORDINATES
+        refusal =
+            neutron_energy_refusal(screened.table[screened.keep, COL_Y], screened.unit)
+        refusal === nothing || return Rejection(identifier, code, refusal)
+    end
 
     width = query.ordinate == WIDTH_ORDINATE ? mapped_width(widths, identifier) : nothing
     if width !== nothing
@@ -486,6 +582,16 @@ function select_dataset(
         code,
         "the csv rendering and the subentry DATA table disagree at " * misalignment,
     )
+    # A datum in the centre-of-mass frame is read from its own column, so the rendering is held
+    # against that column line by line before it stands for it.
+    if query.ordinate in CENTRE_OF_MASS_ORDINATES
+        misalignment = _ordinate_misalignment(screened.table, data, datum, screened.unit)
+        misalignment === nothing || return Rejection(
+            identifier,
+            code,
+            "the csv rendering and the subentry DATA table disagree at " * misalignment,
+        )
+    end
 
     keep = copy(screened.keep)
     defects = get(ARCHIVE_DEFECTS, identifier, nothing)
@@ -496,6 +602,20 @@ function select_dataset(
     end
     table = screened.table[keep, :]
     data = restrict(data, keep)
+
+    # What selection reads of the dataset beyond its columns, for the run record.
+    record = Dict{String, Any}()
+    if query.ordinate in CENTRE_OF_MASS_ORDINATES
+        frame = ordinate_frame(identifier, data.headings)
+        frame.frame == "laboratory" && return Rejection(
+            identifier,
+            code,
+            "the mean neutron energy is in the laboratory frame, not the centre-of-mass \
+             frame of the fragment: " * frame.evidence,
+        )
+        record["ordinate_frame"] = frame.frame
+        record["ordinate_frame_evidence"] = frame.evidence
+    end
 
     varying = varying_columns(data, query.abscissa)
     if !isempty(varying)
@@ -591,6 +711,32 @@ function select_dataset(
             )
     end
 
+    # The two spectra of a ratio are taken at one outgoing energy, and the record says which
+    # of them is the numerator.
+    if query.ordinate == REFERENCE_RATIO_ORDINATE
+        split_headings =
+            filter(h -> endswith(h, "-NM") || endswith(h, "-DN"), data.headings)
+        isempty(split_headings) || return Rejection(
+            identifier,
+            code,
+            "numerator and denominator are tabulated against variables of their own \
+             ($(join(split_headings, ", "))), not both at one outgoing energy",
+        )
+        ratio = spectrum_ratio(code, system_reaction(query), query.channel)
+        ratio isa String && return Rejection(identifier, code, ratio)
+        record["ratio_numerator"] = ratio.numerator
+        record["ratio_denominator"] = ratio.denominator
+        record["ratio_orientation"] = ratio.orientation
+    end
+
+    # A ratio to a Maxwellian states a spectrum only with the temperature it was formed with.
+    if query.ordinate == MAXWELLIAN_RATIO_ORDINATE
+        temperature = maxwellian_temperature(identifier, subentry, data)
+        temperature isa String && return Rejection(identifier, code, temperature)
+        record["maxwellian_temperature_mev"] = temperature.temperature
+        record["maxwellian_temperature_source"] = temperature.source
+    end
+
     columns, units = _column_table(data)
     return Dataset(
         identifier,
@@ -601,6 +747,7 @@ function select_dataset(
         table,
         columns,
         units,
+        record,
     )
 end
 

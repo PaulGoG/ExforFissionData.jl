@@ -708,7 +708,8 @@ struct CorrelationGroup
 end
 
 """
-Groups of datasets that repeat one experiment; see [`CorrelationGroup`](@ref). Each accepted
+Groups of datasets that repeat one experiment, or publish one twice; see
+[`CorrelationGroup`](@ref). Each accepted
 member carries the others as `correlated_with` in the run record, so that no weighting downstream
 counts one experiment once per run.
 """
@@ -719,6 +720,13 @@ const CORRELATION_GROUPS = [
          INDC(CCP)-008), each taken alternately with one fast-neutron run at 120 to 600 keV in \
          the same apparatus; they agree within 0.2 MeV over the heavy-fragment peak and are \
          one measurement for any combination, not six",
+    ),
+    CorrelationGroup(
+        ["41516017", "41597002"],
+        "one measurement of the 235-U to 252-Cf spectrum ratio at 0.0363 eV, published twice: \
+         41516017 (Vorobyev 2010, 252-Cf over 235-U) is marked superseded by 41597002 \
+         (Vorobyev 2013, 235-U over 252-Cf) in its STATUS (SPSDD); the two are one \
+         measurement for any combination, and the later analysis is the authors' own choice",
     ),
 ]
 
@@ -915,4 +923,206 @@ function slice_rejection(
         return nothing
     return "a slice of the joint distribution, not the distribution: $(slice.holds); \
             $(slice.energies); $(slice.masses) ($(slice.source)); listed under `slices`"
+end
+
+"""The frames a mean neutron energy is recorded in, as `ordinate_frame` of the run record."""
+const ORDINATE_FRAME_VALUES = ("centre_of_mass", "laboratory", "unstated")
+
+"""
+    FrameReading(frame, evidence)
+
+The frame of the datum of one dataset, with what establishes it.
+
+# Fields
+- `frame::String`: one of [`ORDINATE_FRAME_VALUES`](@ref).
+- `evidence::String`: the heading, or the words of the subentry, the frame is read from; for an
+  unstated frame, what the subentry does say.
+
+# Throws
+- `ArgumentError` for a frame outside [`ORDINATE_FRAME_VALUES`](@ref).
+"""
+struct FrameReading
+    frame::String
+    evidence::String
+    function FrameReading(frame::AbstractString, evidence::AbstractString)
+        frame in ORDINATE_FRAME_VALUES || throw(
+            ArgumentError("frame \"$(frame)\" is not one of $(ORDINATE_FRAME_VALUES)"),
+        )
+        return new(String(frame), String(evidence))
+    end
+end
+
+"""
+The frame of mean neutron energies whose subentry heads them `DATA`, keyed by dataset
+identifier and read from the subentry text alone; see [`FrameReading`](@ref) and
+[`ordinate_frame`](@ref). A dataset headed `DATA` and absent from this table is recorded as
+unstated.
+
+What a publication says beyond the subentry is quoted in the evidence and does not change the
+reading: the frame recorded is the one the archive states.
+"""
+const ORDINATE_FRAMES = Dict{String, FrameReading}(
+    "41502009" => FrameReading(
+        "centre_of_mass",
+        "the REACTION text reads 'Average prompt neutron energy as dependence from preneutron \
+         fragment mass in fragment center of mass system'",
+    ),
+    "41502010" => FrameReading(
+        "centre_of_mass",
+        "the REACTION text reads 'Average prompt neutron energy as dependence from preneutron \
+         fragment mass in fragment center of mass system'",
+    ),
+    "23175012" => FrameReading(
+        "unstated",
+        "the REACTION text reads 'Average fission neutron kinetic energy as function of mass' \
+         and names no frame; the MISC columns hold the temperature and the exponent of a \
+         Weisskopf spectrum from the same figure, Fig. 17 of Nucl. Phys. A 490, 307 \
+         (doi:10.1016/0375-9474(88)90508-8). The authors' contribution of the same title and \
+         data to INDC(NDS)-220 (Mito 1988, p. 199) gives Fig. 17a as the average of 'the \
+         neutron energy in the center-of-mass system of the fragment', which the subentry \
+         does not repeat",
+    ),
+    "14369005" => FrameReading(
+        "unstated",
+        "the REACTION text reads 'Energy of neutrons emitted with the fragment specified' and \
+         names no frame; the data are read from Fig. 5 of Milton and Fraser, Salzburg 1965, \
+         vol. 2, p. 39, which was not consulted",
+    ),
+    "41689005" => FrameReading(
+        "unstated",
+        "the REACTION record carries no text, and neither subentry 001 nor 005 names the \
+         frame of the neutron energy; the entry compares it with the centre-of-mass energies \
+         of Bowman 1962 (REL-REF 14065001)",
+    ),
+    "22660004" => FrameReading(
+        "unstated",
+        "the REACTION text reads 'Average Neutron Energy as a function of fragment mass and \
+         total kinetic energy of fragments' and names no frame; 22660003 of the same entry, \
+         against mass alone, is headed DATA-CM",
+    ),
+)
+
+"""
+    ordinate_frame(identifier, headings) -> FrameReading
+
+The frame of the datum of a dataset of [`CENTRE_OF_MASS_ORDINATES`](@ref) whose DATA table
+carries `headings`: the centre of mass where the datum is headed
+[`CENTRE_OF_MASS_DATUM`](@ref), else the reading of [`ORDINATE_FRAMES`](@ref), else unstated.
+"""
+function ordinate_frame(
+    identifier::AbstractString,
+    headings::AbstractVector{<:AbstractString},
+)
+    CENTRE_OF_MASS_DATUM in headings && return FrameReading(
+        "centre_of_mass",
+        "the subentry heads the value $(CENTRE_OF_MASS_DATUM)",
+    )
+    return get(
+        ORDINATE_FRAMES,
+        String(identifier),
+        FrameReading(
+            "unstated",
+            "the subentry heads the value DATA, and no reading of its text for the frame is \
+             recorded",
+        ),
+    )
+end
+
+"""
+The qualifier written among the `qualifiers` of a dataset whose [`ordinate_frame`](@ref) is
+unstated, so that a reader of the reaction-code flags meets it there.
+"""
+const FRAME_UNSTATED_QUALIFIER = "frame unstated: the subentry does not say that the neutron \
+    energy is in the centre-of-mass frame of the fragment"
+
+"""
+The heading under which a subentry gives the temperature of the Maxwellian a spectrum is
+divided by, `KT-NRM` (EXFOR Dictionary 24).
+"""
+const MAXWELLIAN_TEMPERATURE_HEADING = "KT-NRM"
+
+"""
+    MaxwellianTemperature(temperature, source)
+
+The temperature of the Maxwellian a spectrum ratio was formed with.
+
+# Fields
+- `temperature::Float64`: in MeV.
+- `source::String`: where the subentry gives it.
+"""
+struct MaxwellianTemperature
+    temperature::Float64
+    source::String
+end
+
+"""
+Datasets whose `KT-NRM` holds the mean energy of the Maxwellian, 3T/2, and not its temperature,
+keyed by dataset identifier, as `(mean_energy, evidence)` with the mean energy in MeV as the
+archive gives it. The temperature recorded is two thirds of it. An archive value that no longer
+equals `mean_energy` refuses the dataset until the reading is reviewed.
+"""
+const MAXWELLIAN_MEAN_ENERGIES = Dict{String, Tuple{Float64, String}}(
+    "14278003" => (
+        2.159,
+        "the ANALYSIS text reads 'ratio of the experimental spectrum to a Maxwellian \
+         distribution with the same average energy of 2.159 MeV', and KT-NRM holds that \
+         2.159 MeV: the mean energy 3T/2, so that T = 1.439 MeV",
+    ),
+)
+
+"""
+    maxwellian_temperature(identifier, subentry, data)
+        -> Union{MaxwellianTemperature,String}
+
+The temperature of the Maxwellian the spectrum ratio of one dataset was formed with, or the
+reason the subentry does not give one.
+
+It is read from the column [`MAXWELLIAN_TEMPERATURE_HEADING`](@ref): of the COMMON section of
+the subentry, else of the COMMON section of the entry, else of the DATA table `data`, the
+retained lines, where it must hold one value. The unit must be an energy
+[`energy_factor`](@ref) converts. A dataset of [`MAXWELLIAN_MEAN_ENERGIES`](@ref) holds the
+mean energy there, and its temperature is two thirds of it.
+"""
+function maxwellian_temperature(
+    identifier::AbstractString,
+    subentry::Subentry,
+    data::SubentryColumns,
+)
+    heading = MAXWELLIAN_TEMPERATURE_HEADING
+    places = (
+        (subentry.common, "the COMMON section of the subentry"),
+        (subentry.entry_common, "the COMMON section of subentry 001"),
+        (data, "the DATA table"),
+    )
+    for (columns, place) in places
+        index = column(columns, heading)
+        index === nothing && continue
+        values = unique(skipmissing(columns.values[index]))
+        length(values) == 1 ||
+            return "$(heading) in $(place) holds $(length(values)) values \
+            over the retained lines, so the ratio is not formed with one Maxwellian"
+        unit = columns.units[index]
+        factor = energy_factor(unit)
+        factor === nothing &&
+            return "$(heading) in $(place) is headed $(unit), which is not \
+            an energy unit this package converts"
+        value = only(values) * factor
+        mean_energy = get(MAXWELLIAN_MEAN_ENERGIES, String(identifier), nothing)
+        if mean_energy === nothing
+            value > 0 ||
+                return "$(heading) in $(place) is $(value) MeV, which is no temperature"
+            return MaxwellianTemperature(value, "$(heading) in $(place)")
+        end
+        expected, evidence = mean_energy
+        isapprox(value, expected; rtol = 1.0e-6) ||
+            return "$(heading) in $(place) is $(value) MeV where the recorded reading of it \
+                    as a mean energy expects $(expected) MeV; the archive may have corrected \
+                    it, and the reading must be reviewed"
+        return MaxwellianTemperature(
+            round(2 * value / 3; sigdigits = 4),
+            "two thirds of $(heading) in $(place): " * evidence,
+        )
+    end
+    return "the subentry gives no temperature of the Maxwellian the ratio was formed with \
+            ($(heading)), without which the ratio states no spectrum"
 end

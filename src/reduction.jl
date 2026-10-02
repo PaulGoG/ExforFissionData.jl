@@ -227,11 +227,12 @@ end
 # The uncertainty of each row read from the subentry, on the scale of the csv ordinate, and the
 # heading it came from; `nothing` when the subentry holds none that can be read. For a dataset
 # whose rendering carries no uncertainty at all: 23268002 gives ERR-S on every cell, and the csv
-# on none. An uncertainty in PER-CENT is relative; one in the unit of DATA is carried over by
-# the rendering scale of the two ordinates, which must be the same on every row.
-function _subentry_uncertainties(dataset::Dataset)
+# on none. An uncertainty in PER-CENT is relative; one in the unit of the datum column `datum`
+# is carried over by the rendering scale of the two ordinates, which must be the same on every
+# row.
+function _subentry_uncertainties(dataset::Dataset, datum::AbstractString = "DATA")
     present = names(dataset.columns)
-    "DATA" in present || return nothing
+    datum in present || return nothing
     index = findfirst(in(present), DATUM_UNCERTAINTY_HEADINGS)
     index === nothing && return nothing
     heading = DATUM_UNCERTAINTY_HEADINGS[index]
@@ -244,8 +245,8 @@ function _subentry_uncertainties(dataset::Dataset)
         ]
         return (relative, heading)
     end
-    dataset.units[heading] == dataset.units["DATA"] || return nothing
-    scale = rendering_scale(ordinate, dataset.columns[!, "DATA"])
+    dataset.units[heading] == dataset.units[datum] || return nothing
+    scale = rendering_scale(ordinate, dataset.columns[!, datum])
     scale === nothing && return nothing
     return (
         Union{Missing, Float64}[ismissing(e) ? missing : abs(e) * scale for e in errors],
@@ -501,7 +502,10 @@ function reduce_dataset(
         raw_values, raw_uncertainties, uncertainty_source =
             _width_values(dataset, width, A₀, masses)
     elseif all(ismissing, raw_uncertainties)
-        fallback = _subentry_uncertainties(dataset)
+        fallback = _subentry_uncertainties(
+            dataset,
+            something(datum_heading(query.ordinate, names(dataset.columns)), "DATA"),
+        )
         if fallback === nothing
             uncertainty_source = "none"
         else

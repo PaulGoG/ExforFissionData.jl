@@ -160,6 +160,21 @@ function _curation_record(identifier::AbstractString)
     return record
 end
 
+# The qualifiers of one accepted dataset for the run record: those of its reaction code, of
+# both reactions where it is a ratio, and the flag of a mean neutron energy whose frame the
+# subentry leaves unstated.
+function _qualifiers(dataset::Dataset)
+    qualifiers = code_qualifiers(dataset.reaction_code)
+    # A ratio carries the qualifiers of its two reactions.
+    for key in ("ratio_numerator", "ratio_denominator")
+        haskey(dataset.record, key) &&
+            union!(qualifiers, code_qualifiers(dataset.record[key]))
+    end
+    get(dataset.record, "ordinate_frame", nothing) == "unstated" &&
+        push!(qualifiers, FRAME_UNSTATED_QUALIFIER)
+    return qualifiers
+end
+
 # The basis of a complement-test reading and, where the pair sum is formed, its scale. The
 # uncertainty and `scale_consistent` are left out where the dataset states no uncertainty: TOML
 # would carry a NaN, and an absent key cannot be mistaken for a value.
@@ -192,7 +207,10 @@ for a curated reading as `curation`, the compilation defects left out of it as `
 and the other runs of its experiment as `correlated_with`; see src/curation.jl. A multiplicity
 read by the complement test carries `classification_basis` and, where its pair sum is formed,
 `pair_sum_deviation` with its uncertainty, the yields it was weighted with, and
-`scale_consistent`; see [`ComplementReading`](@ref). The record of a
+`scale_consistent`; see [`ComplementReading`](@ref). A mean neutron energy carries
+`ordinate_frame` with its evidence, and a flag among its `qualifiers` where the frame is
+unstated; a ratio to a Maxwellian carries `maxwellian_temperature_mev` and its source, and a
+ratio of two spectra `ratio_orientation` with the two reaction codes. The record of a
 joint yield Y(A, TKE) lists the slices of the distribution the archive holds for the system,
 [`SLICE_DATASETS`](@ref), as `slices`.
 
@@ -264,6 +282,25 @@ function write_metadata(
         ),
         "platform" => _platform(configuration.record_hostname),
     )
+    if query.ordinate in CENTRE_OF_MASS_ORDINATES
+        record["conventions"]["ordinate_frame"] = "the frame of the neutron energy, per dataset: centre_of_mass where the subentry \
+             heads the value $(CENTRE_OF_MASS_DATUM) or its text says so, unstated where it \
+             says neither; a value stated to be in the laboratory frame is refused. \
+             `ordinate_frame_evidence` gives the heading or the words read"
+        record["conventions"]["ordinate_bound"] = "a dataset holding more than $(MAXIMUM_NEUTRON_KINETIC_ENERGY) MeV on any row is \
+             refused as no mean neutron energy"
+    elseif query.ordinate == REFERENCE_RATIO_ORDINATE
+        record["conventions"]["ratio"] = "each dataset is the ratio of the spectrum of $(system_reaction(query)) and that \
+             of $(REFERENCE_SPECTRUM), both at the outgoing neutron energy E, written as \
+             tabulated: `ratio_orientation` says which is the numerator, system_over_reference \
+             or reference_over_system, and `ratio_numerator` and `ratio_denominator` give the \
+             two reaction codes. Nothing is inverted or normalised"
+    elseif query.ordinate == MAXWELLIAN_RATIO_ORDINATE
+        record["conventions"]["maxwellian_temperature"] = "the temperature T, in MeV, of the Maxwellian sqrt(E) exp(-E/T) each ratio was \
+             formed with, as `maxwellian_temperature_mev` per dataset, from the column \
+             $(MAXWELLIAN_TEMPERATURE_HEADING) of its subentry named in \
+             `maxwellian_temperature_source`; a dataset whose subentry gives none is refused"
+    end
 
     units = sort!(unique(String[entry.dataset.unit for entry in accepted]))
     record["datasets"] = Dict{String, Any}(
@@ -293,6 +330,30 @@ function write_metadata(
              nubar by more than $(PAIR_SUM_TOLERANCE_SIGMAS) standard deviations; their reading \
              stands, their scale is not that of nubar and is not corrected, and \
              `pair_sum_deviation` on each gives it: " * join(off_scale, ", ")
+    end
+    unstated = [
+        entry.dataset.identifier for entry in accepted if
+        get(entry.dataset.record, "ordinate_frame", nothing) == "unstated"
+    ]
+    if !isempty(unstated)
+        record["datasets"]["frame_warning"] =
+            "the subentries of these datasets do not state the frame of the neutron energy; \
+             they are written, flagged among their `qualifiers`, and are not established to \
+             be centre-of-mass energies — `ordinate_frame_evidence` on each gives what the \
+             subentry does say: " * join(unstated, ", ")
+    end
+    orientations = sort!(
+        unique(
+            String[
+                entry.dataset.record["ratio_orientation"] for
+                entry in accepted if haskey(entry.dataset.record, "ratio_orientation")
+            ],
+        ),
+    )
+    if length(orientations) > 1
+        record["datasets"]["orientation_warning"] = "the ratios of this directory are not all oriented alike; `ratio_orientation` on \
+             each dataset says which spectrum is the numerator, and one orientation is the \
+             reciprocal of the other"
     end
     if !isempty(flagged)
         record["datasets"]["scale_warning"] =
@@ -347,12 +408,13 @@ function write_metadata(
                 "reaction_code" => entry.dataset.reaction_code,
                 "unit" => entry.dataset.unit,
                 "relative" => is_relative_unit(entry.dataset.unit),
-                "qualifiers" => code_qualifiers(entry.dataset.reaction_code),
+                "qualifiers" => _qualifiers(entry.dataset),
                 "file" => entry.file,
                 "retrieved_utc" => string(entry.retrieved),
                 "from_cache" => entry.from_cache,
             ),
             _curation_record(entry.dataset.identifier),
+            entry.dataset.record,
             entry.reduced.diagnostics,
         ) for entry in accepted
     ]

@@ -116,6 +116,22 @@ const MINIMUM_FRAGMENT_MASS = 10
 const MAXIMUM_TARGET_MASS = 300
 
 """
+Largest value, in MeV, a mean centre-of-mass neutron energy takes; a dataset of the ordinate
+`neutron_kinetic_energy` holding a larger one on any row is refused, the reason giving the
+number of such rows and the largest value.
+
+The archive codes fragment kinetic energies as `KE,N` as well (23164022, 43.6 to 101.9 MeV
+against mass), which no reaction-code test can tell from a neutron energy. The magnitude can:
+an evaporation spectrum at nuclear temperature T, ε exp(−ε/T), has the mean energy 2T
+(Weisskopf, [doi:10.1103/PhysRev.52.295](https://doi.org/10.1103/PhysRev.52.295)), so a mean of
+5 MeV asks for T = 2.5 MeV, where the temperatures fitted to the measured spectra stay below
+1.4 MeV (the `MISC` columns of 23268011 and 23175012). The largest mean the archive holds for
+252-Cf(sf), 233-U, 235-U and 239-Pu(n,f) is 3.68 ± 0.64 MeV, at A = 180 in the far wing of
+23268011, and every other value lies below 3.3 MeV; no fragment carries less than some 40 MeV.
+"""
+const MAXIMUM_NEUTRON_KINETIC_ENERGY = 5.0
+
+"""
     LayoutError(message)
 
 A response whose header is not [`EXFOR_HEADER`](@ref).

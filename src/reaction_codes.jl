@@ -52,6 +52,49 @@ function reaction_fields(code::AbstractString)
 end
 
 """
+    reaction_ratio(code) -> Union{Tuple{String,String},Nothing}
+
+The numerator and the denominator of a reaction code that is the ratio of two single reactions,
+`(A)/(B)`; `nothing` for a single reaction and for every other combination — a sum, a
+difference, a product, a ratio of ratios, a ratio of more than two terms.
+
+# Example
+
+```jldoctest
+julia> ExforFissionData.reaction_ratio("(92-U-233(N,F),PR,NU/DE,,REL)/(98-CF-252(0,F),PR,NU/DE,,REL)")
+("92-U-233(N,F),PR,NU/DE,,REL", "98-CF-252(0,F),PR,NU/DE,,REL")
+```
+"""
+function reaction_ratio(code::AbstractString)
+    text = strip(String(code))
+    (startswith(text, "(") && endswith(text, ")")) || return nothing
+    separator = ")/("
+    position = findfirst(separator, text)
+    while position !== nothing
+        numerator = text[nextind(text, 1):prevind(text, first(position))]
+        denominator = text[nextind(text, last(position)):prevind(text, lastindex(text))]
+        if reaction_fields(numerator) !== nothing &&
+           reaction_fields(denominator) !== nothing
+            return (String(numerator), String(denominator))
+        end
+        position = findnext(separator, text, nextind(text, first(position)))
+    end
+    return nothing
+end
+
+"""
+    reaction_head(code) -> String
+
+The target and process of a single reaction code, `"92-U-233(N,F)"` of
+`"92-U-233(N,F),PR,NU/DE,,MXW"`: everything up to the parenthesis that closes the process.
+"""
+function reaction_head(code::AbstractString)
+    text = strip(String(code))
+    closing = findfirst(')', text)
+    return closing === nothing ? String(text) : String(text[begin:closing])
+end
+
+"""
 Codes that a tag of the key's form also accepts: `AKE`, average kinetic energy, is the coding of
 the same mean that the archive used before `KE` replaced it in SF6 (the histories of 21995010,
 22650013, 40112013 and many more record the change). `KEP`, the most probable kinetic energy,
@@ -277,9 +320,20 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #   post_neutron_total_kinetic_energy  the same, post-neutron: SEC required, since a blank
 #                                      branch establishes nothing — 40232003 leaves it blank
 #                                      over provisional masses — and (SEC) is uncertain
-#   neutron_kinetic_energy             centre-of-mass neutron energy, per neutron (,N)
+#   neutron_kinetic_energy             mean centre-of-mass energy of the prompt neutrons of a
+#                                      fragment (PR, KE, per neutron ,N). PRE beside PR marks the
+#                                      pre-neutron mass the energy is tabulated against, as in
+#                                      MASS,PRE/PR/FRG,NU, and is admitted (41689005): with N
+#                                      required the code is none of the fragment energies, which
+#                                      forbid N. A fragment energy miscoded KE,N (23164022, 44 to
+#                                      102 MeV) is told by its magnitude instead; see
+#                                      MAXIMUM_NEUTRON_KINETIC_ENERGY
 #   spectrum                           prompt fission neutron spectrum (DE, energy-differential)
 #   spectrum_maxwellian_ratio          the same, as a ratio to a Maxwellian (MXD)
+#   spectrum_cf252_ratio               the ratio of the spectrum of the system and that of
+#                                      252-Cf(sf), in either orientation: the rule of spectrum,
+#                                      applied to each of the two reactions of the ratio; see
+#                                      spectrum_ratio
 #
 # MSC excludes miscellaneous groupings; DA excludes angle-differential spectra, and FRG, NUM
 # and PAR beside PR the per-fragment, per-multiplicity and partial ones.
@@ -298,7 +352,7 @@ const ORDINATE_RULES = Dict{String, TagRule}(
     "post_neutron_total_kinetic_energy" =>
         TagRule(["SF6:KE", "SF7:LF+HF", "SF5:SEC"], String[], ["SF7:N"]),
     "neutron_kinetic_energy" =>
-        TagRule(["SF6:KE", "SF5:PR", "SF7:N"], String[], ["SF5:PRE"]),
+        TagRule(["SF6:KE", "SF5:PR", "SF7:N"], String[], String[]),
     "spectrum" => TagRule(
         ["SF5:PR", "SF6:DE"],
         String[],
@@ -308,6 +362,11 @@ const ORDINATE_RULES = Dict{String, TagRule}(
         ["SF5:PR", "SF6:DE", "SF8:MXD"],
         String[],
         ["SF6:DA", "SF5:FRG", "SF5:NUM", "SF5:PAR"],
+    ),
+    "spectrum_cf252_ratio" => TagRule(
+        ["SF5:PR", "SF6:DE"],
+        String[],
+        ["SF6:DA", "SF5:FRG", "SF5:NUM", "SF5:PAR", "SF8:MXD", "SF8:MSC"],
     ),
 )
 
@@ -345,6 +404,7 @@ const ORDINATE_TOKEN = Dict(
     "neutron_kinetic_energy" => "eps",
     "spectrum" => "spectrum",
     "spectrum_maxwellian_ratio" => "spectrum_maxwellian_ratio",
+    "spectrum_cf252_ratio" => "spectrum_cf252_ratio",
 )
 
 """
@@ -363,7 +423,8 @@ count per fragment whose scale is the whole quantity.
 A relative dataset cannot be put on a common scale with any other, not even another relative one,
 so [`retrieve`](@ref) writes these to their own directory rather than beside absolute data.
 """
-const RELATIVE_SCALE_ORDINATES = ("spectrum", "spectrum_maxwellian_ratio")
+const RELATIVE_SCALE_ORDINATES =
+    ("spectrum", "spectrum_maxwellian_ratio", "spectrum_cf252_ratio")
 
 """
 Observables, as abscissa and ordinate, for which arbitrary units are a standard form besides the
@@ -553,6 +614,122 @@ const ENERGY_ORDINATES = (
 )
 
 """
+Ordinates wanted in the centre-of-mass frame of the emitting fragment.
+
+A subentry heads a value in that frame [`CENTRE_OF_MASS_DATUM`](@ref) rather than `DATA`, and for
+these ordinates that column is the datum: its lines decide the rows, the csv rendering is
+compared with it row by row, and the frame is recorded per dataset as `ordinate_frame`. A
+dataset headed `DATA` is read as before, its frame taken from the subentry text; see
+[`ordinate_frame`](@ref). Every other ordinate reads `DATA` alone, and a spectrum in the
+centre-of-mass frame stays refused.
+"""
+const CENTRE_OF_MASS_ORDINATES = ("neutron_kinetic_energy",)
+
+"""
+The ordinate read from a combination of two reaction codes: the ratio of the prompt fission
+neutron spectrum of the system and that of the reference [`REFERENCE_SPECTRUM`](@ref), both at
+one outgoing neutron energy. It is the one ordinate a combination is admitted under, and
+[`spectrum_ratio`](@ref) admits nothing but that ratio.
+"""
+const REFERENCE_RATIO_ORDINATE = "spectrum_cf252_ratio"
+
+"""
+The target and process of the reference spectrum of [`REFERENCE_RATIO_ORDINATE`](@ref), the
+spontaneous fission of 252-Cf, as a reaction code heads it.
+"""
+const REFERENCE_SPECTRUM = "98-CF-252(0,F)"
+
+"""How a ratio of [`REFERENCE_RATIO_ORDINATE`](@ref) is oriented, as the run record names it."""
+const RATIO_ORIENTATIONS = ("system_over_reference", "reference_over_system")
+
+"""
+    SpectrumRatio(numerator, denominator, orientation)
+
+A reaction code read as the ratio of two spectra.
+
+# Fields
+- `numerator::String`, `denominator::String`: the two reaction codes.
+- `orientation::String`: one of [`RATIO_ORIENTATIONS`](@ref).
+"""
+struct SpectrumRatio
+    numerator::String
+    denominator::String
+    orientation::String
+end
+
+"""
+    spectrum_ratio(code, system, channel) -> Union{SpectrumRatio,String}
+
+Read `code` as the ratio of the spectrum of the system headed `system`, `"92-U-233(N,F)"`, and
+the spectrum of [`REFERENCE_SPECTRUM`](@ref), or give the reason it is not one.
+
+The code must be the ratio of two single reactions ([`reaction_ratio`](@ref)), one headed
+`system` and the other the reference, each satisfying the rule of the ordinate `spectrum`
+against `neutron_energy` — so neither a ratio to a Maxwellian, nor a quantity outside the
+standard definition (`MSC`: 10911002 and 41502003 hold the logarithm of the ratio), nor an
+angle-differential or partial spectrum — and the term of the system carrying no spectrum
+qualifier that contradicts `channel`.
+"""
+function spectrum_ratio(
+    code::AbstractString,
+    system::AbstractString,
+    channel::AbstractString,
+)
+    terms = reaction_ratio(code)
+    if terms === nothing
+        return reaction_fields(code) === nothing ?
+               "a combination of reaction codes other than the ratio of two reactions" :
+               "a single reaction, not the ratio of two spectra"
+    end
+    numerator, denominator = terms
+    heads = (reaction_head(numerator), reaction_head(denominator))
+    orientation = if heads == (system, REFERENCE_SPECTRUM)
+        "system_over_reference"
+    elseif heads == (REFERENCE_SPECTRUM, system)
+        "reference_over_system"
+    else
+        return "a ratio of $(heads[1]) to $(heads[2]), not of $(system) and \
+                $(REFERENCE_SPECTRUM)"
+    end
+    rule = tag_rule(["neutron_energy"], REFERENCE_RATIO_ORDINATE)
+    for (role, term) in (("numerator", numerator), ("denominator", denominator))
+        reason = rejection_reason(rule, term)
+        reason === nothing || return "the $(role) $(term) is no spectrum: $(reason)"
+    end
+    own = orientation == "system_over_reference" ? numerator : denominator
+    conflict = channel_qualifier_conflict(channel, own)
+    conflict === nothing ||
+        return "reaction code carries \"$(conflict)\" ($(SPECTRUM_QUALIFIERS[conflict])), \
+                which names a neutron spectrum no measurement in channel \"$(channel)\" was \
+                made in"
+    return SpectrumRatio(numerator, denominator, orientation)
+end
+
+"""
+The ordinate whose datasets must state the temperature of the Maxwellian they are a ratio to;
+see [`maxwellian_temperature`](@ref).
+"""
+const MAXWELLIAN_RATIO_ORDINATE = "spectrum_maxwellian_ratio"
+
+"""The heading of a datum given in the centre-of-mass frame (EXFOR Dictionary 24)."""
+const CENTRE_OF_MASS_DATUM = "DATA-CM"
+
+"""
+    datum_heading(ordinate, headings) -> Union{String,Nothing}
+
+The heading of the column of a DATA table that holds the datum of `ordinate`:
+[`CENTRE_OF_MASS_DATUM`](@ref) where the ordinate is one of
+[`CENTRE_OF_MASS_ORDINATES`](@ref) and the table carries it, else `DATA`; `nothing` when the
+table carries neither.
+"""
+function datum_heading(ordinate::AbstractString, headings::AbstractVector{<:AbstractString})
+    ordinate in CENTRE_OF_MASS_ORDINATES &&
+        CENTRE_OF_MASS_DATUM in headings &&
+        return CENTRE_OF_MASS_DATUM
+    return "DATA" in headings ? "DATA" : nothing
+end
+
+"""
 Ordinates that count neutrons per fission.
 
 A count of order one is never a percentage. A subentry that heads one of these
@@ -593,6 +770,7 @@ const ORDINATE_QUANTITY = Dict(
     "neutron_kinetic_energy" => "E",
     "spectrum" => "MFQ",
     "spectrum_maxwellian_ratio" => "MFQ",
+    "spectrum_cf252_ratio" => "MFQ",
 )
 
 """

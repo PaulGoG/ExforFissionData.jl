@@ -300,6 +300,23 @@ function load_configuration(path::AbstractString)
         ),
     )
 
+    # A ratio to the spectrum of 252-Cf(sf) is tabulated against the outgoing neutron energy,
+    # and is of another system than the reference.
+    if ordinate == REFERENCE_RATIO_ORDINATE
+        abscissa == ["neutron_energy"] || throw(
+            ArgumentError(
+                "$(source): [query].ordinate \"$(ordinate)\" is tabulated against \
+                 [\"neutron_energy\"] alone, not $(abscissa)",
+            ),
+        )
+        (target_Z, target_A, channel) == (98, 252, "sf") && throw(
+            ArgumentError(
+                "$(source): [query].ordinate \"$(ordinate)\" is the ratio to the spectrum of \
+                 252-Cf(sf), which cannot be the system itself",
+            ),
+        )
+    end
+
     retrieval_section = get(table, "retrieval", Dict{String, Any}())
     retrieval_section isa AbstractDict ||
         throw(ArgumentError("$(source): [retrieval] must be a table of keys"))
@@ -538,6 +555,25 @@ Formed from `target_Z` and `target_A` rather than written into the configuration
 symbol and the numbers beside it cannot disagree.
 """
 target_symbol(query::Query) = string(element_symbol(query.target_Z), '-', query.target_A)
+
+"""
+    system_reaction(query) -> String
+
+The target and process of the fissioning system as an EXFOR reaction code heads them, e.g.
+`"92-U-233(N,F)"`; see [`reaction_head`](@ref).
+"""
+function system_reaction(query::Query)
+    return string(
+        query.target_Z,
+        '-',
+        uppercase(element_symbol(query.target_Z)),
+        '-',
+        query.target_A,
+        '(',
+        uppercase(query.reaction),
+        ')',
+    )
+end
 
 """
     system_label(query) -> String
