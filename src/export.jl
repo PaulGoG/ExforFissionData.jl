@@ -342,18 +342,23 @@ function write_metadata(
              be centre-of-mass energies — `ordinate_frame_evidence` on each gives what the \
              subentry does say: " * join(unstated, ", ")
     end
-    orientations = sort!(
-        unique(
-            String[
-                entry.dataset.record["ratio_orientation"] for
-                entry in accepted if haskey(entry.dataset.record, "ratio_orientation")
-            ],
-        ),
-    )
-    if length(orientations) > 1
-        record["datasets"]["orientation_warning"] = "the ratios of this directory are not all oriented alike; `ratio_orientation` on \
-             each dataset says which spectrum is the numerator, and one orientation is the \
-             reciprocal of the other"
+    oriented = Dict{String, Vector{String}}()
+    for entry in accepted
+        orientation = get(entry.dataset.record, "ratio_orientation", nothing)
+        orientation === nothing && continue
+        push!(get!(oriented, orientation, String[]), entry.dataset.identifier)
+    end
+    if length(oriented) > 1
+        record["datasets"]["orientation_warning"] =
+            "the ratios of this directory are not all oriented alike, and one orientation is \
+             the reciprocal of the other; `ratio_orientation` on each dataset says which \
+             spectrum is the numerator: " * join(
+                [
+                    "$(orientation) $(join(oriented[orientation], ", "))" for
+                    orientation in sort!(collect(keys(oriented)))
+                ],
+                "; ",
+            )
     end
     if !isempty(flagged)
         record["datasets"]["scale_warning"] =
