@@ -8,8 +8,10 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [0.2.6] - 2026-10-02
 
-The mean neutron energies of Batenkov 2004 read from their publication. Every table and stored
-subentry that 0.2.5 writes is written unchanged; two records change as stated below.
+The mean neutron energies of Batenkov 2004 read from their publication, and its datasets flagged
+as preliminary. Every table and stored subentry that 0.2.5 writes is written unchanged: run
+against the archive on 2026-10-02, its 52 configurations give the same 638 files byte for byte.
+Four records change, as stated below.
 
 ### Changed
 
