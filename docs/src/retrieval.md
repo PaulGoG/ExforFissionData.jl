@@ -48,13 +48,17 @@ the machine as well, which is useful when the records stay yours.
 | `[query]` | `target_Z`, `target_A`, `target_symbol`, `channel`, `abscissa`, `ordinate` | the query as configured, with the EXFOR nuclide symbol formed from `Z` and `A` |
 | | `energy_min_mev`, `energy_max_mev` | the incident-energy window applied, `Inf` when open |
 | `[conventions]` | `energies`, `ordinate_normalisation`, `absent_uncertainty`, `duplicate_abscissa`, `abscissa_resolution`, `archive_state` | the conventions above, stated in prose for a reader of the record alone |
+| | `ordinate_frame` and `ordinate_bound` (mean neutron energy), `maxwellian_temperature` (ratio to a Maxwellian), `ratio` (ratio to 252-Cf(sf)) | the conventions of those observables, present for those observables only |
 | `[platform]` | `julia_version`, `julia_threads`, `cpu_model`, `cpu_threads`, `total_memory_gb` | the hardware and runtime; `hostname` too when `record_hostname = true` |
 | `[datasets]` | `accepted`, `rejected`, `relative` | counts |
 | | `retrieved_earliest_utc`, `retrieved_latest_utc` | the span of the dataset retrieval dates |
 | | `units_present` | every unit token among the accepted datasets |
-| | `units_warning`, `relative_warning`, `scale_warning`, `pair_sum_warning`, `combined_warning`, `correlated_warning` | present only when they apply, each naming the datasets concerned |
+| | `units_warning`, `relative_warning`, `scale_warning`, `pair_sum_warning`, `combined_warning`, `correlated_warning`, `frame_warning`, `orientation_warning` | present only when they apply, each naming the datasets concerned |
 | `[[accepted]]` | `identifier`, `author`, `year`, `file` | the dataset and the file it was written to, relative to the retrieval directory |
-| | `reaction_code`, `qualifiers` | the code the archive returned and the qualifiers recorded from it |
+| | `reaction_code`, `qualifiers` | the code the archive returned and the qualifiers recorded from it; for a ratio to 252-Cf(sf) the qualifiers of both reactions; for a mean neutron energy of unstated frame an entry beginning `frame unstated:` |
+| | `ordinate_frame`, `ordinate_frame_evidence` | for a mean neutron energy: its frame, `centre_of_mass` or `unstated`, and the heading or the words of the subentry it is read from |
+| | `maxwellian_temperature_mev`, `maxwellian_temperature_source` | for a ratio to a Maxwellian: the temperature T of the Maxwellian √E exp(−E/T) it was formed with, and where the subentry gives it |
+| | `ratio_orientation`, `ratio_numerator`, `ratio_denominator` | for a ratio to 252-Cf(sf): `system_over_reference` or `reference_over_system`, and the two reaction codes |
 | | `unit`, `unit_reported`, `unit_written`, `ordinate_factor` | the unit token of the csv rendering; the token the values are reported in, the rendering's unless the subentry overrules it; the token the file is written in; and the factor between the reported and the written values |
 | | `unit_miscoded` | for a multiplicity whose subentry heads it `PC/FIS`: that the token is a miscoding, and that the values are written as the subentry tabulates them |
 | | `relative` | whether the dataset is in arbitrary units and lies under `relative/` |

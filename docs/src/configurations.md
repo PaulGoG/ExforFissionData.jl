@@ -21,7 +21,7 @@ to every incident energy — and so is an energy window on `sf`, which has no in
 | `[query]` | `target_A` | mass number of the target | at least `target_Z`, at most 300 | required |
 | `[query]` | `channel` | entrance channel; fixes the incident-energy interval, see [Entrance channels](channels.md) | `"sf"`, `"nth"`, `"nres"`, `"nfast"` | required |
 | `[query]` | `abscissa` | quantities the observable is tabulated against | `["mass"]`, `["product_mass"]`, `["charge"]`, `["neutron_energy"]`, `["total_kinetic_energy"]`, `["charge", "product_mass"]`, `["mass", "total_kinetic_energy"]` | required |
-| `[query]` | `ordinate` | the observable | `"yield"`, `"multiplicity"`, `"multiplicity_per_fission"`, `"fragment_kinetic_energy"`, `"product_kinetic_energy"`, `"total_kinetic_energy"`, `"total_kinetic_energy_dispersion"`, `"post_neutron_total_kinetic_energy"`, `"neutron_kinetic_energy"`, `"spectrum"`, `"spectrum_maxwellian_ratio"` | required |
+| `[query]` | `ordinate` | the observable | `"yield"`, `"multiplicity"`, `"multiplicity_per_fission"`, `"fragment_kinetic_energy"`, `"product_kinetic_energy"`, `"total_kinetic_energy"`, `"total_kinetic_energy_dispersion"`, `"post_neutron_total_kinetic_energy"`, `"neutron_kinetic_energy"`, `"spectrum"`, `"spectrum_maxwellian_ratio"`, `"spectrum_cf252_ratio"` | required |
 | `[query]` | `energy_min` | lower edge of the incident-energy window, MeV | must lie inside the channel's interval (`nth` 0 to 1.0e-7 (0.1 eV), `nres` 1.0e-7 (0.1 eV) to 0.1, `nfast` 0.1 to 20); not allowed for `sf` | the channel's floor |
 | `[query]` | `energy_max` | upper edge of the incident-energy window, MeV | above `energy_min`; must lie inside the channel's interval (`nth` 0 to 1.0e-7 (0.1 eV), `nres` 1.0e-7 (0.1 eV) to 0.1, `nfast` 0.1 to 20); not allowed for `sf` | the channel's ceiling |
 | `[retrieval]` | `concurrency` | simultaneous requests | 1 to 16 | 4 |
@@ -79,6 +79,13 @@ so these configurations omit `energy_min` and `energy_max`.
 - `Cf252_sf_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
 - `Cf252_sf_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, against
   secondary neutron energy.
+- `Cf252_sf_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 14065003
+  (Bowman 1963), 23175012 (Budtz-Jørgensen 1988), 23268011 (Göök 2014) and 41689005 (Piksaykin
+  1977), the second and fourth of unstated frame.
+- `Cf252_sf_eps_vs_A_TKE` — the same against mass and TKE jointly: 14065010 (Bowman 1963), 228
+  rows at ten TKE values from 163.5 to 217.5 MeV. Refused: 14065008, whose ten mean masses lie
+  about 5 u apart and bracket no integer mass within the 3-u interpolation span, and 23175013,
+  one mass, 110, held in COMMON, a slice against TKE rather than the joint observable.
 
 ### 235-U(nth,f)
 
@@ -94,12 +101,19 @@ so these configurations omit `energy_min` and `energy_max`.
 - `U235_nth_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
 - `U235_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, against
   secondary neutron energy.
+- `U235_nth_spectrum_cf252_ratio_vs_E` — the spectrum as a ratio to that of 252-Cf(sf): 40871011
+  and 40871012 (Nefedov 1983), 40872007 (Starostov 1983) and 41516017 (Vorobyev 2010), 252-Cf
+  over 235-U, and 41597002 (Vorobyev 2013), 235-U over 252-Cf. The subentry of 41516017 marks
+  it superseded by 41597002; both are written, each naming the other as `correlated_with`.
+- `U235_nth_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 22464003
+  (Nishio 1998), interpolated from a half-integer 2-u grid, and 41502008 (Batenkov 2004);
+  23164022 (Al-Adili 2016), fragment kinetic energies, is refused on its magnitude.
 
 ### 235-U resonance region
 
 The companion `U235_nth_*` configurations admit thermal incident neutrons only. The GELINA
 measurements are made on a resonance-neutron beam whose spectrum-averaged energy is about 580 eV,
-so a thermal window excludes them by their own terms. The window of both configurations below is
+so a thermal window excludes them by their own terms. The window of the configurations below is
 0.1 eV to 1 keV, the floor being the channel's, and admits those alone; the thermal datasets
 belong to the `nth` runs. The `nres` channel is what keeps the two runs apart, so neither has to
 be written under a directory of its own.
@@ -107,6 +121,8 @@ be written under a directory of its own.
 - `U235_nres_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass.
 - `U235_nres_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
+- `U235_nres_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass: 23444006 (Göök
+  2018) at 580 eV, flagged `SPA` like the ν(A) of this channel.
 
 ### 233-U(nth,f)
 
@@ -119,6 +135,15 @@ be written under a directory of its own.
 - `U233_nth_sigma_TKE_vs_A` — the standard deviation of the pre-neutron TKE against mass, from
   23014002 (Baba 1997).
 - `U233_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system.
+- `U233_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, from
+  40873002, 40930004, 40930010, 40930011, 40930012 and 41611010, all formed with T = 1.34 MeV.
+- `U233_nth_spectrum_cf252_ratio_vs_E` — the spectrum as a ratio to that of 252-Cf(sf): 40871013
+  (Nefedov 1983) and 40872008 (Starostov 1983), 252-Cf over 233-U, and 416110021 (Vorobyev 2016),
+  233-U over 252-Cf in arbitrary units, under `relative/`.
+- `U233_nth_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 14369005
+  (Fraser 1966), of unstated frame, and 22660003 (Nishio 1998).
+- `U233_nth_eps_vs_A_TKE` — the same against mass and TKE jointly: 22660004 (Nishio 1998), of
+  unstated frame.
 
 ### 239-Pu(nth,f)
 
@@ -132,6 +157,16 @@ be written under a directory of its own.
 - `Pu239_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
 - `Pu239_nth_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
+- `Pu239_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, from
+  40873006 (Boytsov 1983), 40930008, 40930016, 40930017 and 40930018 (Starostov 1985) and
+  41611011 (Vorobyev 2016), all formed with T = 1.382 MeV; 14684003, from 0.95 MeV, lies outside
+  the thermal window.
+- `Pu239_nth_spectrum_cf252_ratio_vs_E` — the spectrum as a ratio to that of 252-Cf(sf): 40871009
+  and 40871010 (Nefedov 1983) and 40872006 (Starostov 1983), 252-Cf over 239-Pu, and 416110041
+  (Vorobyev 2016), 239-Pu over 252-Cf in arbitrary units, under `relative/`.
+- `Pu239_nth_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 22650008
+  (Tsuchiya 2000) and 41502009 (Batenkov 2004), the second headed `DATA` and in the centre of
+  mass by its `REACTION` text.
 
 ### 240-Pu(sf)
 
@@ -159,3 +194,17 @@ done in, and a separate observable from `spectrum`: the archive codes it with MX
 `spectrum` excludes. Being a ratio, it is dimensionless and carries its own normalisation, which is
 what makes it comparable between laboratories where the absolute spectra are reported in arbitrary
 units.
+
+A ratio to a Maxwellian states no spectrum without the temperature T of the Maxwellian
+√E exp(−E/T) it was formed with, so every such dataset must give it, in `KT-NRM` of its subentry,
+of subentry 001 or of its DATA table; a dataset that gives none is refused. The run record states
+it per dataset as `maxwellian_temperature_mev`. Every dataset of the four shipped configurations
+gives it.
+
+The ratio to the spectrum of 252-Cf(sf), `spectrum_cf252_ratio`, is the one observable read from
+the ratio of two reaction codes, and is tabulated against `["neutron_energy"]` alone; the loader
+refuses any other abscissa and refuses it for 252-Cf(sf) itself. The archive gives it in both
+orientations, and each dataset is written as tabulated, its orientation in the run record. The
+ratios coded `MSC`, those outside the thermal window — `23444002` at 580 eV, `31692006` at
+100 eV, `411100091` at 2.9 to 14.7 MeV — and the ratios of 239-Pu to 235-U, `14290004` and
+`14418002`, are refused.

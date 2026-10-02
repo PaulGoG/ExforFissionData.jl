@@ -6,6 +6,83 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-02
+
+The mean centre-of-mass energy of the prompt neutrons against fragment mass becomes retrievable,
+the spectrum as a ratio to a Maxwellian extends to 239-Pu and 233-U, and a new ordinate takes the
+spectrum as a ratio to that of 252-Cf(sf): twelve configurations, 46 in all. Every table and
+stored subentry that 0.2.3 writes is written unchanged by 0.2.4; the records of the two
+Maxwellian-ratio retrievals of 0.2.3 gain the temperature keys, and nothing else changes in any
+record beyond the `[run]` table and the timestamps.
+
+### Added
+
+- The mean energy ⟨ε⟩ of the prompt neutrons of a fragment in the centre-of-mass frame of that
+  fragment, `neutron_kinetic_energy`, coded `MASS,PR,KE,N`: against `["mass"]` under `eps_vs_A/`
+  and against `["mass", "total_kinetic_energy"]` under `eps_vs_A_TKE/`. Configurations
+  `Cf252_sf_eps_vs_A` (`14065003` Bowman 1963, `23175012` Budtz-Jørgensen 1988, `23268011` Göök
+  2014, `41689005` Piksaykin 1977), `U235_nth_eps_vs_A` (`22464003` Nishio 1998, `41502008`
+  Batenkov 2004), `U235_nres_eps_vs_A` (`23444006` Göök 2018, at 580 eV), `Pu239_nth_eps_vs_A`
+  (`22650008` Tsuchiya 2000, `41502009` Batenkov 2004), `U233_nth_eps_vs_A` (`14369005` Fraser
+  1966, `22660003` Nishio 1998), `Cf252_sf_eps_vs_A_TKE` (`14065010` Bowman 1963) and
+  `U233_nth_eps_vs_A_TKE` (`22660004` Nishio 1998). Against TKE alone the archive holds nothing
+  for the five systems, the four datasets coded `KE/TKE,N` all carrying `MASS`, so no `eps_vs_TKE`
+  configuration is shipped; 235-U and 239-Pu have no `eps_vs_A_TKE` either.
+- The frame of each mean neutron energy in the run record, `ordinate_frame` with
+  `ordinate_frame_evidence`: `centre_of_mass` where the subentry heads the value `DATA-CM` or its
+  text says so, as the `REACTION` text of `41502009` does; `unstated` where the heading is `DATA`
+  and the text names no frame, as for `23175012`, `41689005`, `14369005` and `22660004`, which are
+  written and flagged among their `qualifiers` and in `frame_warning`. A value stated to be in the
+  laboratory frame is refused; no dataset of the shipped configurations is. The frame is read from
+  the subentry alone: for `23175012` the authors' contribution to INDC(NDS)-220 (Mito 1988,
+  p. 199) gives the same figure as the average neutron energy in the centre-of-mass system of the
+  fragment, which the record quotes without changing the reading.
+- `Pu239_nth_spectrum_maxwellian_ratio_vs_E`, from `40873006` (Boytsov 1983), `40930008`,
+  `40930016`, `40930017` and `40930018` (Starostov 1985) and `41611011` (Vorobyev 2016), and
+  `U233_nth_spectrum_maxwellian_ratio_vs_E`, from `40873002`, `40930004`, `40930010`, `40930011`,
+  `40930012` and `41611010` of the same three entries, formed with T = 1.382 and 1.34 MeV.
+  `14684003` (239-Pu), at incident energies from 0.95 MeV, lies outside the thermal window.
+- The temperature of the Maxwellian √E exp(−E/T) each ratio to a Maxwellian was formed with, as
+  `maxwellian_temperature_mev` with `maxwellian_temperature_source`: the column `KT-NRM` of the
+  COMMON section of the subentry, else of subentry 001, else a constant column of the DATA table.
+  `14278003` (Poenitz 1982, 252-Cf) holds there the mean energy of the Maxwellian, 2.159 MeV, as
+  its `ANALYSIS` text says, and the record gives T = 1.439 MeV, two thirds of it.
+- The ordinate `spectrum_cf252_ratio`, quantity code `MFQ`, written under
+  `spectrum_cf252_ratio_vs_E/`: the ratio of the prompt fission neutron spectrum of the system and
+  that of 252-Cf(sf) at the same outgoing neutron energy, the one observable read from a
+  combination of reaction codes. Each of the two reactions must satisfy the rule of `spectrum`,
+  and no variable may be headed for numerator or denominator alone (`-NM`, `-DN`). Values are
+  written as tabulated, in either orientation, and the record gives `ratio_orientation`,
+  `ratio_numerator` and `ratio_denominator`, with `orientation_warning` where a directory holds
+  both. Configurations `U235_nth_spectrum_cf252_ratio_vs_E` (`40871011`, `40871012` Nefedov 1983,
+  `40872007` Starostov 1983, `41516017` Vorobyev 2010, `41597002` Vorobyev 2013),
+  `Pu239_nth_spectrum_cf252_ratio_vs_E` (`40871009`, `40871010`, `40872006`, and `416110041`
+  Vorobyev 2016 under `relative/`) and `U233_nth_spectrum_cf252_ratio_vs_E` (`40871013`,
+  `40872008`, and `416110021` under `relative/`). `41516017` is marked superseded by `41597002` in
+  its subentry; both are written, each naming the other as `correlated_with`.
+- `Dataset.record`, what selection read of a dataset beyond its columns; the eight-argument
+  constructor still works.
+
+### Changed
+
+- The rule of `neutron_kinetic_energy` no longer forbids `PRE` in SF5. With `N` required in SF7
+  the exclusion separated nothing from the fragment-energy rules, which forbid `N`, and `PRE`
+  beside `PR` marks the pre-neutron mass of the abscissa, as in `MASS,PRE/PR/FRG,NU`. A dataset
+  holding more than 5 MeV on any row is refused instead, the reason giving the number of rows
+  above the bound and the largest value: an evaporation spectrum has the mean energy 2T, and 5 MeV
+  asks for T = 2.5 MeV where fitted temperatures stay below 1.4 MeV. `41689005` (Piksaykin 1977),
+  18 lines digitised from Fig. 2 of Yad. Fiz. 25, 723 (1977), is admitted; `23164022` (Al-Adili
+  2016), whose 94 rows hold fragment kinetic energies of 43.6 to 101.9 MeV, is refused by its
+  magnitude.
+- For `neutron_kinetic_energy` alone, a value headed `DATA-CM` is the datum, read with its
+  uncertainty columns, and the csv rendering is compared with it row by row to a relative 10⁻⁵,
+  the rendering writing six significant digits. 0.2.3 refused such datasets as having no `DATA`
+  column. A spectrum headed `E-CM` or `DATA-CM` stays refused.
+- A ratio to a Maxwellian whose subentry states no temperature is refused. The 35 datasets of
+  `Cf252_sf_spectrum_maxwellian_ratio_vs_E` and `U235_nth_spectrum_maxwellian_ratio_vs_E` all
+  state it — 1.42 MeV for 252-Cf, `14278003` aside, and 1.313 MeV for 235-U, 1.314 for
+  `41611009` — and none is affected.
+
 ## [0.2.3] - 2026-10-01
 
 Corrections to what 0.2.2 writes: the 239-Pu ν(A) of Tsuchiya 2000 on its proper scale, two
@@ -289,7 +366,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.0...v0.2.1

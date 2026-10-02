@@ -91,7 +91,9 @@ Datasets are chosen by the codes of their EXFOR reaction code — for instance
 differential of SF6, is never read inside the data type `DERIV`, nor `KE` inside `KEP`, the most
 probable value, or inside `TKE`. `AKE`, the older coding of the mean kinetic energy, is accepted
 wherever `KE` is. A combination of several reactions — a ratio, sum or difference — is never the
-quantity itself and is rejected. Which codes each observable requires and forbids is still
+quantity itself and is rejected, with one exception: under `spectrum_cf252_ratio`, the ratio of
+the spectrum of the system and that of 252-Cf(sf) is the quantity, and is admitted where each of
+its two reactions satisfies the rule of `spectrum` ([`spectrum_ratio`](@ref)). Which codes each observable requires and forbids is still
 empirical, since the archive applies its own vocabulary inconsistently: the tables in
 `src/reaction_codes.jl` encode observed failures of the upstream labelling. A rule that looks
 redundant usually guards a real entry.
@@ -126,14 +128,22 @@ The checks easiest to get wrong:
 - what a dataset is tabulated against is read from its **subentry DATA table**, which is
   aligned with the csv rendering row by row — the truncated product against `MASS` and `ELEM`,
   the secondary energy against `E` or `TKE` — and a dataset on which the two disagree is
-  rejected;
+  rejected. For the mean neutron energy the value itself is compared with `DATA-CM`, to a
+  relative 10⁻⁵;
 - a heading of the subentry DATA table that the EXFOR format classes as an independent variable,
   other than the abscissa's own and the incident energy, **must not vary**. `23591005` (Straede,
   1987) is a mass yield at nine fragment kinetic energies, and projected onto mass it is nine
   yields per mass number. `23268002`, whose `TKE` column the csv rendering drops, is rejected from
   `Cf252_sf_Y_vs_A` on the same rule;
 - a spectrum whose energies are in the centre-of-mass frame, `E-CM`, is not a laboratory
-  spectrum and is rejected;
+  spectrum and is rejected. The mean neutron energy is the one ordinate read from `DATA-CM`, its
+  frame recorded per dataset as `ordinate_frame`;
+- a **mean neutron energy above 5 MeV** on any row is no mean neutron energy: `23164022`
+  (Al-Adili 2016), coded `KE,N`, holds fragment kinetic energies of 43.6 to 101.9 MeV and is
+  refused on that bound ([`MAXIMUM_NEUTRON_KINETIC_ENERGY`](@ref));
+- a **ratio to a Maxwellian** must state the temperature it was formed with, in `KT-NRM`, and is
+  refused without it; `14278003` (Poenitz 1982) holds the mean energy 3T/2 there, and T is
+  recorded as two thirds of it;
 - the quantity code `FY` files more than yields. `MASS,PAR,ZP` is the most probable charge against
   mass, which satisfies every mass rule, so `yield` requires the `FY` tag itself: six such
   datasets for 235-U would otherwise sit among the mass yields at values near 40;

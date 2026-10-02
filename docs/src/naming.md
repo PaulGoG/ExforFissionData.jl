@@ -48,12 +48,13 @@ an equation and none is spelled as one.
 | `post_neutron_total_kinetic_energy` | `TKE_p` | total kinetic energy, post-neutron |
 | `fragment_kinetic_energy` | `E_K` | fragment kinetic energy, pre-neutron |
 | `product_kinetic_energy` | `E_K_p` | fragment kinetic energy, post-neutron |
-| `neutron_kinetic_energy` | `eps` | centre-of-mass neutron energy ⟨ε⟩ |
+| `neutron_kinetic_energy` | `eps` | mean centre-of-mass neutron energy ⟨ε⟩ |
 | `yield` | `Y` | fission yield |
 | `multiplicity` | `nu` | prompt multiplicity per fragment, ν(A) |
 | `multiplicity_per_fission` | `nu_bar` | prompt multiplicity per fragment pair, ν̄ |
 | `spectrum` | `spectrum` | prompt fission neutron spectrum |
 | `spectrum_maxwellian_ratio` | `spectrum_maxwellian_ratio` | the spectrum as a ratio to a Maxwellian |
+| `spectrum_cf252_ratio` | `spectrum_cf252_ratio` | the spectrum as a ratio to that of 252-Cf(sf) |
 
 A quantity that is an abscissa in one query and an ordinate in another — the total kinetic energy
 is both — keeps one word and one symbol. [`ABSCISSA_TOKEN`](@ref) and [`ORDINATE_TOKEN`](@ref)

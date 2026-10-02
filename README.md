@@ -16,7 +16,7 @@ files with a record of everything the query considered.
 ExforFissionData.jl/
 ├── activate.jl        # silent activation of the package environment
 ├── check.jl           # pre-commit gate: format, then test
-├── config/            # 34 retrieval configurations, <system>_<observable>.toml
+├── config/            # 46 retrieval configurations, <system>_<observable>.toml
 ├── scripts/
 │   └── retrieve.jl    # entry point
 ├── src/               # the package: selection, reduction, export, run record
@@ -139,8 +139,11 @@ that name the directories its data is written to.
 | Y(A, TKE), `Y_vs_A_TKE` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | `Pu240_sf` |
 | ν(A), `nu_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
 | ν(A, TKE), `nu_vs_A_TKE` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
+| ⟨ε⟩(A), `eps_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
+| ⟨ε⟩(A, TKE), `eps_vs_A_TKE` | `Cf252_sf` | | `U233_nth` | | |
 | spectrum, `spectrum_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
-| ratio to a Maxwellian, `spectrum_maxwellian_ratio_vs_E` | `Cf252_sf` | `U235_nth` | | | |
+| ratio to a Maxwellian, `spectrum_maxwellian_ratio_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| ratio to 252-Cf(sf), `spectrum_cf252_ratio_vs_E` | | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 
 The file of a cell is `<system>_<observable>.toml`, `config/U235_nth_TKE_vs_A.toml` for instance.
 The first four rows are what a pre-neutron Y(A, TKE) is built from: the mass yield, the mean TKE
@@ -161,16 +164,24 @@ only if both are written down. The window that selects datasets is `energy_min` 
 cannot hold a fast measurement. The physics behind the bounds is in
 [the documentation](https://PaulGoG.github.io/ExforFissionData.jl/stable/channels/).
 
-`U235_nres_nu_vs_A` and `U235_nres_nu_vs_A_TKE` span 0.1 eV to 1 keV, which is what the
-resonance-beam measurements need — a thermal window excludes them on their incident energy alone,
-and the resonance window holds them alone, the thermal datasets belonging to the `nth` runs.
-They are a different system by name, `U235_nres` against `U235_nth`, so they land in a directory of
-their own without any special provision.
+`U235_nres_nu_vs_A`, `U235_nres_nu_vs_A_TKE` and `U235_nres_eps_vs_A` span 0.1 eV to 1 keV, which
+is what the resonance-beam measurements need — a thermal window excludes them on their incident
+energy alone, and the resonance window holds them alone, the thermal datasets belonging to the
+`nth` runs. They are a different system by name, `U235_nres` against `U235_nth`, so they land in a
+directory of their own without any special provision.
 
-`Cf252_sf_spectrum_maxwellian_ratio_vs_E` and `U235_nth_spectrum_maxwellian_ratio_vs_E` retrieve
-the spectrum as a ratio to a Maxwellian. That is a separate observable rather than a second
-rendering of `spectrum`: the archive codes the ratio with `MXD`, which the plain spectrum excludes.
-The archive holds the ratio form for these two systems alone.
+The mean centre-of-mass energy of the prompt neutrons of a fragment, ⟨ε⟩, is headed `DATA-CM`
+rather than `DATA` in most subentries, and for this observable alone that column is read as the
+datum. Its frame is recorded per dataset, `centre_of_mass` or, where the subentry does not state
+it, `unstated` and flagged. A dataset holding more than 5 MeV on any row is refused: no mean
+neutron energy reaches that, and a fragment kinetic energy coded the same way exceeds it by far.
+
+The `spectrum_maxwellian_ratio_vs_E` configurations retrieve the spectrum as a ratio to a
+Maxwellian for 252-Cf(sf) and for thermal 235-U, 233-U and 239-Pu, coded with `MXD`, which the
+plain spectrum excludes; each dataset must state the temperature of its Maxwellian, which the run
+record gives. The `spectrum_cf252_ratio_vs_E` configurations retrieve the ratio of a system's
+spectrum to that of 252-Cf(sf), the one observable read from a combination of two reaction codes,
+written in whichever orientation the archive tabulates it.
 
 Spectra are the one observable the archive holds more of for 252-Cf than for 235-U — 156 datasets
 against 125, the spontaneous-fission spectrum being a reference standard — and none of it is
@@ -247,7 +258,7 @@ suffixed name.
 
 The reference lives in the documentation, one page per topic:
 
-- [Observables](https://PaulGoG.github.io/ExforFissionData.jl/stable/observables/): the abscissae and ordinates, their quantity codes, relative data, and what stays outside the observable set.
+- [Observables](https://PaulGoG.github.io/ExforFissionData.jl/stable/observables/): the abscissae and ordinates, their quantity codes, the mean neutron energy and the spectrum ratios, relative data, and what stays outside the observable set.
 - [Entrance channels](https://PaulGoG.github.io/ExforFissionData.jl/stable/channels/): the incident-energy intervals and the physics behind them.
 - [Conventions and selection](https://PaulGoG.github.io/ExforFissionData.jl/stable/conventions/): units, precision, one row per abscissa value, the selection checks, and the known miscoded entries.
 - [Retrieval and the run record](https://PaulGoG.github.io/ExforFissionData.jl/stable/retrieval/): the cache, the archive dates, and every field of `retrieval.toml`.
@@ -269,7 +280,7 @@ ExforFissionData.jl/
 ├── README.md
 ├── .JuliaFormatter.toml         # formatter settings shared by check.jl and CI
 ├── .gitignore
-├── config/                      # 34 configurations, <system>_<observable>.toml
+├── config/                      # 46 configurations, <system>_<observable>.toml
 ├── docs/                        # Documenter site
 │   ├── activate.jl
 │   ├── Project.toml
