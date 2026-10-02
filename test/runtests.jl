@@ -2894,6 +2894,881 @@ of = "$(of)"
     include("subentry_tests.jl")
     include("written_tables.jl")
 
+    @testset "the mean neutron energy of a fragment" begin
+        rule = tag_rule(["mass"], "neutron_kinetic_energy")
+        # PRE beside PR marks the mass as pre-neutron; AKE is the older coding of KE.
+        for code in (
+            "98-CF-252(0,F)MASS,PR,KE,N",
+            "98-CF-252(0,F)MASS,PRE/PR,KE,N",
+            "92-U-235(N,F)MASS,PR,KE,N,MXW",
+            "94-PU-239(N,F)MASS,PR,AKE,N",
+        )
+            @test matches(rule, code)
+        end
+        @test rejection_reason(rule, "98-CF-252(0,F)MASS,PRE,KE") ==
+              "missing required code \"PR\" in SF5"
+        @test rejection_reason(rule, "92-U-235(N,F)MASS,PRE/PR,KE") ==
+              "missing required code \"N\" in SF7"
+        @test rejection_reason(rule, "98-CF-252(0,F)MASS,PR,KE/TKE,N") ==
+              "forbidden code \"TKE\""
+        # The fragment energies still refuse the neutron code.
+        for ordinate in ("fragment_kinetic_energy", "total_kinetic_energy")
+            @test rejection_reason(
+                tag_rule(["mass"], ordinate),
+                "98-CF-252(0,F)MASS,PRE/PR,KE,N",
+            ) == "forbidden code \"N\" in SF7"
+        end
+
+        # The codes carrying PRE that the quantity E returns for 252-Cf(sf), 233-U, 235-U
+        # and 239-Pu(n,f). Admitting PRE lets in the two neutron energies and nothing else.
+        pre_codes = String[
+            "92-U-233(N,F)MASS,PRE,KE,FF,MXW",
+            "92-U-233(N,F)MASS,PRE,KE,LF+HF",
+            "92-U-233(N,F)MASS,PRE,KE,LF+HF,MXW",
+            "92-U-233(N,F)MASS,PRE,KE,,MXW",
+            "92-U-233(N,F),PRE,AKE,FF,MXW",
+            "92-U-233(N,F),PRE,AKE,FF,MXW,DERIV",
+            "92-U-233(N,F),PRE,AKE,HF,MSC",
+            "92-U-233(N,F),PRE,AKE,HF,MXW",
+            "92-U-233(N,F),PRE,AKE,HF,MXW,DERIV",
+            "92-U-233(N,F),PRE,AKE,LF+HF",
+            "92-U-233(N,F),PRE,AKE,LF+HF,MSC",
+            "92-U-233(N,F),PRE,AKE,LF+HF,MXW,DERIV",
+            "92-U-233(N,F),PRE,AKE,LF,MSC",
+            "92-U-233(N,F),PRE,AKE,LF,MXW",
+            "92-U-233(N,F),PRE,AKE,LF,MXW,DERIV",
+            "92-U-235(N,F)MASS,PRE,KE,FF,MXW",
+            "92-U-235(N,F)MASS,PRE,KE,LF+HF",
+            "92-U-235(N,F)MASS,PRE,KE,LF+HF,MSC",
+            "92-U-235(N,F)MASS,PRE,KE,LF+HF,MXW",
+            "92-U-235(N,F)MASS,PRE,KE,,MSC",
+            "92-U-235(N,F)MASS,PRE,KE,,MXW",
+            "92-U-235(N,F)MASS,PRE/PR,KE,N",
+            "92-U-235(N,F),PRE,AKE,FF,MXW",
+            "92-U-235(N,F),PRE,AKE,HF",
+            "92-U-235(N,F),PRE,AKE,HF,MXW",
+            "92-U-235(N,F),PRE,AKE,LF",
+            "92-U-235(N,F),PRE,AKE,LF+HF",
+            "92-U-235(N,F),PRE,AKE,LF+HF,MXW",
+            "92-U-235(N,F),PRE,AKE,LF+HF,MXW,DERIV",
+            "92-U-235(N,F),PRE,AKE,LF+HF,RES",
+            "92-U-235(N,F),PRE,AKE,LF,MXW",
+            "94-PU-239(N,F)MASS,PRE,KE",
+            "94-PU-239(N,F)MASS,PRE,KE,FF,MXW",
+            "94-PU-239(N,F)MASS,PRE,KE,LF+HF",
+            "94-PU-239(N,F)MASS,PRE,KE,LF+HF,MXW",
+            "94-PU-239(N,F)MASS,PRE,KE,,MXW",
+            "94-PU-239(N,F),PRE,AKE,FF,MXW",
+            "94-PU-239(N,F),PRE,AKE,HF",
+            "94-PU-239(N,F),PRE,AKE,HF,MXW",
+            "94-PU-239(N,F),PRE,AKE,HF,SPA",
+            "94-PU-239(N,F),PRE,AKE,LF",
+            "94-PU-239(N,F),PRE,AKE,LF+HF",
+            "94-PU-239(N,F),PRE,AKE,LF+HF,MSC",
+            "94-PU-239(N,F),PRE,AKE,LF+HF,MXW",
+            "94-PU-239(N,F),PRE,AKE,LF+HF,MXW,DERIV",
+            "94-PU-239(N,F),PRE,AKE,LF+HF,RES",
+            "94-PU-239(N,F),PRE,AKE,LF+HF,SPA",
+            "94-PU-239(N,F),PRE,AKE,LF,MXW",
+            "94-PU-239(N,F),PRE,AKE,LF,SPA",
+            "98-CF-252(0,F)MASS,PRE,KE,LF+HF",
+            "98-CF-252(0,F)MASS,PRE,KE,,MSC",
+            "98-CF-252(0,F)MASS,PRE/PR,KE,N",
+            "98-CF-252(0,F),PRE,AKE,FF",
+            "98-CF-252(0,F),PRE,AKE,HF",
+            "98-CF-252(0,F),PRE,AKE,LF",
+            "98-CF-252(0,F),PRE,AKE,LF+HF",
+            "98-CF-252(0,F),PRE,KEP,HF",
+            "98-CF-252(0,F),PRE,KEP,LF",
+        ]
+        @test sort(filter(code -> matches(rule, code), pre_codes)) ==
+              ["92-U-235(N,F)MASS,PRE/PR,KE,N", "98-CF-252(0,F)MASS,PRE/PR,KE,N"]
+
+        # DATA-CM is the datum of a neutron energy wherever the table carries it, DATA
+        # otherwise; no other ordinate reads DATA-CM.
+        datum_heading = ExforFissionData.datum_heading
+        @test datum_heading("neutron_kinetic_energy", ["MASS", "DATA-CM", "ERR-S"]) ==
+              "DATA-CM"
+        @test datum_heading("neutron_kinetic_energy", ["MASS", "DATA", "DATA-CM"]) ==
+              "DATA-CM"
+        @test datum_heading("neutron_kinetic_energy", ["MASS", "DATA"]) == "DATA"
+        @test datum_heading("total_kinetic_energy", ["MASS", "DATA-CM"]) === nothing
+        @test datum_heading("neutron_kinetic_energy", ["MASS"]) === nothing
+
+        cf = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["mass"],
+            ordinate = "neutron_kinetic_energy",
+        )
+        # 23268011: the energy headed DATA-CM beside ERR-S and a MISC column; the last line
+        # carries no datum and has no row in the rendering.
+        function centre_of_mass(;
+            code = "98-CF-252(0,F)MASS,PR,KE,N",
+            dy = [5.0e4, 5.0e4, 6.0e4],
+            second = 1.3,
+        )
+            local rows = [
+                exfor_row(;
+                    reaction_code = code,
+                    value_kind = "Data(EV)",
+                    product_za = a,
+                    y = v,
+                    dy = d,
+                ) for (a, v, d) in zip((100, 101, 102), (1.2e6, 1.3e6, 1.4e6), dy)
+            ]
+            local text = exfor_subentry(;
+                bib = ["REACTION   ($(code))"],
+                headings = ["MASS", "DATA-CM", "ERR-S", "MISC"],
+                units = ["NO-DIM", "MEV", "MEV", "MEV"],
+                rows = [
+                    [100.0, 1.2, 0.05, 0.8],
+                    [101.0, second, 0.05, missing],
+                    [102.0, 1.4, 0.06, 0.9],
+                    [103.0, missing, missing, 1.0],
+                ],
+            )
+            return exfor_csv(rows), text
+        end
+        accepted = select_dataset("10000002", centre_of_mass()..., cf)
+        @test accepted isa Dataset
+        @test accepted.record["ordinate_frame"] == "centre_of_mass"
+        @test occursin("DATA-CM", accepted.record["ordinate_frame_evidence"])
+        reduced = reduce_dataset(accepted, cf)
+        @test reduced.table.A == [100, 101, 102]
+        @test isapprox(reduced.table.eps, [1.2, 1.3, 1.4]; rtol = 1.0e-6)
+        @test isapprox(reduced.table.eps_uncertainty, [0.05, 0.05, 0.06]; rtol = 1.0e-6)
+        @test reduced.diagnostics["unit_written"] == "MEV"
+        @test reduced.diagnostics["uncertainty_source"] == "csv"
+        # No other ordinate takes DATA-CM for its datum.
+        tke = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["mass"],
+            ordinate = "total_kinetic_energy",
+        )
+        refused = select_dataset(
+            "10000002",
+            centre_of_mass(; code = "98-CF-252(0,F)MASS,PRE,KE,LF+HF")...,
+            tke,
+        )
+        @test refused isa Rejection
+        @test occursin("has no DATA column", refused.reason)
+
+        # Where the rendering drops the uncertainty, ERR-S is carried over on the scale of
+        # DATA-CM.
+        undeclared = centre_of_mass(; dy = fill(missing, 3))
+        reduced = reduce_dataset(select_dataset("10000002", undeclared..., cf), cf)
+        @test isapprox(reduced.table.eps_uncertainty, [0.05, 0.05, 0.06]; rtol = 1.0e-6)
+        @test reduced.diagnostics["uncertainty_source"] == "subentry ERR-S"
+
+        # The rendering is held against DATA-CM line by line, within its six digits.
+        refused = select_dataset("10000002", centre_of_mass(; second = 1.35)..., cf)
+        @test refused isa Rejection
+        @test occursin("disagree at row 2", refused.reason)
+        @test occursin("DATA-CM", refused.reason)
+        rows = [
+            exfor_row(;
+                reaction_code = "98-CF-252(0,F)MASS,PR,KE,N",
+                value_kind = "Data(EV)",
+                product_za = 100,
+                y = 1.01938e6,
+            ),
+        ]
+        text = exfor_subentry(;
+            bib = ["REACTION   (98-CF-252(0,F)MASS,PR,KE,N)"],
+            headings = ["MASS", "DATA-CM"],
+            units = ["NO-DIM", "MEV"],
+            rows = [[100.0, 1.019375]],
+        )
+        @test select_dataset("10000002", exfor_csv(rows), text, cf) isa Dataset
+
+        # A mean neutron energy headed DATA: the rendering in eV, the subentry in MeV;
+        # thermal rows at 0.0253 eV, spontaneous ones at none.
+        function neutron_energies(identifier, code, points; thermal = false)
+            local rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = code,
+                    value_kind = "Data(EV)",
+                    product_za = mass,
+                    y = value,
+                    incident_ev = thermal ? 0.0253 : missing,
+                ) for (mass, value) in points
+            ]
+            local common = if thermal
+                (headings = ["EN"], units = ["EV"], values = [0.0253])
+            else
+                (headings = String[], units = String[], values = Float64[])
+            end
+            local text = exfor_subentry(;
+                entry = first(identifier, 5),
+                subentry = identifier,
+                bib = ["REACTION   ($(code))"],
+                common,
+                headings = ["MASS", "DATA"],
+                units = ["NO-DIM", "MEV"],
+                rows = [[Float64(mass), value / 1.0e6] for (mass, value) in points],
+            )
+            return exfor_csv(rows), text
+        end
+        thermal_query(Z, A) = test_query(;
+            target_Z = Z,
+            target_A = A,
+            channel = "nth",
+            abscissa = ["mass"],
+            ordinate = "neutron_kinetic_energy",
+        )
+
+        # The frame of a value headed DATA is read from the subentry text, per dataset.
+        points = [(97, 1.38e6), (101, 1.31e6)]
+        pu_data = neutron_energies(
+            "41502009",
+            "94-PU-239(N,F)MASS,PR,KE,N",
+            points;
+            thermal = true,
+        )
+        pu = select_dataset("41502009", pu_data..., thermal_query(94, 239))
+        @test pu isa Dataset
+        @test pu.record["ordinate_frame"] == "centre_of_mass"
+        @test occursin("center of mass", pu.record["ordinate_frame_evidence"])
+        u233_data = neutron_energies(
+            "14369005",
+            "92-U-233(N,F)MASS,PR,KE,N",
+            points;
+            thermal = true,
+        )
+        u233 = select_dataset("14369005", u233_data..., thermal_query(92, 233))
+        @test u233.record["ordinate_frame"] == "unstated"
+        cf_data = neutron_energies("10000002", "98-CF-252(0,F)MASS,PR,KE,N", points)
+        unstated = select_dataset("10000002", cf_data..., cf)
+        @test unstated.record["ordinate_frame"] == "unstated"
+        @test occursin("no reading of its text", unstated.record["ordinate_frame_evidence"])
+        # The heading decides over the table of readings.
+        @test ExforFissionData.ordinate_frame("23175012", ["MASS", "DATA-CM"]).frame ==
+              "centre_of_mass"
+        @test_throws ArgumentError ExforFissionData.FrameReading("sideways", "x")
+        # A value stated to be in the laboratory frame is refused, quoting the words that
+        # state it.
+        try
+            ExforFissionData.ORDINATE_FRAMES["10000002"] = ExforFissionData.FrameReading(
+                "laboratory",
+                "the REACTION text reads 'in the laboratory system'",
+            )
+            laboratory = select_dataset("10000002", cf_data..., cf)
+            @test laboratory isa Rejection
+            @test occursin("laboratory frame", laboratory.reason)
+            @test occursin("in the laboratory system", laboratory.reason)
+        finally
+            delete!(ExforFissionData.ORDINATE_FRAMES, "10000002")
+        end
+        @test !haskey(ExforFissionData.ORDINATE_FRAMES, "10000002")
+
+        # 23164022: fragment kinetic energies of 44 to 102 MeV coded KE,N. No mean neutron
+        # energy reaches the bound, so the magnitude names them.
+        u235 = thermal_query(92, 235)
+        miscoded(values) = neutron_energies(
+            "10000002",
+            "92-U-235(N,F)MASS,PRE/PR,KE,N",
+            collect(zip((71, 72, 163), values));
+            thermal = true,
+        )
+        fragment_energies = miscoded((9.977778e7, 1.0e8, 4.36e7))
+        refused = select_dataset("10000002", fragment_energies..., u235)
+        @test refused isa Rejection
+        for needle in
+            ("3 of 3 rows", "5.0 MeV", "up to 100.0 MeV", "no mean neutron energy")
+            @test occursin(needle, refused.reason)
+        end
+        refused = select_dataset("10000002", miscoded((1.2e6, 1.3e6, 7.5e6))..., u235)
+        @test refused isa Rejection
+        @test occursin("1 of 3 rows", refused.reason)
+        @test occursin("up to 7.5 MeV", refused.reason)
+        # 41689005: PRE beside PR, with energies a neutron carries.
+        pre = neutron_energies(
+            "10000002",
+            "98-CF-252(0,F)MASS,PRE/PR,KE,N",
+            [(92, 1.075e6), (96, 1.115e6), (100, 1.837e6)],
+        )
+        accepted = select_dataset("10000002", pre..., cf)
+        @test accepted isa Dataset
+        @test isapprox(
+            reduce_dataset(accepted, cf).table.eps,
+            [1.075, 1.115, 1.837];
+            rtol = 1.0e-6,
+        )
+        # The largest mean neutron energy the archive holds passes, and the bound lies
+        # between it and the smallest miscoded fragment energy.
+        largest =
+            neutron_energies("10000002", "98-CF-252(0,F)MASS,PR,KE,N", [(100, 3.67886e6)])
+        @test select_dataset("10000002", largest..., cf) isa Dataset
+        @test 3.68 < ExforFissionData.MAXIMUM_NEUTRON_KINETIC_ENERGY < 43.6
+        @test ExforFissionData.neutron_energy_refusal([1.0e6, 2.0e6, missing], "EV") ===
+              nothing
+        @test occursin(
+            "not an energy unit",
+            ExforFissionData.neutron_energy_refusal([1.0], "PART/FIS"),
+        )
+
+        # 14065010: against mass and TKE, the TKE headed E and the energy DATA-CM.
+        joint = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["mass", "total_kinetic_energy"],
+            ordinate = "neutron_kinetic_energy",
+        )
+        code = "98-CF-252(0,F)MASS,PR,KE/TKE,N"
+        rows = [
+            exfor_row(;
+                reaction_code = code,
+                value_kind = "Data(EV)",
+                product_za = a,
+                secondary_ev = e,
+                y = v,
+                dy = d,
+            ) for (a, e, v, d) in (
+                (90, 1.635e8, 1.0e6, 1.3e5),
+                (94, 1.635e8, 1.02e6, 9.0e4),
+                (90, 1.695e8, 1.1e6, 1.0e5),
+            )
+        ]
+        text = exfor_subentry(;
+            bib = ["REACTION   ($(code))"],
+            headings = ["E", "MASS", "DATA-CM", "DATA-ERR"],
+            units = ["MEV", "NO-DIM", "MEV", "MEV"],
+            rows = [
+                [163.5, 90.0, 1.0, 0.13],
+                [163.5, 94.0, 1.02, 0.09],
+                [169.5, 90.0, 1.1, 0.1],
+            ],
+        )
+        accepted = select_dataset("10000002", exfor_csv(rows), text, joint)
+        @test accepted isa Dataset
+        @test accepted.record["ordinate_frame"] == "centre_of_mass"
+        reduced = reduce_dataset(accepted, joint)
+        @test names(reduced.table) == ["A", "TKE", "eps", "eps_uncertainty"]
+        @test reduced.table.A == [90, 90, 94]
+        @test isapprox(reduced.table.TKE, [163.5, 169.5, 163.5]; rtol = 1.0e-6)
+        @test isapprox(reduced.table.eps, [1.0, 1.1, 1.02]; rtol = 1.0e-6)
+        # Against TKE alone the mass makes it another observable.
+        @test rejection_reason(
+            tag_rule(["total_kinetic_energy"], "neutron_kinetic_energy"),
+            code,
+        ) == "forbidden code \"MASS\" in SF4"
+
+        # The run record of `datasets`, accepted under the configuration `content`.
+        function run_record(content, datasets, query)
+            local directory = mktempdir()
+            local config_path = joinpath(directory, "configuration.toml")
+            write(config_path, content)
+            local retrieved = DateTime(2026, 10, 1, 12)
+            local accepted = [
+                AcceptedDataset(
+                    dataset,
+                    reduce_dataset(dataset, query),
+                    "$(dataset.identifier).dat",
+                    retrieved,
+                    false,
+                ) for dataset in datasets
+            ]
+            local record_path = joinpath(directory, "retrieval.toml")
+            write_metadata(
+                record_path,
+                load_configuration(config_path),
+                accepted,
+                Rejection[],
+                ExforFissionData.Listing(["10"], retrieved, false),
+            )
+            return TOML.parsefile(record_path)
+        end
+        # The record carries the frame of each dataset and flags the unstated ones.
+        stated = select_dataset("10000002", centre_of_mass()..., cf)
+        headed_data = select_dataset(
+            "10000003",
+            neutron_energies("10000003", "98-CF-252(0,F)MASS,PR,KE,N", points)...,
+            cf,
+        )
+        record = run_record(
+            """
+            [query]
+            target_Z = 98
+            target_A = 252
+            channel = "sf"
+            abscissa = ["mass"]
+            ordinate = "neutron_kinetic_energy"
+            """,
+            [stated, headed_data],
+            cf,
+        )
+        entries = Dict(entry["identifier"] => entry for entry in record["accepted"])
+        flag = ExforFissionData.FRAME_UNSTATED_QUALIFIER
+        @test entries["10000003"]["ordinate_frame"] == "unstated"
+        @test flag in entries["10000003"]["qualifiers"]
+        @test entries["10000002"]["ordinate_frame"] == "centre_of_mass"
+        @test !(flag in entries["10000002"]["qualifiers"])
+        @test occursin("10000003", record["datasets"]["frame_warning"])
+        @test !occursin("10000002", record["datasets"]["frame_warning"])
+        @test haskey(record["conventions"], "ordinate_frame")
+        @test haskey(record["conventions"], "ordinate_bound")
+    end
+
+    @testset "a ratio to a Maxwellian states its temperature" begin
+        pu = test_query(;
+            target_Z = 94,
+            target_A = 239,
+            channel = "nth",
+            abscissa = ["neutron_energy"],
+            ordinate = "spectrum_maxwellian_ratio",
+        )
+        ratio_rows(;
+            dataset_id = "10000002",
+            code = "94-PU-239(N,F),PR,NU/DE,,MXD",
+            value_kind = "Data(NO-DIM)",
+            incident_ev = 0.0253,
+        ) = [
+            exfor_row(;
+                dataset_id,
+                reaction_code = code,
+                value_kind,
+                incident_ev,
+                secondary_ev = e,
+                y = v,
+            ) for (e, v) in ((1.0e6, 0.95), (2.0e6, 1.02))
+        ]
+        dummy = (headings = ["EN-DUMMY"], units = ["EV"], values = [0.0253])
+        # The subentry of the two rows; `kwargs` override any section of it.
+        ratio_text(; kwargs...) = exfor_subentry(;
+            bib = ["REACTION   (94-PU-239(N,F),PR,NU/DE,,MXD)"],
+            common = dummy,
+            headings = ["E", "DATA"],
+            units = ["MEV", "NO-DIM"],
+            rows = [[1.0, 0.95], [2.0, 1.02]],
+            kwargs...,
+        )
+        selected(; kwargs...) =
+            select_dataset("10000002", exfor_csv(ratio_rows()), ratio_text(; kwargs...), pu)
+        with_temperature(unit, value) = (
+            headings = ["EN-DUMMY", "KT-NRM"],
+            units = ["EV", unit],
+            values = [0.0253, value],
+        )
+        temperature(dataset) = dataset.record["maxwellian_temperature_mev"]
+        source(dataset) = dataset.record["maxwellian_temperature_source"]
+
+        # KT-NRM in the COMMON section of the subentry, then of subentry 001.
+        in_subentry = selected(; common = with_temperature("MEV", 1.382))
+        @test in_subentry isa Dataset
+        @test temperature(in_subentry) == 1.382
+        @test occursin("COMMON section of the subentry", source(in_subentry))
+        in_entry = selected(;
+            entry_common = (headings = ["KT-NRM"], units = ["MEV"], values = [1.382]),
+        )
+        @test in_entry isa Dataset
+        @test temperature(in_entry) == 1.382
+        @test occursin("subentry 001", source(in_entry))
+        # Restated in MeV from the unit it is headed with.
+        in_kev = selected(; common = with_temperature("KEV", 1420.0))
+        @test isapprox(temperature(in_kev), 1.42; rtol = 1.0e-9)
+
+        # As a DATA column it must hold one value over the retained lines.
+        in_table(values) = selected(;
+            headings = ["E", "DATA", "KT-NRM"],
+            units = ["MEV", "NO-DIM", "MEV"],
+            rows = [[1.0, 0.95, values[1]], [2.0, 1.02, values[2]]],
+        )
+        in_data = in_table((1.34, 1.34))
+        @test in_data isa Dataset
+        @test temperature(in_data) == 1.34
+        @test occursin("DATA table", source(in_data))
+        refused = in_table((1.34, 1.40))
+        @test refused isa Rejection
+        @test occursin("holds 2 values", refused.reason)
+
+        # No temperature, or one that is no energy, and the ratio states no spectrum.
+        refused = selected()
+        @test refused isa Rejection
+        @test occursin("gives no temperature of the Maxwellian", refused.reason)
+        refused = selected(; common = with_temperature("NO-DIM", 1.382))
+        @test refused isa Rejection
+        @test occursin("not an energy unit", refused.reason)
+
+        # 14278003: KT-NRM holds the mean energy 3T/2; a changed value is not read.
+        cf = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["neutron_energy"],
+            ordinate = "spectrum_maxwellian_ratio",
+        )
+        cf_rows = ratio_rows(;
+            dataset_id = "14278003",
+            code = "98-CF-252(0,F),PR,NU/DE,,MXD",
+            incident_ev = missing,
+        )
+        mean_energy(value) = select_dataset(
+            "14278003",
+            exfor_csv(cf_rows),
+            ratio_text(;
+                entry = "14278",
+                subentry = "14278003",
+                bib = ["REACTION   (98-CF-252(0,F),PR,NU/DE,,MXD)"],
+                common = (headings = ["KT-NRM"], units = ["MEV"], values = [value]),
+            ),
+            cf,
+        )
+        read_mean = mean_energy(2.159)
+        @test read_mean isa Dataset
+        @test isapprox(temperature(read_mean), 1.439; rtol = 1.0e-9)
+        @test occursin("two thirds", source(read_mean))
+        refused = mean_energy(1.439)
+        @test refused isa Rejection
+        @test occursin("must be reviewed", refused.reason)
+
+        # The spectrum itself asks for no temperature and records nothing.
+        spectral = test_query(;
+            target_Z = 94,
+            target_A = 239,
+            channel = "nth",
+            abscissa = ["neutron_energy"],
+            ordinate = "spectrum",
+        )
+        plain_rows =
+            ratio_rows(; code = "94-PU-239(N,F),PR,NU/DE", value_kind = "Data(1/EV)")
+        plain = select_dataset(
+            "10000002",
+            exfor_csv(plain_rows),
+            ratio_text(;
+                bib = ["REACTION   (94-PU-239(N,F),PR,NU/DE)"],
+                units = ["MEV", "1/EV"],
+            ),
+            spectral,
+        )
+        @test plain isa Dataset
+        @test isempty(plain.record)
+
+        # The run record of `datasets`, accepted under the configuration `content`.
+        function run_record(content, datasets, query)
+            local directory = mktempdir()
+            local config_path = joinpath(directory, "configuration.toml")
+            write(config_path, content)
+            local retrieved = DateTime(2026, 10, 1, 12)
+            local accepted = [
+                AcceptedDataset(
+                    dataset,
+                    reduce_dataset(dataset, query),
+                    "$(dataset.identifier).dat",
+                    retrieved,
+                    false,
+                ) for dataset in datasets
+            ]
+            local record_path = joinpath(directory, "retrieval.toml")
+            write_metadata(
+                record_path,
+                load_configuration(config_path),
+                accepted,
+                Rejection[],
+                ExforFissionData.Listing(["10"], retrieved, false),
+            )
+            return TOML.parsefile(record_path)
+        end
+        record = run_record(
+            """
+            [query]
+            target_Z = 94
+            target_A = 239
+            channel = "nth"
+            abscissa = ["neutron_energy"]
+            ordinate = "spectrum_maxwellian_ratio"
+            energy_min = 0.0
+            energy_max = 1.0e-7
+            """,
+            [in_subentry],
+            pu,
+        )
+        @test only(record["accepted"])["maxwellian_temperature_mev"] == 1.382
+        @test haskey(record["conventions"], "maxwellian_temperature")
+    end
+
+    @testset "the ratio of a spectrum to that of 252-Cf(sf)" begin
+        over_cf = "(92-U-233(N,F),PR,NU/DE,,REL)/(98-CF-252(0,F),PR,NU/DE,,REL)"
+        cf_over = "(98-CF-252(0,F),PR,NU/DE)/(92-U-233(N,F),PR,NU/DE,,MXW)"
+
+        @test ExforFissionData.reaction_ratio(cf_over) ==
+              ("98-CF-252(0,F),PR,NU/DE", "92-U-233(N,F),PR,NU/DE,,MXW")
+        # A single reaction, a sum, difference or product, three terms, a ratio of ratios
+        # and the double slash are not the ratio of two reactions.
+        difference = "(98-CF-252(0,F)0-NN-1,PR/PAR,KE)-(92-U-233(N,F)0-NN-1,PR/PAR,KE)"
+        for code in (
+            "92-U-233(N,F),PR,NU/DE",
+            difference,
+            replace(difference, ")-(" => ")+("),
+            replace(difference, ")-(" => ")*("),
+            "(98-CF-252(0,F),PR,NU/DE)/(92-U-233(N,F),PR,NU/DE)/(92-U-235(N,F),PR,NU/DE)",
+            "((94-PU-239(N,F),PR,NU/DE)/(92-U-235(N,F),PR,NU/DE))/((92-U-233(N,F),PR,NU/DE)/(92-U-235(N,F),PR,NU/DE))",
+            "(98-CF-252(0,F),PR,NU/DE)//(92-U-233(N,F),PR,NU/DE)",
+        )
+            @test ExforFissionData.reaction_ratio(code) === nothing
+        end
+        @test ExforFissionData.reaction_head("92-U-233(N,F),PR,NU/DE,,MXW") ==
+              "92-U-233(N,F)"
+
+        SpectrumRatio = ExforFissionData.SpectrumRatio
+        ratio(code; channel = "nth") =
+            ExforFissionData.spectrum_ratio(code, "92-U-233(N,F)", channel)
+        read_over = ratio(over_cf)
+        @test read_over isa SpectrumRatio
+        @test read_over.orientation == "system_over_reference"
+        @test read_over.numerator == "92-U-233(N,F),PR,NU/DE,,REL"
+        @test read_over.denominator == "98-CF-252(0,F),PR,NU/DE,,REL"
+        read_inverse = ratio(cf_over)
+        @test read_inverse isa SpectrumRatio
+        @test read_inverse.orientation == "reference_over_system"
+        # Each term is held to the rule of a spectrum: no MSC (a logarithm of the ratio in
+        # 10911002 and 41502003), no ratio to a Maxwellian.
+        reason = ratio("(98-CF-252(0,F),PR,NU/DE,,MSC)/(92-U-233(N,F),PR,NU/DE,,MSC)")
+        @test reason isa String
+        @test occursin("is no spectrum", reason)
+        @test occursin("forbidden code \"MSC\" in SF8", reason)
+        reason = ratio("(98-CF-252(0,F),PR,NU/DE)/(92-U-233(N,F),PR,NU/DE,,MXD)")
+        @test reason isa String
+        @test occursin("\"MXD\"", reason)
+        # Both systems are named: the system of the query and 252-Cf(sf).
+        other_systems = "(94-PU-239(N,F),PR,NU/DE,,AV/REL)/(92-U-235(N,F),PR,NU/DE,,AV/REL)"
+        reason = ratio(other_systems)
+        @test reason isa String
+        @test occursin("a ratio of 94-PU-239(N,F) to 92-U-235(N,F)", reason)
+        @test ratio("(98-CF-252(0,F),PR,NU/DE)/(92-U-235(N,F),PR,NU/DE)") isa String
+        @test occursin("a single reaction", ratio("92-U-233(N,F),PR,NU/DE"))
+        @test occursin("other than the ratio", ratio(difference))
+        # The term of the system answers to the channel.
+        fission_spectrum = "(98-CF-252(0,F),PR,NU/DE)/(92-U-233(N,F),PR,NU/DE,,FIS)"
+        reason = ratio(fission_spectrum)
+        @test reason isa String
+        @test occursin("\"FIS\"", reason)
+        @test occursin("channel \"nth\"", reason)
+        @test ratio(fission_spectrum; channel = "nfast") isa SpectrumRatio
+        # A ratio of mean energies is no ratio of spectra.
+        reason = ratio("(98-CF-252(0,F)0-NN-1,PR,KE)/(92-U-233(N,F)0-NN-1,PR,KE)")
+        @test reason isa String
+        @test occursin("is no spectrum", reason)
+
+        # No other observable admits a combination through its tag rule.
+        for ordinate in ExforFissionData.ORDINATES, abscissa in ExforFissionData.ABSCISSAE
+            rule = try
+                tag_rule(abscissa, ordinate)
+            catch exception
+                exception isa ArgumentError || rethrow()
+                nothing
+            end
+            rule === nothing && continue
+            @test !matches(rule, over_cf)
+            @test !matches(rule, cf_over)
+            @test startswith(
+                rejection_reason(rule, cf_over),
+                "a combination of reaction codes",
+            )
+        end
+
+        # 40871013: 252-Cf(sf) over 233-U(n,f), written as tabulated.
+        u233 = test_query(;
+            target_Z = 92,
+            target_A = 233,
+            channel = "nth",
+            abscissa = ["neutron_energy"],
+            ordinate = "spectrum_cf252_ratio",
+        )
+        ratio_rows(code; dataset_id = "10000002", incident_ev = 0.0253) = [
+            exfor_row(;
+                dataset_id,
+                reaction_code = code,
+                value_kind = "Data(NO-DIM)",
+                incident_ev,
+                secondary_ev = e,
+                y = v,
+                dy = d,
+            ) for (e, v, d) in ((8.47e5, 1.464, 0.0176), (9.73e5, 1.465, 0.0161))
+        ]
+        function ratio_data(code; unit = "NO-DIM", kwargs...)
+            local rows = ratio_rows(code; kwargs...)
+            local text = exfor_subentry_for(rows; unit, bib = ["REACTION   (" * code * ")"])
+            return exfor_csv(rows), text
+        end
+        accepted = select_dataset("10000002", ratio_data(cf_over)..., u233)
+        @test accepted isa Dataset
+        @test accepted.record["ratio_orientation"] == "reference_over_system"
+        @test accepted.record["ratio_numerator"] == "98-CF-252(0,F),PR,NU/DE"
+        @test accepted.record["ratio_denominator"] == "92-U-233(N,F),PR,NU/DE,,MXW"
+        reduced = reduce_dataset(accepted, u233)
+        @test String.(names(reduced.table)) ==
+              ["E", "spectrum_cf252_ratio", "spectrum_cf252_ratio_uncertainty"]
+        @test isapprox(reduced.table.E, [0.847, 0.973]; rtol = 1.0e-6)
+        @test isapprox(reduced.table.spectrum_cf252_ratio, [1.464, 1.465]; rtol = 1.0e-6)
+        # Under the spectrum itself a combination stays refused.
+        spectral = test_query(;
+            target_Z = 92,
+            target_A = 233,
+            channel = "nth",
+            abscissa = ["neutron_energy"],
+            ordinate = "spectrum",
+        )
+        refused = select_dataset("10000002", ratio_data(cf_over)..., spectral)
+        @test refused isa Rejection
+        @test startswith(refused.reason, "a combination of reaction codes")
+        # A relative ratio the subentry heads ARB-UNITS is taken as such.
+        relative =
+            select_dataset("10000002", ratio_data(over_cf; unit = "ARB-UNITS")..., u233)
+        @test relative isa Dataset
+        @test relative.unit == "ARB-UNITS"
+        @test relative.record["ratio_orientation"] == "system_over_reference"
+        # A ratio of another system, or outside the window, is not read.
+        u235 = test_query(;
+            target_Z = 92,
+            target_A = 235,
+            channel = "nth",
+            abscissa = ["neutron_energy"],
+            ordinate = "spectrum_cf252_ratio",
+        )
+        refused = select_dataset("10000002", ratio_data(cf_over)..., u235)
+        @test refused isa Rejection
+        @test occursin("not of 92-U-235(N,F) and 98-CF-252(0,F)", refused.reason)
+        refused =
+            select_dataset("10000002", ratio_data(cf_over; incident_ev = 580.0)..., u233)
+        @test refused isa Rejection
+        @test occursin("outside the window", refused.reason)
+
+        # Numerator and denominator at outgoing energies of their own are no ratio at one
+        # energy.
+        separate = exfor_subentry(;
+            bib = ["REACTION   (" * cf_over * ")"],
+            common = (headings = ["EN"], units = ["EV"], values = [0.0253]),
+            headings = ["E", "E-NM", "E-DN", "DATA"],
+            units = ["EV", "EV", "EV", "NO-DIM"],
+            rows = [[8.47e5, 8.5e5, 8.4e5, 1.464], [9.73e5, 9.7e5, 9.8e5, 1.465]],
+        )
+        refused = select_dataset("10000002", exfor_csv(ratio_rows(cf_over)), separate, u233)
+        @test refused isa Rejection
+        @test occursin("E-NM, E-DN", refused.reason)
+        @test occursin("one outgoing energy", refused.reason)
+
+        # The configuration takes the ratio against E alone, and of a system other than
+        # 252-Cf(sf).
+        directory = mktempdir()
+        write_config(content) = begin
+            path = joinpath(directory, string("c", hash(content), ".toml"))
+            write(path, content)
+            path
+        end
+        refusal(content) =
+            try
+                load_configuration(write_config(content))
+                nothing
+            catch exception
+                exception
+            end
+        thrown = refusal("""
+        [query]
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["mass"]
+        ordinate = "spectrum_cf252_ratio"
+        """)
+        @test thrown isa ArgumentError
+        @test occursin("neutron_energy", thrown.msg)
+        thrown = refusal("""
+        [query]
+        target_Z = 98
+        target_A = 252
+        channel = "sf"
+        abscissa = ["neutron_energy"]
+        ordinate = "spectrum_cf252_ratio"
+        """)
+        @test thrown isa ArgumentError
+        @test occursin("cannot be the system itself", thrown.msg)
+        query = load_configuration(write_config("""
+        [query]
+        target_Z = 92
+        target_A = 233
+        channel = "nth"
+        abscissa = ["neutron_energy"]
+        ordinate = "spectrum_cf252_ratio"
+        """)).query
+        @test observable_label(query) == "spectrum_cf252_ratio_vs_E"
+        @test query.quantity == "MFQ"
+        @test ExforFissionData.system_reaction(
+            test_query(; target_Z = 94, target_A = 239),
+        ) == "94-PU-239(N,F)"
+        @test ExforFissionData.system_reaction(
+            test_query(; target_Z = 98, target_A = 252, channel = "sf"),
+        ) == "98-CF-252(0,F)"
+
+        # The run record of `datasets`, accepted under the configuration `content`.
+        function run_record(content, datasets, query)
+            local directory = mktempdir()
+            local config_path = joinpath(directory, "configuration.toml")
+            write(config_path, content)
+            local retrieved = DateTime(2026, 10, 1, 12)
+            local accepted = [
+                AcceptedDataset(
+                    dataset,
+                    reduce_dataset(dataset, query),
+                    "$(dataset.identifier).dat",
+                    retrieved,
+                    false,
+                ) for dataset in datasets
+            ]
+            local record_path = joinpath(directory, "retrieval.toml")
+            write_metadata(
+                record_path,
+                load_configuration(config_path),
+                accepted,
+                Rejection[],
+                ExforFissionData.Listing(["10"], retrieved, false),
+            )
+            return TOML.parsefile(record_path)
+        end
+        # Both orientations in one directory: each says which spectrum is the numerator,
+        # and carries the qualifiers of both of its reactions.
+        inverse = select_dataset(
+            "10000003",
+            ratio_data(over_cf; dataset_id = "10000003")...,
+            u233,
+        )
+        record = run_record(
+            """
+            [query]
+            target_Z = 92
+            target_A = 233
+            channel = "nth"
+            abscissa = ["neutron_energy"]
+            ordinate = "spectrum_cf252_ratio"
+            energy_min = 0.0
+            energy_max = 1.0e-7
+            """,
+            [accepted, inverse],
+            u233,
+        )
+        entries = Dict(entry["identifier"] => entry for entry in record["accepted"])
+        @test entries["10000002"]["ratio_orientation"] == "reference_over_system"
+        @test "MXW: Maxwellian-averaged" in entries["10000002"]["qualifiers"]
+        @test any(startswith("REL:"), entries["10000003"]["qualifiers"])
+        @test haskey(record["datasets"], "orientation_warning")
+        @test haskey(record["conventions"], "ratio")
+
+        @test tolerates_relative_scale("spectrum_cf252_ratio")
+    end
+
+    @testset "two publications of one measurement" begin
+        # 41516017 is superseded by 41597002, which publishes the same ratio inverted.
+        group = ExforFissionData.correlation_group("41516017")
+        @test group.members == ["41516017", "41597002"]
+        @test ExforFissionData.correlation_group("41597002") === group
+        @test occursin("SPSDD", group.reason)
+    end
+
     @testset "quality" begin
         Aqua.test_all(ExforFissionData)
 
