@@ -108,7 +108,7 @@ const NUBAR_STANDARDS = Dict{Tuple{Int, Int, String}, Tuple{Float64, Float64}}(
 Largest relative distance of the mean of a distribution P(ν) from ν̄ at which it is read as
 the distribution of the neutrons emitted in a fission. The archive codes the distribution of
 the neutrons *detected* alike, and that one has the mean εν̄ for a detection efficiency ε:
-10930004 and 14064002 of 252-Cf(sf) have the means 1.63 and 1.42, and 10300005 2.49, against
+10930004 and 14064002 of 252-Cf(sf) have the means 1.65 and 1.43, and 10300005 2.48, against
 ν̄ = 3.764. The band is the quarter of ν̄ that the complement test of ν(A) uses, wide enough
 that no normalisation decides the reading.
 """

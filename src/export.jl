@@ -295,9 +295,11 @@ function write_metadata(
         record["conventions"]["mean_formation"] = "how each mean was formed, as its publication states it: `mean_formed_from` is \
              measured_spectrum, the first moment of the measured centre-of-mass spectrum, \
              fitted_spectrum, the first moment of the form in `mean_fitted_form` fitted to \
-             it, or unstated; `mean_threshold_mev` and `mean_threshold_frame` give the \
-             low-energy threshold of the neutron detection where one is stated, and \
-             `mean_evidence` the sentence or equation read"
+             it, completed_spectrum, that of the measured spectrum completed beyond its \
+             range by that form, or unstated; `mean_threshold_mev` and \
+             `mean_threshold_frame` give the low-energy limit of the neutrons that enter \
+             the mean, where a publication read states one, and the frame it is stated in, \
+             and `mean_evidence` the sentence or equation read"
     end
     if haskey(PARAMETER_ORDINATES, query.ordinate)
         record["conventions"]["fit_parameter"] = "each table is a column of the dataset of the mean neutron energy, named in the \

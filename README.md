@@ -16,7 +16,7 @@ files with a record of everything the query considered.
 ExforFissionData.jl/
 ├── activate.jl        # silent activation of the package environment
 ├── check.jl           # pre-commit gate: format, then test
-├── config/            # 46 retrieval configurations, <system>_<observable>.toml
+├── config/            # 52 retrieval configurations, <system>_<observable>.toml
 ├── scripts/
 │   └── retrieve.jl    # entry point
 ├── src/               # the package: selection, reduction, export, run record
@@ -141,6 +141,9 @@ that name the directories its data is written to.
 | ν(A, TKE), `nu_vs_A_TKE` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
 | ⟨ε⟩(A), `eps_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
 | ⟨ε⟩(A, TKE), `eps_vs_A_TKE` | `Cf252_sf` | | `U233_nth` | | |
+| T(A), `T_vs_A` | `Cf252_sf` | | | | |
+| λ(A), `lambda_vs_A` | `Cf252_sf` | | | | |
+| P(ν), `P_vs_nu` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | spectrum, `spectrum_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | ratio to a Maxwellian, `spectrum_maxwellian_ratio_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | ratio to 252-Cf(sf), `spectrum_cf252_ratio_vs_E` | | `U235_nth` | `U233_nth` | `Pu239_nth` | |
@@ -172,9 +175,22 @@ directory of their own without any special provision.
 
 The mean centre-of-mass energy of the prompt neutrons of a fragment, ⟨ε⟩, is headed `DATA-CM`
 rather than `DATA` in most subentries, and for this observable alone that column is read as the
-datum. Its frame is recorded per dataset, `centre_of_mass` or, where the subentry does not state
-it, `unstated` and flagged. A dataset holding more than 5 MeV on any row is refused: no mean
-neutron energy reaches that, and a fragment kinetic energy coded the same way exceeds it by far.
+datum. Its frame is read from that heading, from the text of the subentry or from the
+publication the subentry cites, and recorded per dataset with the basis of the reading; each
+record also says how the mean was formed. A dataset holding more than 5 MeV on any row is
+refused: no mean neutron energy reaches that, and a fragment kinetic energy coded the same way
+exceeds it by far.
+
+`T_vs_A` and `lambda_vs_A` hold the temperature and the exponent of the form fitted to the
+centre-of-mass neutron spectrum of a fragment, which EXFOR keeps in `MISC` columns of the mean
+neutron energy, so their configurations name the column dataset by dataset.
+
+The multiplicity distribution P(ν) is coded with the branch `NUM` and tabulated in its subentry
+against `PART-OUT`, the number of outgoing particles, which the csv rendering does not carry; the
+rows of the two are aligned by order and the probabilities compared line by line. The mean of
+each distribution is recorded against the ν̄ of the IAEA neutron data standards 2017, and a
+distribution whose mean lies further than a quarter of ν̄ from it is refused as that of the
+neutrons detected rather than emitted.
 
 The `spectrum_maxwellian_ratio_vs_E` configurations retrieve the spectrum as a ratio to a
 Maxwellian for 252-Cf(sf) and for thermal 235-U, 233-U and 239-Pu, coded with `MXD`, which the
@@ -280,7 +296,7 @@ ExforFissionData.jl/
 ├── README.md
 ├── .JuliaFormatter.toml         # formatter settings shared by check.jl and CI
 ├── .gitignore
-├── config/                      # 46 configurations, <system>_<observable>.toml
+├── config/                      # 52 configurations, <system>_<observable>.toml
 ├── docs/                        # Documenter site
 │   ├── activate.jl
 │   ├── Project.toml
@@ -316,6 +332,7 @@ ExforFissionData.jl/
 │   ├── reaction_codes.jl        # the tag grammar, as data
 │   ├── curation.jl              # datasets read from their subentry text; defects; repeated runs
 │   ├── widths.jl                # the width of the TKE distribution: columns, kinds, conversions
+│   ├── neutron_observables.jl   # fit parameters of the neutron spectrum; the moments of P(ν)
 │   ├── client.jl                # retrieval: timeout, backoff, bounded concurrency, cache
 │   ├── configuration.jl         # TOML loading and validation
 │   ├── selection.jl             # what answers the query, and why the rest does not

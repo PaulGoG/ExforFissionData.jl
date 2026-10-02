@@ -44,14 +44,18 @@ an equation and none is spelled as one.
 | `charge` | `Z` | fragment charge |
 | `neutron_energy` | `E` | secondary neutron energy |
 | `total_kinetic_energy` | `TKE` | total kinetic energy, pre-neutron |
+| `neutron_number` | `nu` | number of neutrons emitted in a fission |
 | `total_kinetic_energy_dispersion` | `sigma_TKE` | standard deviation of the pre-neutron total kinetic energy at fixed mass, σ_TKE(A) |
 | `post_neutron_total_kinetic_energy` | `TKE_p` | total kinetic energy, post-neutron |
 | `fragment_kinetic_energy` | `E_K` | fragment kinetic energy, pre-neutron |
 | `product_kinetic_energy` | `E_K_p` | fragment kinetic energy, post-neutron |
 | `neutron_kinetic_energy` | `eps` | mean centre-of-mass neutron energy ⟨ε⟩ |
+| `neutron_spectrum_temperature` | `T` | temperature of the form fitted to the centre-of-mass neutron spectrum |
+| `neutron_spectrum_exponent` | `lambda` | exponent of that form |
 | `yield` | `Y` | fission yield |
 | `multiplicity` | `nu` | prompt multiplicity per fragment, ν(A) |
 | `multiplicity_per_fission` | `nu_bar` | prompt multiplicity per fragment pair, ν̄ |
+| `multiplicity_distribution` | `P` | probability of emitting ν neutrons in a fission, P(ν) |
 | `spectrum` | `spectrum` | prompt fission neutron spectrum |
 | `spectrum_maxwellian_ratio` | `spectrum_maxwellian_ratio` | the spectrum as a ratio to a Maxwellian |
 | `spectrum_cf252_ratio` | `spectrum_cf252_ratio` | the spectrum as a ratio to that of 252-Cf(sf) |
@@ -158,6 +162,7 @@ One header line, ASCII, abscissae first, then the ordinate, then its uncertainty
 A nu nu_uncertainty
 A TKE nu nu_uncertainty
 E spectrum spectrum_uncertainty
+nu P P_uncertainty
 ```
 
 **No column is named `value`.** Naming the column for its quantity is what frees the reader from

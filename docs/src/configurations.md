@@ -5,8 +5,9 @@ CurrentModule = ExforFissionData
 # Configurations
 
 A configuration is named `<system>_<observable>.toml`, the same two tokens that name the
-directories its data is written to. Sections are `[query]`, `[retrieval]` and `[output]`, and
-for the width of the TKE distribution the tables `[[width]]`. Every
+directories its data is written to. Sections are `[query]`, `[retrieval]` and `[output]`, for
+the width of the TKE distribution the tables `[[width]]`, and for the parameters of the form
+fitted to the centre-of-mass neutron spectrum the tables `[[fit_parameter]]`. Every
 key is validated as the file is read: a value of the wrong type, one outside its bounds, or one
 that is not among the enumerated choices stops the run with a message naming the offending key,
 so a retrieval cannot start from a configuration it cannot honour. A section or a key the loader
@@ -20,8 +21,8 @@ to every incident energy — and so is an energy window on `sf`, which has no in
 | `[query]` | `target_Z` | atomic number of the target | 1 to 118 | required |
 | `[query]` | `target_A` | mass number of the target | at least `target_Z`, at most 300 | required |
 | `[query]` | `channel` | entrance channel; fixes the incident-energy interval, see [Entrance channels](channels.md) | `"sf"`, `"nth"`, `"nres"`, `"nfast"` | required |
-| `[query]` | `abscissa` | quantities the observable is tabulated against | `["mass"]`, `["product_mass"]`, `["charge"]`, `["neutron_energy"]`, `["total_kinetic_energy"]`, `["charge", "product_mass"]`, `["mass", "total_kinetic_energy"]` | required |
-| `[query]` | `ordinate` | the observable | `"yield"`, `"multiplicity"`, `"multiplicity_per_fission"`, `"fragment_kinetic_energy"`, `"product_kinetic_energy"`, `"total_kinetic_energy"`, `"total_kinetic_energy_dispersion"`, `"post_neutron_total_kinetic_energy"`, `"neutron_kinetic_energy"`, `"spectrum"`, `"spectrum_maxwellian_ratio"`, `"spectrum_cf252_ratio"` | required |
+| `[query]` | `abscissa` | quantities the observable is tabulated against | `["mass"]`, `["product_mass"]`, `["charge"]`, `["neutron_energy"]`, `["total_kinetic_energy"]`, `["charge", "product_mass"]`, `["mass", "total_kinetic_energy"]`, `["neutron_number"]` | required |
+| `[query]` | `ordinate` | the observable | `"yield"`, `"multiplicity"`, `"multiplicity_per_fission"`, `"fragment_kinetic_energy"`, `"product_kinetic_energy"`, `"total_kinetic_energy"`, `"total_kinetic_energy_dispersion"`, `"post_neutron_total_kinetic_energy"`, `"neutron_kinetic_energy"`, `"neutron_spectrum_temperature"`, `"neutron_spectrum_exponent"`, `"multiplicity_distribution"`, `"spectrum"`, `"spectrum_maxwellian_ratio"`, `"spectrum_cf252_ratio"` | required |
 | `[query]` | `energy_min` | lower edge of the incident-energy window, MeV | must lie inside the channel's interval (`nth` 0 to 1.0e-7 (0.1 eV), `nres` 1.0e-7 (0.1 eV) to 0.1, `nfast` 0.1 to 20); not allowed for `sf` | the channel's floor |
 | `[query]` | `energy_max` | upper edge of the incident-energy window, MeV | above `energy_min`; must lie inside the channel's interval (`nth` 0 to 1.0e-7 (0.1 eV), `nres` 1.0e-7 (0.1 eV) to 0.1, `nfast` 0.1 to 20); not allowed for `sf` | the channel's ceiling |
 | `[retrieval]` | `concurrency` | simultaneous requests | 1 to 16 | 4 |
@@ -41,6 +42,8 @@ to every incident energy — and so is an energy window on `sf`, which has no in
 | `[[width]]` | `column` | DATA heading of the width | a MISC-type heading; not `DATA`, an uncertainty or a variable | required in each table |
 | `[[width]]` | `holds` | what the column holds | `"standard_deviation"`, `"variance"`, `"fwhm"`, `"hwhm"` | required in each table |
 | `[[width]]` | `of` | whose energy the width is of | `"total_kinetic_energy"`, `"fragment_kinetic_energy"` | required in each table |
+| `[[fit_parameter]]` | `subentry` | EXFOR dataset whose column holds the parameter | 8 characters, or 9 with its pointer; each once | required in each table |
+| `[[fit_parameter]]` | `column` | DATA heading of the parameter | a MISC-type heading; not `DATA`, an uncertainty or a variable | required in each table |
 
 `[query]` and its five required keys must be present. `[retrieval]` and `[output]` may be omitted
 entirely, in which case every key they hold takes its default. `[[width]]` is required, at least
@@ -48,6 +51,11 @@ once, for the ordinate `"total_kinetic_energy_dispersion"` against `["mass"]`, a
 every other ordinate: EXFOR has no code for the width of a kinetic-energy distribution, so a
 width is read only from the columns these tables name, never from free text and never from the
 datum. See [Observables](observables.md).
+
+`[[fit_parameter]]` is required, at least once, for the ordinates
+`"neutron_spectrum_temperature"` and `"neutron_spectrum_exponent"` against `["mass"]`, and
+refused for every other ordinate. Each table names a dataset of the mean neutron energy and the
+`MISC` column that holds the parameter, whose uncertainty is read from the column `<column>-ERR`.
 
 The listing of datasets is requested on every run that is not offline, because the archive adds
 entries and a cached listing never discovers them. Dataset responses are served from the cache.
@@ -81,11 +89,22 @@ so these configurations omit `energy_min` and `energy_max`.
   secondary neutron energy.
 - `Cf252_sf_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 14065003
   (Bowman 1963), 23175012 (Budtz-Jørgensen 1988), 23268011 (Göök 2014) and 41689005 (Piksaykin
-  1977), the second and fourth of unstated frame.
+  1977), the second and fourth headed `DATA` and in the centre of mass by their publications.
 - `Cf252_sf_eps_vs_A_TKE` — the same against mass and TKE jointly: 14065010 (Bowman 1963), 228
   rows at ten TKE values from 163.5 to 217.5 MeV. Refused: 14065008, whose ten mean masses lie
   about 5 u apart and bracket no integer mass within the 3-u interpolation span, and 23175013,
   one mass, 110, held in COMMON, a slice against TKE rather than the joint observable.
+- `Cf252_sf_T_vs_A` — the temperature T of the form fitted to the centre-of-mass neutron
+  spectrum against fragment mass: `MISC1` of 23175012 (Budtz-Jørgensen 1988), 79 masses, 0.77 to
+  1.39 MeV, and `MISC` of 23268011 (Göök 2014), 82 masses of its 109, 0.72 to 1.40 MeV.
+- `Cf252_sf_lambda_vs_A` — the exponent λ of the same form against fragment mass: `MISC2` of
+  23175012 (Budtz-Jørgensen 1988), 79 masses, 0.11 to 0.94.
+- `Cf252_sf_P_vs_nu` — the multiplicity distribution P(ν): 10605005 (Stoughton 1973), 10901006
+  (Hoffman 1980), 12337013 (Diven 1956), 12833005 (Gwin 1984), 13715014 (Hicks 1956), 21495003
+  (Baron 1966), 30046011 (Boldeman 1967), 307720151, 307720152 and 307720153 (Boldeman 1985, at
+  three discriminator biases) and 41425002 (Vorobiev 2001). 30046011 and the three of 30772015
+  are one measurement, each naming the others as `correlated_with`. 10300005, 10930004 and
+  14064002 are refused, their means too far from ν̄ for distributions of the neutrons emitted.
 
 ### 235-U(nth,f)
 
@@ -108,6 +127,11 @@ so these configurations omit `energy_min` and `energy_max`.
 - `U235_nth_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 22464003
   (Nishio 1998), interpolated from a half-integer 2-u grid, and 41502008 (Batenkov 2004);
   23164022 (Al-Adili 2016), fragment kinetic energies, is refused on its magnitude.
+- `U235_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833007 (Gwin 1984), 30046008
+  (Boldeman 1967), 30772010 (Boldeman 1985) and 32820002 (Huang 1961). The subentry of 30046008
+  marks it superseded by 30772010; both are written, each naming the other as `correlated_with`.
+  Refused: 12337009 (Diven 1956), at 80 keV, 30544002, derived from a model, and V0045012, an
+  evaluation.
 
 ### 235-U resonance region
 
@@ -141,9 +165,14 @@ be written under a directory of its own.
   (Nefedov 1983) and 40872008 (Starostov 1983), 252-Cf over 233-U, and 416110021 (Vorobyev 2016),
   233-U over 252-Cf in arbitrary units, under `relative/`.
 - `U233_nth_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 14369005
-  (Fraser 1966), of unstated frame, and 22660003 (Nishio 1998).
-- `U233_nth_eps_vs_A_TKE` — the same against mass and TKE jointly: 22660004 (Nishio 1998), of
-  unstated frame.
+  (Fraser 1966), headed `DATA` and in the centre of mass by its publication, and 22660003 (Nishio
+  1998).
+- `U233_nth_eps_vs_A_TKE` — the same against mass and TKE jointly: 22660004 (Nishio 1998), headed
+  `DATA` and in the centre of mass by its publication.
+- `U233_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833006 (Gwin 1984), 30046007
+  (Boldeman 1967) and 30772009 (Boldeman 1985). The subentry of 30046007 marks it superseded by
+  30772009; both are written, each naming the other as `correlated_with`. Refused: 12337008
+  (Diven 1956), at 80 keV, and V0045011, an evaluation.
 
 ### 239-Pu(nth,f)
 
@@ -167,6 +196,10 @@ be written under a directory of its own.
 - `Pu239_nth_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 22650008
   (Tsuchiya 2000) and 41502009 (Batenkov 2004), the second headed `DATA` and in the centre of
   mass by its `REACTION` text.
+- `Pu239_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833008 (Gwin 1984), 30046009
+  (Boldeman 1967) and 30772011 (Boldeman 1985). The subentry of 30046009 marks it superseded by
+  30772011; both are written, each naming the other as `correlated_with`. Refused: 12337010
+  (Diven 1956), at 80 keV, and V0045013, an evaluation.
 
 ### 240-Pu(sf)
 

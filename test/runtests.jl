@@ -3777,6 +3777,757 @@ of = "$(of)"
         @test occursin("SPSDD", group.reason)
     end
 
+    @testset "the frame and the formation of a mean neutron energy" begin
+        FrameReading = ExforFissionData.FrameReading
+        ordinate_frame = ExforFissionData.ordinate_frame
+        mean_formation = ExforFissionData.mean_formation
+        # Without a basis the frame is read from the subentry text.
+        @test FrameReading("centre_of_mass", "x").basis == "subentry"
+        @test FrameReading("centre_of_mass", "publication", "x").basis == "publication"
+        @test_throws ArgumentError FrameReading("centre_of_mass", "hearsay", "x")
+
+        # A dataset headed DATA whose frame stays open is not entered at all.
+        @test all(
+            reading -> reading.frame == "centre_of_mass",
+            values(ExforFissionData.ORDINATE_FRAMES),
+        )
+        # Where the subentry names no frame, the publication it cites is quoted.
+        quoted = Dict(
+            "23175012" => ["doi:10.1016/0375-9474(88)90508-8", "p. 322"],
+            "41689005" => ["Kiev"],
+            "14369005" => ["STI/PUB/101", "The symbol eta is used for E_CM"],
+            "22660004" => ["doi:10.1080/18811248.1998.9733919"],
+        )
+        for identifier in ("23175012", "41689005", "14369005", "22660004")
+            reading = ordinate_frame(identifier, ["MASS", "DATA"])
+            @test reading.frame == "centre_of_mass"
+            @test reading.basis == "publication"
+            for needle in quoted[identifier]
+                @test occursin(needle, reading.evidence)
+            end
+        end
+        @test ordinate_frame("41502009", ["MASS", "DATA"]).basis == "subentry"
+        @test ordinate_frame("23175012", ["MASS", "DATA-CM"]).basis == "heading"
+        unknown = ordinate_frame("10000002", ["MASS", "DATA"])
+        @test unknown.frame == "unstated"
+        @test unknown.basis == "subentry"
+
+        # How each mean was formed, as its publication states it.
+        formations = ExforFissionData.MEAN_FORMATIONS
+        @test all(
+            formation -> formation.from in ExforFissionData.MEAN_SOURCES,
+            values(formations),
+        )
+        @test sort!(collect(keys(formations))) == [
+            "14065003",
+            "14065010",
+            "14369005",
+            "22464003",
+            "22650008",
+            "22660003",
+            "22660004",
+            "23175012",
+            "23268011",
+            "23444006",
+            "41502008",
+            "41502009",
+            "41689005",
+        ]
+        bowman = mean_formation("14065003")
+        @test bowman.from == "measured_spectrum"
+        @test bowman.threshold == 0.52
+        @test bowman.threshold_frame == "laboratory"
+        @test occursin("doi:10.1103/PhysRev.129.2133", bowman.evidence)
+        # 23175012: the first moment of the cascade form fitted to the spectrum.
+        mito = mean_formation("23175012")
+        @test mito.from == "fitted_spectrum"
+        @test mito.form == "const eta^lambda exp(-eta/T)"
+        @test mito.threshold == 0.3
+        # A threshold is recorded only where a publication read states one.
+        for (identifier, from, threshold) in (
+            ("41689005", "completed_spectrum", 0.4),
+            ("23268011", "unstated", 0.7),
+            ("22660003", "measured_spectrum", 0.3),
+            ("14369005", "measured_spectrum", nothing),
+            ("22464003", "unstated", 0.2),
+            ("22650008", "measured_spectrum", 0.5),
+            ("41502008", "unstated", nothing),
+            ("23444006", "unstated", nothing),
+        )
+            formation = mean_formation(identifier)
+            @test formation.from == from
+            @test isequal(formation.threshold, threshold)
+        end
+        unread = mean_formation("10000002")
+        @test unread.from == "unstated"
+        @test occursin("no reading of the publication", unread.evidence)
+        @test_throws ArgumentError ExforFissionData.MeanFormation(
+            "guessed",
+            "",
+            nothing,
+            "",
+            "x",
+        )
+
+        # The record carries a form and a threshold only where the publication gives them.
+        formation_keys(identifier) =
+            sort!(collect(keys(ExforFissionData.mean_formation_record(identifier))))
+        @test formation_keys("23175012") == [
+            "mean_evidence",
+            "mean_fitted_form",
+            "mean_formed_from",
+            "mean_threshold_frame",
+            "mean_threshold_mev",
+        ]
+        @test formation_keys("41502008") == ["mean_evidence", "mean_formed_from"]
+        # A threshold is stated in the frame its publication gives it in: the detector
+        # threshold in the laboratory, the lower limit of the averaged spectrum in the centre
+        # of mass (22650008).
+        @test mean_formation("22650008").threshold_frame == "centre_of_mass"
+        @test mean_formation("22464003").threshold_frame == "laboratory"
+
+        # A mean neutron energy headed DATA: the rendering in eV, the subentry in MeV.
+        function neutron_energies(identifier, code, points)
+            local rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = code,
+                    value_kind = "Data(EV)",
+                    product_za = mass,
+                    y = value,
+                ) for (mass, value) in points
+            ]
+            local text = exfor_subentry(;
+                entry = first(identifier, 5),
+                subentry = identifier,
+                bib = ["REACTION   ($(code))"],
+                headings = ["MASS", "DATA"],
+                units = ["NO-DIM", "MEV"],
+                rows = [[Float64(mass), value / 1.0e6] for (mass, value) in points],
+            )
+            return exfor_csv(rows), text
+        end
+        cf = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["mass"],
+            ordinate = "neutron_kinetic_energy",
+        )
+        mito_data = neutron_energies(
+            "23175012",
+            "98-CF-252(0,F)MASS,PR,KE,N",
+            [(89, 1.244e6), (90, 1.330e6)],
+        )
+        accepted = select_dataset("23175012", mito_data..., cf)
+        @test accepted isa Dataset
+        @test accepted.record["ordinate_frame"] == "centre_of_mass"
+        @test accepted.record["ordinate_frame_basis"] == "publication"
+        @test accepted.record["mean_formed_from"] == "fitted_spectrum"
+        @test accepted.record["mean_threshold_mev"] == 0.3
+        @test accepted.record["mean_threshold_frame"] == "laboratory"
+        # A frame read from the publication is stated, and the dataset is not flagged.
+        flag = ExforFissionData.FRAME_UNSTATED_QUALIFIER
+        @test flag ∉ ExforFissionData._qualifiers(accepted)
+
+        # The run record of `datasets`, accepted under the configuration `content`.
+        function run_record(content, datasets, query)
+            local directory = mktempdir()
+            local config_path = joinpath(directory, "configuration.toml")
+            write(config_path, content)
+            local retrieved = DateTime(2026, 10, 1, 12)
+            local accepted = [
+                AcceptedDataset(
+                    dataset,
+                    reduce_dataset(dataset, query),
+                    "$(dataset.identifier).dat",
+                    retrieved,
+                    false,
+                ) for dataset in datasets
+            ]
+            local record_path = joinpath(directory, "retrieval.toml")
+            write_metadata(
+                record_path,
+                load_configuration(config_path),
+                accepted,
+                Rejection[],
+                ExforFissionData.Listing(["10"], retrieved, false),
+            )
+            return TOML.parsefile(record_path)
+        end
+        record = run_record(
+            """
+            [query]
+            target_Z = 98
+            target_A = 252
+            channel = "sf"
+            abscissa = ["mass"]
+            ordinate = "neutron_kinetic_energy"
+            """,
+            [accepted],
+            cf,
+        )
+        @test occursin("ordinate_frame_basis", record["conventions"]["ordinate_frame"])
+        @test occursin("completed_spectrum", record["conventions"]["mean_formation"])
+        @test !haskey(record["datasets"], "frame_warning")
+        written = only(record["accepted"])
+        @test written["ordinate_frame_basis"] == "publication"
+        @test written["mean_formed_from"] == "fitted_spectrum"
+    end
+
+    @testset "the parameters of the fitted neutron spectrum" begin
+        ParameterColumn = ExforFissionData.ParameterColumn
+        # 23175012: the mean neutron energy headed DATA, the temperature T of the fitted
+        # form in MISC1 and its exponent lambda in MISC2, each with its uncertainty; the
+        # last line carries no fit.
+        function fitted(;
+            rendered = [1.244e6, 1.330e6, 1.300e6],
+            tabulated = [1.244, 1.330, 1.300],
+            temperature_unit = "MEV",
+            temperatures = [[0.7704, 0.0812], [0.7919, 0.0580]],
+        )
+            local code = "98-CF-252(0,F)MASS,PR,KE,N"
+            local rows = [
+                exfor_row(;
+                    dataset_id = "23175012",
+                    reaction_code = code,
+                    value_kind = "Data(EV)",
+                    product_za = mass,
+                    y = value,
+                    dy = 3.3e4,
+                ) for (mass, value) in zip((89, 90, 91), rendered)
+            ]
+            local text = exfor_subentry(;
+                entry = "23175",
+                subentry = "23175012",
+                bib = ["REACTION   ($(code))"],
+                headings = [
+                    "MASS",
+                    "DATA",
+                    "DATA-ERR",
+                    "MISC1",
+                    "MISC1-ERR",
+                    "MISC2",
+                    "MISC2-ERR",
+                ],
+                units = [
+                    "NO-DIM",
+                    "MEV",
+                    "MEV",
+                    temperature_unit,
+                    temperature_unit,
+                    "NO-DIM",
+                    "NO-DIM",
+                ],
+                rows = [
+                    [89.0, tabulated[1], 0.033, temperatures[1]..., 0.5972, 0.1909],
+                    [90.0, tabulated[2], 0.033, temperatures[2]..., 0.6692, 0.1474],
+                    [91.0, tabulated[3], 0.033, missing, missing, missing, missing],
+                ],
+            )
+            return exfor_csv(rows), text
+        end
+        system_query(ordinate) = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["mass"],
+            ordinate,
+        )
+        temperature = system_query("neutron_spectrum_temperature")
+        exponent = system_query("neutron_spectrum_exponent")
+        named(column) = [ParameterColumn("23175012", column)]
+        selected(query, parameters; data = fitted()) =
+            select_dataset("23175012", data..., query; parameters)
+
+        # The temperature is read from the column named, never from the mean beside it.
+        parameters = named("MISC1")
+        accepted = selected(temperature, parameters)
+        @test accepted isa Dataset
+        reduced = reduce_dataset(accepted, temperature; parameters)
+        @test String.(names(reduced.table)) == ["A", "T", "T_uncertainty"]
+        # The line without a fit is not written.
+        @test reduced.table.A == [89, 90]
+        @test isapprox(reduced.table.T, [0.7704, 0.7919]; rtol = 1.0e-9)
+        @test isapprox(reduced.table.T_uncertainty, [0.0812, 0.058]; rtol = 1.0e-9)
+        @test reduced.diagnostics["unit_written"] == "MEV"
+        @test reduced.diagnostics["parameter_column"] == "MISC1"
+        @test reduced.diagnostics["parameter_unit"] == "MEV"
+        @test reduced.diagnostics["uncertainty_source"] == "subentry MISC1-ERR"
+        @test haskey(reduced.diagnostics, "parameter_is")
+        @test accepted.record["fit_form"] == "const eta^lambda exp(-eta/T)"
+        @test haskey(accepted.record, "fit_evidence")
+        @test accepted.record["ordinate_frame"] == "centre_of_mass"
+
+        # The exponent is a pure number.
+        exponent_dataset = selected(exponent, named("MISC2"))
+        @test exponent_dataset isa Dataset
+        exponents = reduce_dataset(exponent_dataset, exponent; parameters = named("MISC2"))
+        @test String.(names(exponents.table)) == ["A", "lambda", "lambda_uncertainty"]
+        @test isapprox(exponents.table.lambda, [0.5972, 0.6692]; rtol = 1.0e-9)
+        @test isapprox(exponents.table.lambda_uncertainty, [0.1909, 0.1474]; rtol = 1.0e-9)
+        @test exponents.diagnostics["unit_written"] == "NO-DIM"
+
+        # The tabulated mean is the first moment (lambda + 1) T of the fitted form, to 2 %.
+        T = [0.7704, 0.7919]
+        λ = [0.5972, 0.6692]
+        @test all(isapprox.((λ .+ 1) .* T, [1.244, 1.330]; rtol = 0.02))
+
+        # A temperature headed KEV is restated in MeV.
+        in_kev = fitted(;
+            temperature_unit = "KEV",
+            temperatures = [[770.4, 81.2], [791.9, 58.0]],
+        )
+        reduced = reduce_dataset(
+            selected(temperature, parameters; data = in_kev),
+            temperature;
+            parameters,
+        )
+        @test isapprox(reduced.table.T, [0.7704, 0.7919]; rtol = 1.0e-9)
+
+        # A column unnamed, absent, or headed in a unit foreign to the parameter is refused.
+        refused = selected(temperature, ParameterColumn[])
+        @test refused isa Rejection
+        @test occursin("[[fit_parameter]]", refused.reason)
+        for (query, column, needle) in (
+            (temperature, "MISC9", "does not carry"),
+            (temperature, "MISC2", "holds no temperature"),
+            (exponent, "MISC1", "holds no exponent"),
+        )
+            refused = selected(query, named(column))
+            @test refused isa Rejection
+            @test occursin(needle, refused.reason)
+        end
+        # Fragment energies coded as a neutron energy are named for what they are.
+        fragment_energies =
+            fitted(; rendered = [9.9e7, 1.0e8, 1.01e8], tabulated = [99.0, 100.0, 101.0])
+        refused = selected(temperature, parameters; data = fragment_energies)
+        @test refused isa Rejection
+        @test occursin("no mean neutron energy", refused.reason)
+
+        # The datasets of a parameter are selected as those of the mean neutron energy.
+        @test ExforFissionData.selection_ordinate("neutron_spectrum_temperature") ==
+              "neutron_kinetic_energy"
+        @test ExforFissionData.selection_ordinate("yield") == "yield"
+        @test matches(
+            tag_rule(["mass"], "neutron_spectrum_temperature"),
+            "98-CF-252(0,F)MASS,PR,KE,N",
+        )
+
+        base = """
+            [query]
+            target_Z = 98
+            target_A = 252
+            channel = "sf"
+            abscissa = ["mass"]
+            ordinate = "neutron_spectrum_temperature"
+            """
+        fit_table(; subentry = "23175012", column = "MISC1", extra = "") = """
+            [[fit_parameter]]
+            subentry = "$(subentry)"
+            column = "$(column)"
+            $(extra)
+            """
+        mktempdir() do directory
+            load(text) =
+                let file = joinpath(directory, "c.toml")
+                    write(file, text)
+                    load_configuration(file)
+                end
+            thrown(text) =
+                try
+                    load(text)
+                    nothing
+                catch exception
+                    exception
+                end
+            configuration = load(base * fit_table())
+            parameter = only(configuration.parameters)
+            @test parameter.subentry == "23175012"
+            @test parameter.column == "MISC1"
+            @test observable_label(configuration.query) == "T_vs_A"
+            exponent_base = replace(base, "temperature" => "exponent")
+            @test observable_label(load(exponent_base * fit_table()).query) == "lambda_vs_A"
+            kinetic =
+                replace(base, "neutron_spectrum_temperature" => "neutron_kinetic_energy")
+            joint = replace(base, "[\"mass\"]" => "[\"mass\", \"total_kinetic_energy\"]")
+            for (text, needle) in (
+                (base, "names none"),
+                (kinetic * fit_table(), "[[fit_parameter]] applies to"),
+                (joint * fit_table(), "alone"),
+                (base * fit_table(; extra = "holds = \"x\""), "has no key"),
+                (base * fit_table() * fit_table(), "named twice"),
+                (base * fit_table(; column = "DATA"), "datum or an uncertainty"),
+                (base * fit_table(; column = "MASS"), "independent variable"),
+                (base * fit_table(; subentry = "123"), "8 characters"),
+            )
+                refusal = thrown(text)
+                @test refusal isa ArgumentError && occursin(needle, refusal.msg)
+            end
+        end
+
+        # The run record of `datasets`, accepted under the configuration `content`, each
+        # reduced with the fit-parameter columns the configuration names.
+        function run_record(content, datasets, query)
+            local directory = mktempdir()
+            local config_path = joinpath(directory, "configuration.toml")
+            write(config_path, content)
+            local configuration = load_configuration(config_path)
+            local retrieved = DateTime(2026, 10, 1, 12)
+            local accepted = [
+                AcceptedDataset(
+                    dataset,
+                    reduce_dataset(dataset, query; parameters = configuration.parameters),
+                    "$(dataset.identifier).dat",
+                    retrieved,
+                    false,
+                ) for dataset in datasets
+            ]
+            local record_path = joinpath(directory, "retrieval.toml")
+            write_metadata(
+                record_path,
+                configuration,
+                accepted,
+                Rejection[],
+                ExforFissionData.Listing(["10"], retrieved, false),
+            )
+            return TOML.parsefile(record_path)
+        end
+        record = run_record(base * fit_table(), [accepted], temperature)
+        @test haskey(record["conventions"], "fit_parameter")
+        written = only(record["accepted"])
+        @test written["parameter_column"] == "MISC1"
+        @test haskey(written, "fit_form")
+    end
+
+    @testset "the distribution of the number of neutrons" begin
+        cf = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["neutron_number"],
+            ordinate = "multiplicity_distribution",
+        )
+        # NUM marks a distribution over the number of neutrons, with or without PR; NPART
+        # names the particles counted.
+        rule = tag_rule(["neutron_number"], "multiplicity_distribution")
+        for code in (
+            "98-CF-252(0,F),PR/NUM,NU",
+            "98-CF-252(0,F),NUM,NU",
+            "98-CF-252(0,F)NPART,NUM,NU",
+            "92-U-235(N,F),NUM,NU,,SPA",
+        )
+            @test matches(rule, code)
+        end
+        # No distribution, one per element or fragment, an evaluation, a simulation.
+        for (code, reason) in (
+            ("98-CF-252(0,F),PR,NU", "missing required code \"NUM\" in SF5"),
+            ("98-CF-252(0,F)ELEM,NUM,NU,,REL", "forbidden code \"ELEM\" in SF4"),
+            ("92-U-235(N,F),PR/NUM,NU,,,EVAL", "forbidden code \"EVAL\" in SF9"),
+            ("92-U-235(N,F),PR/NUM,NU,,,DERIV", "forbidden code \"DERIV\" in SF9"),
+            ("98-CF-252(0,F)MASS,PR/FRG,NU", "forbidden code \"MASS\" in SF4"),
+        )
+            @test rejection_reason(rule, code) == reason
+        end
+
+        distribution_moments = ExforFissionData.distribution_moments
+        moments = distribution_moments(0:3, [0.1, 0.2, 0.3, 0.4], fill(0.01, 4))
+        @test isapprox(moments.sum, 1.0; rtol = 1.0e-12)
+        @test isapprox(moments.mean, 2.0; rtol = 1.0e-12)
+        @test isapprox(moments.mean_uncertainty, 0.01 * sqrt(6); rtol = 1.0e-12)
+        # One line without an uncertainty leaves that of the mean unknown.
+        partial =
+            distribution_moments(0:3, [0.1, 0.2, 0.3, 0.4], [0.01, missing, 0.01, 0.01])
+        @test isnan(partial.mean_uncertainty)
+        # The mean is taken over the sum, whatever the scale.
+        unnormalised = distribution_moments(0:3, [1.0, 2.0, 3.0, 4.0], fill(missing, 4))
+        @test isapprox(unnormalised.sum, 10.0; rtol = 1.0e-12)
+        @test isapprox(unnormalised.mean, 2.0; rtol = 1.0e-12)
+        @test_throws ArgumentError distribution_moments(0:3, zeros(4), fill(0.01, 4))
+
+        # A distribution P(nu): the rendering carries the probabilities alone, the subentry
+        # the numbers of neutrons beside them, headed PART-OUT. `tabulated` replaces the
+        # probabilities of the subentry.
+        function distribution(
+            identifier,
+            code,
+            numbers,
+            probabilities,
+            uncertainties;
+            incident_ev = missing,
+            value_kind = "Data(NO-DIM)",
+            product_za = missing,
+            unit = "NO-DIM",
+            tabulated = probabilities,
+        )
+            local rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = code,
+                    value_kind,
+                    y = probabilities[i],
+                    dy = uncertainties === nothing ? missing : uncertainties[i],
+                    incident_ev,
+                    product_za,
+                ) for i in eachindex(probabilities)
+            ]
+            local common = if ismissing(incident_ev)
+                (headings = String[], units = String[], values = Float64[])
+            else
+                (headings = ["EN"], units = ["EV"], values = [incident_ev])
+            end
+            local headings = ["PART-OUT", "DATA"]
+            local units = ["NO-DIM", unit]
+            local lines = [[Float64(n), p] for (n, p) in zip(numbers, tabulated)]
+            if uncertainties !== nothing
+                push!(headings, "DATA-ERR")
+                push!(units, unit)
+                for (line, s) in zip(lines, uncertainties)
+                    push!(line, s)
+                end
+            end
+            local text = exfor_subentry(;
+                entry = first(identifier, 5),
+                subentry = identifier,
+                bib = ["REACTION   (" * code * ")"],
+                common,
+                headings,
+                units,
+                rows = lines,
+            )
+            return exfor_csv(rows), text
+        end
+
+        # 12833005 (Gwin 1984): P(nu) of 252-Cf(sf), normalised to one.
+        P = [0.0021, 0.0249, 0.1225, 0.2722, 0.3067, 0.1876, 0.0680, 0.0141, 0.0018, 0.0001]
+        σ = [
+            0.0002,
+            0.0008,
+            0.0012,
+            0.0011,
+            0.0008,
+            0.0010,
+            0.0006,
+            0.0002,
+            0.0001,
+            0.00002,
+        ]
+        gwin(; numbers = 0:9, uncertainties = σ, kwargs...) = distribution(
+            "10000002",
+            "98-CF-252(0,F),NUM,NU",
+            numbers,
+            P,
+            uncertainties;
+            kwargs...,
+        )
+        accepted = select_dataset("10000002", gwin()..., cf)
+        @test accepted isa Dataset
+        gwin_record = accepted.record
+        @test isapprox(gwin_record["distribution_sum"], 1.0; atol = 1.0e-6)
+        @test gwin_record["distribution_normalised"] == true
+        @test isapprox(gwin_record["mean_multiplicity"], 3.7733; atol = 1.0e-3)
+        @test gwin_record["mean_nubar"] == 3.764
+        @test isapprox(gwin_record["mean_deviation"], 0.0025; atol = 3.0e-4)
+        @test gwin_record["mean_consistent"] == true
+        @test haskey(gwin_record, "mean_multiplicity_uncertainty")
+        reduced = reduce_dataset(accepted, cf)
+        @test String.(names(reduced.table)) == ["nu", "P", "P_uncertainty"]
+        @test reduced.table.nu == collect(0:9)
+        @test eltype(reduced.table.nu) <: Integer
+        @test isapprox(reduced.table.P, P; rtol = 1.0e-9)
+        @test reduced.diagnostics["mass_treatment"] == "none"
+
+        # 10930004: the distribution of the neutrons detected, whose mean is nubar times the
+        # detection efficiency, is refused by its mean.
+        detected_P =
+            [0.14366, 0.33167, 0.31444, 0.15708, 0.04453, 0.00723, 0.000644, 0.000026]
+        detected =
+            distribution("10000002", "98-CF-252(0,F),PR/NUM,NU", 0:7, detected_P, nothing)
+        refused = select_dataset("10000002", detected..., cf)
+        @test refused isa Rejection
+        for needle in ("mean 1.651", "0.44 of nubar", "detected")
+            @test occursin(needle, refused.reason)
+        end
+
+        # 21495003: the product NPART, a number of particles, is rendered as ProdZA 0.
+        npart = distribution(
+            "10000002",
+            "98-CF-252(0,F)NPART,NUM,NU",
+            0:9,
+            P,
+            σ;
+            product_za = 0,
+        )
+        @test select_dataset("10000002", npart..., cf) isa Dataset
+
+        # Without uncertainties the mean has none, and its consistency is not judged.
+        bare = select_dataset("10000002", gwin(; uncertainties = nothing)..., cf)
+        @test bare isa Dataset
+        @test !haskey(bare.record, "mean_multiplicity_uncertainty")
+        @test !haskey(bare.record, "mean_consistent")
+        @test haskey(bare.record, "mean_deviation")
+        mktempdir() do directory
+            path = joinpath(directory, "P_vs_nu.dat")
+            write_dataset(path, reduce_dataset(bare, cf))
+            header = readline(path)
+            @test header == "nu P"
+            @test !occursin("P_uncertainty", header)
+        end
+
+        # 30046009 (Boldeman 1967): P(nu) of 239-Pu(nth,f) summing to 1.0102, recorded as
+        # not normalised and written as tabulated.
+        pu239 = test_query(;
+            target_Z = 94,
+            target_A = 239,
+            channel = "nth",
+            abscissa = ["neutron_number"],
+            ordinate = "multiplicity_distribution",
+        )
+        boldeman_P = [0.0094, 0.0990, 0.2696, 0.3297, 0.1982, 0.0924, 0.0119]
+        boldeman_σ = [0.0010, 0.0027, 0.0034, 0.0035, 0.0030, 0.0040, 0.0020]
+        boldeman(; incident_ev = 0.0253) = distribution(
+            "10000002",
+            "94-PU-239(N,F),NUM,NU,,MXW",
+            0:6,
+            boldeman_P,
+            boldeman_σ;
+            incident_ev,
+        )
+        boldeman_dataset = select_dataset("10000002", boldeman()..., pu239)
+        @test boldeman_dataset isa Dataset
+        boldeman_record = boldeman_dataset.record
+        @test boldeman_record["distribution_normalised"] == false
+        @test isapprox(boldeman_record["distribution_sum"], 1.0102; atol = 1.0e-4)
+        @test isapprox(boldeman_record["mean_multiplicity"], 2.9237; atol = 1.0e-3)
+        @test boldeman_record["mean_nubar"] == 2.878
+        @test isapprox(
+            sum(reduce_dataset(boldeman_dataset, pu239).table.P),
+            1.0102;
+            atol = 1.0e-4,
+        )
+
+        # The rendering does not carry the number of neutrons, so its probabilities are
+        # held against the subentry line by line.
+        tabulated = [P[1]; 0.03; P[3:end]]
+        refused = select_dataset("10000002", gwin(; tabulated)..., cf)
+        @test refused isa Rejection
+        @test occursin("disagree at row 2", refused.reason)
+        refused = select_dataset("10000002", gwin(; numbers = [0.0; 1.5; 2.0:9.0])..., cf)
+        @test refused isa Rejection
+        @test occursin("no whole numbers", refused.reason)
+        relative = gwin(; value_kind = "Data(ARB-UNITS)", unit = "ARB-UNITS")
+        refused = select_dataset("10000002", relative..., cf)
+        @test refused isa Rejection
+        @test occursin("no absolute scale", refused.reason)
+        refused = select_dataset("10000002", boldeman(; incident_ev = 8.0e4)..., pu239)
+        @test refused isa Rejection
+        @test occursin("outside the window", refused.reason)
+
+        # A system without a standard nubar records none, and its mean is not tested.
+        pu240 = test_query(;
+            target_Z = 94,
+            target_A = 240,
+            channel = "sf",
+            abscissa = ["neutron_number"],
+            ordinate = "multiplicity_distribution",
+        )
+        unreferenced = select_dataset(
+            "10000002",
+            distribution(
+                "10000002",
+                "94-PU-240(0,F),PR/NUM,NU",
+                0:7,
+                detected_P,
+                nothing,
+            )...,
+            pu240,
+        )
+        @test unreferenced isa Dataset
+        @test !haskey(unreferenced.record, "mean_nubar")
+        @test haskey(unreferenced.record, "mean_multiplicity")
+
+        @test ExforFissionData.NUBAR_STANDARDS[(98, 252, "sf")] == (3.764, 0.016)
+        # The band stays below the 0.34 that separates the mean 0.66 nubar of 10300005.
+        @test 0 < ExforFissionData.MEAN_MULTIPLICITY_BAND < 0.34
+
+        query_text(;
+            abscissa = "neutron_number",
+            ordinate = "multiplicity_distribution",
+        ) = """
+            [query]
+            target_Z = 98
+            target_A = 252
+            channel = "sf"
+            abscissa = ["$(abscissa)"]
+            ordinate = "$(ordinate)"
+            """
+        mktempdir() do directory
+            load(text) =
+                let file = joinpath(directory, "c.toml")
+                    write(file, text)
+                    load_configuration(file)
+                end
+            thrown(text) =
+                try
+                    load(text)
+                    nothing
+                catch exception
+                    exception
+                end
+            loaded = load(query_text()).query
+            @test observable_label(loaded) == "P_vs_nu"
+            @test loaded.quantity == "NU"
+            # The distribution and its abscissa go together and with nothing else.
+            for text in (query_text(; abscissa = "mass"), query_text(; ordinate = "yield"))
+                refusal = thrown(text)
+                @test refusal isa ArgumentError && occursin("go together", refusal.msg)
+            end
+        end
+
+        # The run record of `datasets`, accepted under the configuration `content`.
+        function run_record(content, datasets, query)
+            local directory = mktempdir()
+            local config_path = joinpath(directory, "configuration.toml")
+            write(config_path, content)
+            local retrieved = DateTime(2026, 10, 1, 12)
+            local accepted = [
+                AcceptedDataset(
+                    dataset,
+                    reduce_dataset(dataset, query),
+                    "$(dataset.identifier).dat",
+                    retrieved,
+                    false,
+                ) for dataset in datasets
+            ]
+            local record_path = joinpath(directory, "retrieval.toml")
+            write_metadata(
+                record_path,
+                load_configuration(config_path),
+                accepted,
+                Rejection[],
+                ExforFissionData.Listing(["10"], retrieved, false),
+            )
+            return TOML.parsefile(record_path)
+        end
+        record = run_record(query_text(), [accepted], cf)
+        @test haskey(record["conventions"], "distribution")
+        written = only(record["accepted"])
+        @test written["distribution_normalised"] == true
+        @test haskey(written, "mean_multiplicity")
+    end
+
+    @testset "one measurement in several datasets" begin
+        group(identifier) = ExforFissionData.correlation_group(identifier)
+        # Boldeman's distributions of 1967, superseded by the reanalysis of 1985, and one
+        # 252-Cf(sf) measurement at three discriminator biases.
+        @test group("30046008").members == ["30046008", "30772010"]
+        @test group("307720152").members ==
+              ["30046011", "307720151", "307720152", "307720153"]
+        @test group("30772011").members == ["30046009", "30772011"]
+        @test group("30046007").members == ["30046007", "30772009"]
+        @test group("12833005") === nothing
+    end
+
     @testset "quality" begin
         Aqua.test_all(ExforFissionData)
 

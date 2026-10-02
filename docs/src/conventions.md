@@ -136,14 +136,20 @@ The checks easiest to get wrong:
   yields per mass number. `23268002`, whose `TKE` column the csv rendering drops, is rejected from
   `Cf252_sf_Y_vs_A` on the same rule;
 - a spectrum whose energies are in the centre-of-mass frame, `E-CM`, is not a laboratory
-  spectrum and is rejected. The mean neutron energy is the one ordinate read from `DATA-CM`, its
-  frame recorded per dataset as `ordinate_frame`;
+  spectrum and is rejected. The mean neutron energy is the one ordinate read from `DATA-CM`, and
+  its frame is read from that heading, from the text of the subentry, or from the publication
+  the subentry cites, and recorded per dataset as `ordinate_frame` with `ordinate_frame_basis`;
 - a **mean neutron energy above 5 MeV** on any row is no mean neutron energy: `23164022`
   (Al-Adili 2016), coded `KE,N`, holds fragment kinetic energies of 43.6 to 101.9 MeV and is
   refused on that bound ([`MAXIMUM_NEUTRON_KINETIC_ENERGY`](@ref));
 - a **ratio to a Maxwellian** must state the temperature it was formed with, in `KT-NRM`, and is
   refused without it; `14278003` (Poenitz 1982) holds the mean energy 3T/2 there, and T is
   recorded as two thirds of it;
+- a **distribution P(ν)** is tabulated in its subentry against `PART-OUT`, which the csv
+  rendering does not carry, so the rows of the two are aligned by order and the probabilities
+  compared line by line. Its mean decides whether it is the distribution of the neutrons emitted
+  or of those detected, whose mean is ν̄ times the detection efficiency: `10930004` (Halperin
+  1980), with the mean 1.65, 0.44 ν̄, is refused ([`MEAN_MULTIPLICITY_BAND`](@ref));
 - the quantity code `FY` files more than yields. `MASS,PAR,ZP` is the most probable charge against
   mass, which satisfies every mass rule, so `yield` requires the `FY` tag itself: six such
   datasets for 235-U would otherwise sit among the mass yields at values near 40;

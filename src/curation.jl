@@ -1020,13 +1020,11 @@ const ORDINATE_FRAMES = Dict{String, FrameReading}(
         "centre_of_mass",
         "publication",
         "the REACTION text, 'Average fission neutron kinetic energy as function of mass', \
-         names no frame. The authors' contribution of the same title and data to \
-         INDC(NDS)-220 (Mito 1988, p. 181) does: 'The neutron energy eta in the \
-         center-of-mass system of the fragment was evaluated event by event' (section 3.2.3, \
-         p. 199), from V_CM^2 = V_F^2 + V_LAB^2 - 2 V_F V_LAB cos(theta_LAB) (Eq. 1), and \
-         'Fig. 17 a displays the average energy eta as function of A' (p. 201), the figure \
-         the subentry digitises. The article itself, Nucl. Phys. A 490, 307 \
-         (doi:10.1016/0375-9474(88)90508-8), was not obtained",
+         names no frame. The article does (doi:10.1016/0375-9474(88)90508-8): 'The neutron \
+         energy eta in the center-of-mass system of the fragment was evaluated event by \
+         event' (section 3.2.3, p. 322), from V_CM^2 = V_F^2 + V_LAB^2 - 2 V_F V_LAB \
+         cos(theta_LAB) (Eq. 1), and 'Fig. 17a displays the average energy eta as function \
+         of A' (p. 323), the figure the subentry digitises",
     ),
     "14369005" => FrameReading(
         "centre_of_mass",
@@ -1113,10 +1111,11 @@ How the mean neutron energy of one dataset was formed, as its publication states
 - `from::String`: one of [`MEAN_SOURCES`](@ref).
 - `form::String`: the fitted form the mean is the first moment of, or the form a measured
   spectrum was completed with and where; empty where none.
-- `threshold::Union{Nothing,Float64}`: the low-energy threshold of the neutron detection, in
-  MeV, where the publication states one.
-- `threshold_frame::String`: the frame the threshold is stated in, `"laboratory"` or
-  `"centre_of_mass"`; empty without a threshold.
+- `threshold::Union{Nothing,Float64}`: the low-energy limit of the neutrons that enter the
+  mean, in MeV, where the publication states one: the threshold of the neutron detector, or the
+  lower limit of the spectrum averaged.
+- `threshold_frame::String`: the frame the threshold is stated in, `"laboratory"` for a detector
+  threshold or `"centre_of_mass"` for a limit of the spectrum; empty without a threshold.
 - `evidence::String`: the sentence or equation, with the DOI.
 
 # Throws
@@ -1193,8 +1192,8 @@ const _CASCADE_FORM = "const eta^lambda exp(-eta/T)"
 """
 How the mean neutron energy of each dataset was formed, keyed by dataset identifier and read
 from its publication; see [`MeanFormation`](@ref). A threshold is recorded only from a
-publication read: what the EXFOR entry alone says of one is quoted in the evidence, the entry
-of Nishio 1998 giving 0.2 MeV where the article prints 0.3 MeV.
+publication read, in the frame it is stated in: what the EXFOR entry alone says of one is quoted
+in the evidence, entry 22660 giving 0.2 MeV where its article prints 0.3 MeV.
 """
 const MEAN_FORMATIONS = Dict{String, MeanFormation}(
     "14065003" => _BOWMAN_MEAN,
@@ -1206,16 +1205,15 @@ const MEAN_FORMATIONS = Dict{String, MeanFormation}(
         "laboratory",
         "the tabulated mean equals (lambda + 1) T of the form fitted to the centre-of-mass \
          spectrum, with the T and lambda of the MISC columns, to 0.4 % rms and 1.1 % at most \
-         over the 79 masses: the first moment of that form. The authors' contribution of the \
-         same title and data to INDC(NDS)-220 (Mito 1988) does not say how the mean was \
-         formed: 'The neutron spectrum belonging to each mass A was evaluated and T(A) and \
-         lambda(A) were determined using equation [8]. Fig. 17 a displays the average energy \
-         eta as function of A' (p. 201); a maximum-likelihood fit of that form has the mean \
-         of the measured spectrum as its first moment, so the two readings may coincide. \
-         'The applied neutron detector threshold of 0.3 MeV did therefore insure that all \
-         wanted neutrons were taken into account' (p. 191), only neutrons emitted forward \
-         in the centre of mass being used. The article, Nucl. Phys. A 490, 307 \
-         (doi:10.1016/0375-9474(88)90508-8), was not obtained",
+         over the 79 masses: the first moment of that form. The article \
+         (doi:10.1016/0375-9474(88)90508-8) does not say how the mean was formed: 'The \
+         neutron spectrum belonging to each mass A was evaluated and T(A) and lambda(A) were \
+         determined using eq. (8). Fig. 17a displays the average energy eta as function of \
+         A' (p. 323); a maximum-likelihood fit of that form has the mean of the measured \
+         spectrum as its first moment, so the two readings may coincide. 'The applied \
+         neutron detector threshold of 0.3 MeV did therefore insure that all wanted neutrons \
+         were taken into account' (p. 315), only neutrons emitted forward in the centre of \
+         mass being used",
     ),
     "23268011" => MeanFormation(
         "unstated",
@@ -1250,13 +1248,13 @@ const MEAN_FORMATIONS = Dict{String, MeanFormation}(
     "22464003" => MeanFormation(
         "unstated",
         "",
-        nothing,
-        "",
-        "the article, Nucl. Phys. A 632, 540 (doi:10.1016/S0375-9474(98)00008-6), was not \
-         obtained. The authors' paper on the same measurement, J. Nucl. Sci. Technol. 34, \
-         439 (1997), fits the centre-of-mass spectra with const sqrt(eta) exp(-eta/T_eff) \
-         and derives the temperature from the mean, T = (3/4) <eta> (Eq. 3, p. 441), \
-         without saying how the mean was formed, and states no threshold",
+        0.2,
+        "laboratory",
+        "Nishio 1998 (doi:10.1016/S0375-9474(98)00008-6) fits the centre-of-mass spectra \
+         with const sqrt(eta) exp(-eta/T_eff) and says only that 'the mean values of the \
+         neutron energy, <eta>, are plotted as a function of fragment mass in the upper part \
+         of Fig. 4' (p. 545), not how they were formed. 'The neutron threshold level of the \
+         detector was set at 0.2 MeV' (p. 542)",
     ),
     "41502008" => MeanFormation(
         "unstated",
@@ -1291,13 +1289,16 @@ const MEAN_FORMATIONS = Dict{String, MeanFormation}(
          emitted backward in the centre of mass are left out",
     ),
     "22650008" => MeanFormation(
-        "unstated",
+        "measured_spectrum",
         "",
-        nothing,
-        "",
-        "the article, Tsuchiya 2000 (doi:10.1080/18811248.2000.9714976), was not obtained. \
-         Entry 22650 gives a neutron threshold of the detector of 0.2 MeV (22650001, \
-         DETECTOR)",
+        0.5,
+        "centre_of_mass",
+        "Tsuchiya 2000 (doi:10.1080/18811248.2000.9714976): for a Maxwellian 'the average \
+         neutron energy <eta> is given by 3 T_eff / 2. However we do not use this value but \
+         the average value of all experimental points above 0.5 MeV, because the measured \
+         neutron spectrum data exceed the Maxwellian above 3 MeV' (p. 944), the points being \
+         those of the spectrum in the centre-of-mass system. 'The neutron threshold level of \
+         the detector was set at 0.2 MeV' (p. 942)",
     ),
     "14369005" => MeanFormation(
         "measured_spectrum",
@@ -1348,13 +1349,12 @@ as `fit_form` and `fit_evidence`.
 const SPECTRUM_FITS = Dict{String, Tuple{String, String}}(
     "23175012" => (
         _CASCADE_FORM,
-        "Eq. [8] of the authors' contribution to INDC(NDS)-220 (Mito 1988, p. 199), the \
+        "Eq. (8) of Nucl. Phys. A 490, 307 (doi:10.1016/0375-9474(88)90508-8, p. 323), the \
          cascade evaporation spectrum of Le Couteur and Lang, whose 'parameters lambda, T \
          ... were then treated by us as free parameters to be determined from the \
          experimental eta-distributions', and 'T(A) and lambda(A) were determined using \
-         equation [8]' (p. 201). The subentry calls the same form, const AKE^lambda \
-         exp(-AKE/T), a Weisskopf spectrum; MISC1 holds T and MISC2 lambda, digitised from \
-         Fig. 17 B and C of Nucl. Phys. A 490, 307 (doi:10.1016/0375-9474(88)90508-8)",
+         eq. (8)'. The subentry calls the same form, const AKE^lambda exp(-AKE/T), a \
+         Weisskopf spectrum; MISC1 holds T and MISC2 lambda, digitised from Fig. 17 b and c",
     ),
     "23268011" => (
         "const eta^lambda exp(-eta/T_eff)",

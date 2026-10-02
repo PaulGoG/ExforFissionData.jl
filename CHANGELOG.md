@@ -6,6 +6,136 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-10-02
+
+The temperature and the exponent of the form fitted to the centre-of-mass neutron spectrum
+against fragment mass, and the multiplicity distribution P(ν), become retrievable: six
+configurations, 52 in all. The records of the mean neutron energy say how each mean was formed
+and what its frame rests on, and four datasets that 0.2.4 wrote as of unstated frame are in the
+centre of mass by their publications. Every table and stored subentry that 0.2.4 writes is
+written unchanged by 0.2.5.
+
+### Added
+
+- The temperature T and the exponent λ of the form const η^λ exp(−η/T) fitted to the
+  centre-of-mass spectrum of the neutrons of a fragment of given mass, the ordinates
+  `neutron_spectrum_temperature` (`T`, in MeV, under `T_vs_A/` as `A T T_uncertainty`) and
+  `neutron_spectrum_exponent` (`lambda`, dimensionless, under `lambda_vs_A/` as
+  `A lambda lambda_uncertainty`), against `["mass"]`. EXFOR has no code for them; they sit in
+  `MISC` columns of the mean neutron energy and, as for the width of the TKE distribution, are
+  read only from the columns a configuration names, one `[[fit_parameter]]` table per dataset
+  with `subentry` and `column`, the uncertainty being the column `<column>-ERR`. The dataset is
+  selected as the mean neutron energy is, by the same tag rule, the 5 MeV bound and the frame,
+  and the record gives `parameter_column`, `parameter_unit`, `parameter_is`, `fit_form` and
+  `fit_evidence`. Configurations `Cf252_sf_T_vs_A`, from `MISC1` of `23175012` (Budtz-Jørgensen
+  1988, 79 masses, 0.77 to 1.39 MeV) and `MISC` of `23268011` (Göök 2014, 82 masses of its 109,
+  0.72 to 1.40 MeV), and `Cf252_sf_lambda_vs_A`, from `MISC2` of `23175012` (79 masses, 0.11 to
+  0.94). Budtz-Jørgensen fits Eq. (8) of the article, the cascade evaporation
+  spectrum of Le Couteur and Lang, with λ and T free, a form the subentry calls a Weisskopf
+  spectrum; Göök 2014 fits Eq. (14), φ(η) ∝ η^λ exp(−η/T_eff), and its λ (Fig. 18c) is not in
+  the archive. The archive holds no such column for the other systems.
+- The multiplicity distribution P(ν), the probability of emitting ν neutrons in a fission: the
+  ordinate `multiplicity_distribution` (`P`), quantity code `NU`, against the abscissa
+  `["neutron_number"]` (`nu`), written under `P_vs_nu/` as `nu P P_uncertainty`; the two go
+  together and with nothing else. The archive codes it with the branch `NUM` (`,NUM,NU`,
+  `,PR/NUM,NU`, once `NPART,NUM,NU`) and the subentry tabulates it against `PART-OUT`, the number
+  of outgoing particles, which the csv rendering does not carry, so the documentation of earlier
+  versions called it unwritable; the rows are aligned by order and the probabilities compared
+  line by line. The rule asks for `NUM` in SF5 and `NU` in SF6, and refuses a distribution for a
+  fragment mass or charge (`MASS`, `ELEM`), an evaluation (`EVAL`: `V0045011` to `V0045013`,
+  Holden 1988) and one derived from a model (`DERIV`: `30544002`, a simulated binomial
+  distribution); arbitrary units are refused (`14064003`, counts; `23598004`, for the fragment
+  charges 42 and 56). The archive codes the distribution of the neutrons detected alike, whose
+  mean is ν̄ times the detection efficiency, so a distribution whose mean lies further than a
+  quarter of ν̄ from ν̄ is refused: `10300005` (Balagna 1973, mean 2.48, 0.66 ν̄), `10930004`
+  (Halperin 1980, 1.65, 0.44 ν̄) and `14064002` (Hicks 1955, 1.43, 0.38 ν̄), all of 252-Cf. ν̄ is
+  the total ν̄ of the IAEA neutron data standards 2017
+  ([doi:10.1016/j.nds.2018.02.002](https://doi.org/10.1016/j.nds.2018.02.002)), delayed neutrons
+  included: 3.764 ± 0.016 for 252-Cf, 2.425 ± 0.011 for 235-U, 2.878 ± 0.013 for 239-Pu and
+  2.487 ± 0.011 for 233-U.
+- What each distribution implies, recorded and never applied, the tables being written as
+  tabulated and not renormalised: `distribution_sum`, `distribution_normalised` (the sum within
+  0.01 of one), `mean_multiplicity` = Σ ν P / Σ P with `mean_multiplicity_uncertainty` where every
+  line states an uncertainty, the lines taken as uncorrelated, `mean_nubar`,
+  `mean_nubar_uncertainty`, `mean_deviation` = mean/ν̄ − 1 with `mean_deviation_uncertainty`, and
+  `mean_consistent`, the deviation within three standard deviations. Every accepted mean is
+  consistent with ν̄ where an uncertainty is stated.
+- Configurations `Cf252_sf_P_vs_nu` (`10605005` Stoughton 1973, mean 3.70, sum 0.99, not
+  normalised; `10901006` Hoffman 1980, 3.73; `12337013` Diven 1956, 3.88; `12833005` Gwin 1984,
+  3.773; `13715014` Hicks 1956, 3.82; `21495003` Baron 1966, 3.78; `30046011` Boldeman 1967,
+  3.757; `307720151`, `307720152` and `307720153`, Boldeman 1985 at three discriminator biases,
+  3.757; `41425002` Vorobiev 2001, 3.756), `U235_nth_P_vs_nu` (`12833007`, 2.437; `30046008`,
+  2.416; `30772010`, 2.406; `32820002` Huang 1961, 2.44; refused `12337009` at 80 keV,
+  `30544002` and `V0045012`), `Pu239_nth_P_vs_nu` (`12833008`, 2.888; `30046009`, 2.924, sum
+  1.010, not normalised; `30772011`, 2.879; refused `12337010` at 80 keV and `V0045013`) and
+  `U233_nth_P_vs_nu` (`12833006`, 2.494; `30046007`, 2.483; `30772009`, 2.480; refused
+  `12337008` at 80 keV and `V0045011`). `30046011` and the three of `30772015` are one
+  measurement and name each other as `correlated_with`; so are the Boldeman 1967 and 1985
+  datasets of each neutron-induced system, the subentry of the first marking it superseded by
+  the second, and both are written.
+- How each mean neutron energy was formed, in its record: `mean_formed_from`,
+  `measured_spectrum` (the first moment of the measured centre-of-mass spectrum),
+  `fitted_spectrum` (the first moment of a form fitted to it), `completed_spectrum` (the measured
+  spectrum completed beyond its range by a fitted form) or `unstated`; `mean_fitted_form` where a
+  form enters; `mean_threshold_mev` and `mean_threshold_frame`, the low-energy threshold of the
+  neutron detection, recorded only from a publication read; and `mean_evidence`, the sentence or
+  equation with the DOI, which also quotes what an EXFOR entry alone says of a threshold.
+  Measured: `14065003` and `14065010` (Bowman 1963,
+  [doi:10.1103/PhysRev.129.2133](https://doi.org/10.1103/PhysRev.129.2133)), the second moment of
+  the centre-of-mass velocity spectrum summed event by event, counters at 11.25°, 0.52 MeV in the
+  laboratory (a velocity cut of 1 cm/ns); `14369005` (Fraser 1966), E_CM = 0.5228⟨V²⟩ from
+  event-weighted velocity moments, counter at 10°, no threshold given for the 233-U runs;
+  `22660003` (Nishio 1998, 233-U, [doi:10.1080/18811248.1998.9733919](https://doi.org/10.1080/18811248.1998.9733919)),
+  "calculated from the experimental data", 0.3 MeV where the EXFOR entry says 0.2; `22650008`
+  (Tsuchiya 2000, [doi:10.1080/18811248.2000.9714976](https://doi.org/10.1080/18811248.2000.9714976)),
+  not 3T_eff/2 of the fitted Maxwellian "but the average value of all experimental points above
+  0.5 MeV", a limit in the centre of mass. Fitted:
+  `23175012` (Budtz-Jørgensen 1988), whose mean equals (λ + 1)T of the fitted form
+  const η^λ exp(−η/T) to 0.4 % rms over the 79 masses, though the article does not say how the
+  mean was formed, 0.3 MeV. Completed: `41689005` (Piksaykin 1977), by a Maxwellian
+  √η exp(−η/T) above 1.5 MeV with T fitted to the measured part, 0.4 MeV, from the Kiev 1975
+  paper. Unstated: `23268011` (Göök 2014, 0.7 MeV of proton-recoil pulse height), `23444006` (Göök
+  2018, [doi:10.1103/PhysRevC.98.044615](https://doi.org/10.1103/PhysRevC.98.044615), no threshold
+  stated as a value), `22660004` (Nishio 1998, Fig. 5, 0.3 MeV), `22464003` (Nishio 1998, 235-U,
+  [doi:10.1016/S0375-9474(98)00008-6](https://doi.org/10.1016/S0375-9474(98)00008-6), 0.2 MeV),
+  and, their publication not obtained, `41502008` and `41502009` (Batenkov 2004; the entry says
+  a Maxwell shape was assumed and gives a threshold of about 200 keV).
+- `ordinate_frame_basis` in the record of each mean neutron energy: `heading` where the datum is
+  headed `DATA-CM`, `subentry` where the text of the subentry names the frame, `publication`
+  where the publication does, quoted with its DOI in `ordinate_frame_evidence`. A dataset whose
+  publication leaves the frame open, or for which none has been read, stays `unstated` and
+  flagged as before; none of the shipped configurations now writes one.
+- `Configuration.parameters`, the columns of `[[fit_parameter]]`, and the keyword `parameters` of
+  `select_dataset`, `screen_dataset` and `reduce_dataset`.
+
+### Changed
+
+- The frame of the mean neutron energy is read from the publication where the subentry is
+  silent, from the publication the subentry cites or, where that article was not obtained, from
+  the authors' paper of the same title and data. The four datasets 0.2.4 wrote as `unstated` are
+  in the centre of mass: `23175012` (Budtz-Jørgensen 1988, 252-Cf) by its article
+  ([doi:10.1016/0375-9474(88)90508-8](https://doi.org/10.1016/0375-9474(88)90508-8)), "The
+  neutron energy η in the center-of-mass system of the fragment was evaluated event by event"
+  (section 3.2.3, p. 322) and "Fig. 17a displays the average energy η as function of A"
+  (p. 323); `41689005` (Piksaykin 1977, 252-Cf) by the authors' paper of the same title at the
+  Kiev conference of 1975 (Neitronnaya Fizika, part 5, p. 92, Moscow 1976), whose Fig. 4 is
+  captioned as the mean energy of the neutrons in the centre-of-mass system against fragment
+  mass, the mean weighting in the component isotropic in the laboratory, on which the authors
+  put about 10 %, and the article, Yad. Fiz. 25, 723, not obtained; `14369005` (Fraser 1966,
+  233-U) by Fig. 5 of Milton and Fraser, Physics and Chemistry of Fission (Salzburg 1965), IAEA
+  STI/PUB/101, vol. 2, p. 47, the figure the subentry digitises, "The symbol η is used for E_CM";
+  and `22660004` (Nishio 1998, 233-U, against A and TKE) by Fig. 5 of
+  [doi:10.1080/18811248.1998.9733919](https://doi.org/10.1080/18811248.1998.9733919), "Average
+  neutron energy in the center-of-mass system as a function of total kinetic energy".
+- The records differ from those of 0.2.4, the tables not at all, as follows: for those four
+  datasets `ordinate_frame` is `centre_of_mass` instead of `unstated`, `ordinate_frame_evidence`
+  is rewritten, and the `frame unstated:` entry leaves `qualifiers`; `frame_warning` is gone from
+  `Cf252_sf/eps_vs_A`, `U233_nth/eps_vs_A` and `U233_nth/eps_vs_A_TKE`; and the convention text
+  `ordinate_frame` of the seven `eps` records names the publication as a basis. Every record of
+  a mean neutron energy gains `ordinate_frame_basis`, `mean_formed_from` and `mean_evidence`,
+  and `mean_fitted_form`, `mean_threshold_mev` and `mean_threshold_frame` where they apply; its
+  `[conventions]` gain `mean_formation`.
+
 ## [0.2.4] - 2026-10-02
 
 The mean centre-of-mass energy of the prompt neutrons against fragment mass becomes retrievable,
@@ -367,7 +497,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.1...v0.2.2
