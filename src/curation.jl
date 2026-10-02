@@ -1198,7 +1198,9 @@ const _BATENKOV_MEAN = MeanFormation(
      how the mean was formed; the results are called preliminary. The Maxwell shape entry \
      41502 mentions is assumed for the ratios of the total laboratory spectra to that of \
      252-Cf (p. 1005), not for the mean. 'The experimental neutron registration threshold \
-     was about 200 keV' (p. 1004)",
+     was about 200 keV' (p. 1004), and the detection efficiency is 'the ratio of the measured \
+     252Cf spectrum to a reference standard spectrum', that of Mannhart, from a run on the \
+     same set-up (p. 1004)",
 )
 
 const _CASCADE_FORM = "const eta^lambda exp(-eta/T)"
@@ -1361,6 +1363,29 @@ const SPECTRUM_FITS = Dict{String, Tuple{String, String}}(
          lambda of Fig. 18c is not in the archive",
     ),
 )
+
+"""
+Entries whose publication calls its results preliminary, keyed by the five-character entry
+number, with the words. Every accepted dataset of such an entry carries the qualifier
+[`preliminary_qualifier`](@ref) among its `qualifiers`, and the run record names them in
+`preliminary_warning`; none is refused for it.
+"""
+const PRELIMINARY_ENTRIES = Dict{String, String}(
+    "41502" => "Batenkov 2004 (doi:10.1063/1.1945175) presents 'some preliminary results of \
+                the average number and kinetic energies of prompt neutrons as a function \
+                fragment mass' (abstract, p. 1003), and the entry carries STATUS PRELM",
+)
+
+"""
+    preliminary_qualifier(identifier) -> Union{String,Nothing}
+
+The qualifier of a dataset whose entry is among [`PRELIMINARY_ENTRIES`](@ref), `preliminary:`
+followed by the words of the publication, or `nothing`.
+"""
+function preliminary_qualifier(identifier::AbstractString)
+    evidence = get(PRELIMINARY_ENTRIES, first(identifier, 5), nothing)
+    return evidence === nothing ? nothing : "preliminary: " * evidence
+end
 
 """
 The qualifier written among the `qualifiers` of a dataset whose [`ordinate_frame`](@ref) is

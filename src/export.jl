@@ -161,8 +161,9 @@ function _curation_record(identifier::AbstractString)
 end
 
 # The qualifiers of one accepted dataset for the run record: those of its reaction code, of
-# both reactions where it is a ratio, and the flag of a mean neutron energy whose frame the
-# subentry leaves unstated.
+# both reactions where it is a ratio, the flag of a mean neutron energy whose frame the
+# subentry leaves unstated, and that of an entry whose publication calls its results
+# preliminary.
 function _qualifiers(dataset::Dataset)
     qualifiers = code_qualifiers(dataset.reaction_code)
     # A ratio carries the qualifiers of its two reactions.
@@ -172,6 +173,8 @@ function _qualifiers(dataset::Dataset)
     end
     get(dataset.record, "ordinate_frame", nothing) == "unstated" &&
         push!(qualifiers, FRAME_UNSTATED_QUALIFIER)
+    preliminary = preliminary_qualifier(dataset.identifier)
+    preliminary === nothing || push!(qualifiers, preliminary)
     return qualifiers
 end
 
@@ -390,6 +393,15 @@ function write_metadata(
                 ],
                 "; ",
             )
+    end
+    preliminary = [
+        entry.dataset.identifier for
+        entry in accepted if preliminary_qualifier(entry.dataset.identifier) !== nothing
+    ]
+    if !isempty(preliminary)
+        record["datasets"]["preliminary_warning"] =
+            "the publication of these datasets calls its results preliminary; they are \
+             written and flagged among their `qualifiers`: " * join(preliminary, ", ")
     end
     if !isempty(flagged)
         record["datasets"]["scale_warning"] =

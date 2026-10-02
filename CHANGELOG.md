@@ -21,7 +21,13 @@ subentry that 0.2.5 writes is written unchanged; two records change as stated be
   spectra to that of 252-Cf, not for the mean. "The experimental neutron registration threshold
   was about 200 keV": the records of `U235_nth/eps_vs_A` and `Pu239_nth/eps_vs_A` gain
   `mean_threshold_mev = 0.2` and `mean_threshold_frame = "laboratory"` for these datasets, and
-  their `mean_evidence` is rewritten.
+  their `mean_evidence` is rewritten, now also giving the detection efficiency as the ratio of a
+  252-Cf spectrum measured on the same set-up to the reference spectrum of Mannhart.
+- The publication calls its results preliminary, and every accepted dataset of entry 41502 says
+  so among its `qualifiers`, in an entry beginning `preliminary:`, with `preliminary_warning`
+  under `[datasets]`: `41502008` and `41502009` in the two `eps_vs_A` records above, and the
+  multiplicities of the same publication, `41502005` in `U235_nth/nu_vs_A` and `41502006` in
+  `Pu239_nth/nu_vs_A`. No dataset is refused for it.
 
 ## [0.2.5] - 2026-10-02
 

@@ -4532,6 +4532,48 @@ of = "$(of)"
         @test group("12833005") === nothing
     end
 
+    @testset "results a publication calls preliminary" begin
+        qualifier = ExforFissionData.preliminary_qualifier("41502008")
+        @test startswith(qualifier, "preliminary: ")
+        @test occursin("doi:10.1063/1.1945175", qualifier)
+        # The flag belongs to the entry: its multiplicities carry it as its energies do.
+        @test ExforFissionData.preliminary_qualifier("41502005") == qualifier
+        @test ExforFissionData.preliminary_qualifier("41425014") === nothing
+
+        # It is written among the qualifiers of the dataset, and never refuses it.
+        query = test_query(;
+            target_Z = 94,
+            target_A = 239,
+            abscissa = ["mass"],
+            ordinate = "neutron_kinetic_energy",
+        )
+        rows = [
+            exfor_row(;
+                dataset_id = "41502009",
+                reaction_code = "94-PU-239(N,F)MASS,PR,KE,N",
+                value_kind = "Data(EV)",
+                product_za = mass,
+                y = value,
+                incident_ev = 0.0253,
+            ) for (mass, value) in ((97, 1.38e6), (101, 1.31e6))
+        ]
+        text = exfor_subentry(;
+            entry = "41502",
+            subentry = "41502009",
+            bib = ["REACTION   (94-PU-239(N,F)MASS,PR,KE,N)"],
+            common = (headings = ["EN-DUMMY"], units = ["EV"], values = [0.0253]),
+            headings = ["MASS", "DATA"],
+            units = ["NO-DIM", "MEV"],
+            rows = [[97.0, 1.38], [101.0, 1.31]],
+        )
+        accepted = select_dataset("41502009", exfor_csv(rows), text, query)
+        @test accepted isa Dataset
+        @test qualifier in ExforFissionData._qualifiers(accepted)
+        @test accepted.record["mean_formed_from"] == "unstated"
+        @test accepted.record["mean_threshold_mev"] == 0.2
+        @test occursin("Mannhart", accepted.record["mean_evidence"])
+    end
+
     @testset "quality" begin
         Aqua.test_all(ExforFissionData)
 
