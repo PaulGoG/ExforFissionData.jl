@@ -13,7 +13,9 @@ against fragment mass, and the multiplicity distribution P(ν), become retrievab
 configurations, 52 in all. The records of the mean neutron energy say how each mean was formed
 and what its frame rests on, and four datasets that 0.2.4 wrote as of unstated frame are in the
 centre of mass by their publications. Every table and stored subentry that 0.2.4 writes is
-written unchanged by 0.2.5.
+written unchanged by 0.2.5: run against the archive on 2026-10-02, the 46 configurations of 0.2.4
+give the same 590 files byte for byte. Their records gain keys and differ otherwise only in the
+frame of those four datasets, as listed under Changed.
 
 ### Added
 
