@@ -8,14 +8,16 @@ abscissa = ["mass", "total_kinetic_energy"]
                         # quantities the observable is tabulated against; one of:
                         #   ["mass"] | ["product_mass"] | ["charge"] | ["neutron_energy"] |
                         #   ["total_kinetic_energy"] | ["charge", "product_mass"] |
-                        #   ["mass", "total_kinetic_energy"]
+                        #   ["mass", "total_kinetic_energy"] | ["neutron_number"]
 ordinate = "yield"      # the observable; one of:
                         #   "yield" | "multiplicity" | "multiplicity_per_fission" |
                         #   "fragment_kinetic_energy" | "product_kinetic_energy" |
                         #   "total_kinetic_energy" | "total_kinetic_energy_dispersion" |
                         #   "post_neutron_total_kinetic_energy" |
-                        #   "neutron_kinetic_energy" | "spectrum" |
-                        #   "spectrum_maxwellian_ratio" | "spectrum_cf252_ratio"
+                        #   "neutron_kinetic_energy" | "neutron_spectrum_temperature" |
+                        #   "neutron_spectrum_exponent" | "multiplicity_distribution" |
+                        #   "spectrum" | "spectrum_maxwellian_ratio" |
+                        #   "spectrum_cf252_ratio"
 energy_min = 0.0        # incident energy window, MeV, inside the channel interval:
 energy_max = 1.0e-7     #   nth 0 to 1.0e-7 | nres 1.0e-7 to 0.1 | nfast 0.1 to 20
 

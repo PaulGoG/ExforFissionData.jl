@@ -446,7 +446,9 @@ The total kinetic energy is headed `TKE`, or `E` where the compiler defined `E` 
 of both fragments under `EN-SEC` (`14065004`, `21095008`, `(E,LF+HF)` and `(E,FF)`); the tag
 rule of the joint abscissa already requires the reaction code to name TKE, so an `E` column
 under that abscissa is the total kinetic energy and not a fragment-energy gate. Where both
-headings are present `TKE` is taken and `E` counts as a variable of its own.
+headings are present `TKE` is taken and `E` counts as a variable of its own. The number of
+neutrons a distribution P(ν) runs over is headed `PART-OUT`, the number of outgoing particles,
+which the csv rendering does not carry.
 """
 const ABSCISSA_HEADINGS = Dict(
     "mass" => (["MASS"], ["MASS-MIN", "MASS-MAX"]),
@@ -454,6 +456,7 @@ const ABSCISSA_HEADINGS = Dict(
     "charge" => (["ELEM"], String[]),
     "neutron_energy" => (["E"], ["E-MIN", "E-MAX"]),
     "total_kinetic_energy" => (["TKE", "E"], ["TKE-MIN", "TKE-MAX"]),
+    "neutron_number" => (["PART-OUT"], String[]),
 )
 
 """

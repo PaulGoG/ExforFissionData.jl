@@ -251,6 +251,9 @@ const BASE_FORBID = [
 #   neutron_energy        energy abscissa of a spectrum
 #   total_kinetic_energy  total kinetic energy, as TKE or as DE of both fragments; beside
 #                         mass, the mass is pre-neutron as for mass alone
+#   neutron_number        the number of neutrons emitted in one fission, which the branch NUM
+#                         marks a distribution over; not for a fragment of given mass or charge
+#                         (23598004 holds it for Z = 42 and 56)
 const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
     ["mass"] => TagRule(
         ["SF4:MASS"],
@@ -290,6 +293,8 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
         ["TKE", "SF6:DE & SF7:LF+HF"],
         ["SF4:ELEM", "SF5:SEC", "SF5:(SEC)", "SF5:PRV", "SF5:CHN", "SF5:IND"],
     ),
+    ["neutron_number"] =>
+        TagRule(["SF5:NUM"], String[], ["SF4:MASS", "SF4:ELEM", "TKE", "SF6:DE"]),
 )
 
 # Ordinate rules, composed with the abscissa rule. The key is the value of `ordinate` in the
@@ -328,6 +333,16 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      forbid N. A fragment energy miscoded KE,N (23164022, 44 to
 #                                      102 MeV) is told by its magnitude instead; see
 #                                      MAXIMUM_NEUTRON_KINETIC_ENERGY
+#   neutron_spectrum_temperature,      the temperature T and the exponent lambda of the form
+#   neutron_spectrum_exponent          fitted to the centre-of-mass spectrum of the neutrons of
+#                                      a fragment: the datasets of the mean neutron energy,
+#                                      whose MISC column the configuration names
+#                                      ([[fit_parameter]])
+#   multiplicity_distribution          the probability P(nu) of emitting nu neutrons in a
+#                                      fission (NU beside the branch NUM of the abscissa),
+#                                      measured: not an evaluation (EVAL: V0045011 to
+#                                      V0045013, Holden 1988) nor derived from a model (DERIV:
+#                                      30544002, a simulated binomial distribution)
 #   spectrum                           prompt fission neutron spectrum (DE, energy-differential)
 #   spectrum_maxwellian_ratio          the same, as a ratio to a Maxwellian (MXD)
 #   spectrum_cf252_ratio               the ratio of the spectrum of the system and that of
@@ -353,6 +368,12 @@ const ORDINATE_RULES = Dict{String, TagRule}(
         TagRule(["SF6:KE", "SF7:LF+HF", "SF5:SEC"], String[], ["SF7:N"]),
     "neutron_kinetic_energy" =>
         TagRule(["SF6:KE", "SF5:PR", "SF7:N"], String[], String[]),
+    "neutron_spectrum_temperature" =>
+        TagRule(["SF6:KE", "SF5:PR", "SF7:N"], String[], String[]),
+    "neutron_spectrum_exponent" =>
+        TagRule(["SF6:KE", "SF5:PR", "SF7:N"], String[], String[]),
+    "multiplicity_distribution" =>
+        TagRule(["SF6:NU"], String[], ["SF9:EVAL", "SF9:DERIV", "SF5:FRG"]),
     "spectrum" => TagRule(
         ["SF5:PR", "SF6:DE"],
         String[],
@@ -384,6 +405,7 @@ const ABSCISSA_TOKEN = Dict(
     "charge" => "Z",
     "neutron_energy" => "E",
     "total_kinetic_energy" => "TKE",
+    "neutron_number" => "nu",
 )
 
 """
@@ -402,6 +424,9 @@ const ORDINATE_TOKEN = Dict(
     "total_kinetic_energy_dispersion" => "sigma_TKE",
     "post_neutron_total_kinetic_energy" => "TKE_p",
     "neutron_kinetic_energy" => "eps",
+    "neutron_spectrum_temperature" => "T",
+    "neutron_spectrum_exponent" => "lambda",
+    "multiplicity_distribution" => "P",
     "spectrum" => "spectrum",
     "spectrum_maxwellian_ratio" => "spectrum_maxwellian_ratio",
     "spectrum_cf252_ratio" => "spectrum_cf252_ratio",
@@ -730,6 +755,24 @@ function datum_heading(ordinate::AbstractString, headings::AbstractVector{<:Abst
 end
 
 """
+The ordinate that is a distribution over the number of neutrons of a fission, P(ν); see
+[`distribution_moments`](@ref).
+"""
+const DISTRIBUTION_ORDINATE = "multiplicity_distribution"
+
+"""
+Abscissae whose values are whole numbers and are written as integers: the fragment charge and
+the number of neutrons.
+"""
+const INTEGER_ABSCISSAE = ("charge", "neutron_number")
+
+"""
+Abscissae that identify no reaction product: the csv rendering carries no product for them.
+An abscissa made of these and of energies alone expects none.
+"""
+const PRODUCTLESS_ABSCISSAE = ("neutron_number",)
+
+"""
 Ordinates that count neutrons per fission.
 
 A count of order one is never a percentage. A subentry that heads one of these
@@ -768,6 +811,9 @@ const ORDINATE_QUANTITY = Dict(
     "total_kinetic_energy_dispersion" => "E",
     "post_neutron_total_kinetic_energy" => "E",
     "neutron_kinetic_energy" => "E",
+    "neutron_spectrum_temperature" => "E",
+    "neutron_spectrum_exponent" => "E",
+    "multiplicity_distribution" => "NU",
     "spectrum" => "MFQ",
     "spectrum_maxwellian_ratio" => "MFQ",
     "spectrum_cf252_ratio" => "MFQ",

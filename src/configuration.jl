@@ -49,6 +49,8 @@ A validated retrieval configuration.
 - `record_hostname::Bool`: whether to name the machine in the run record.
 - `widths::Vector{WidthColumn}`: the width columns of `[[width]]`, for the ordinate
   `total_kinetic_energy_dispersion` alone; empty for every other.
+- `parameters::Vector{ParameterColumn}`: the columns of `[[fit_parameter]]`, for the ordinates
+  of [`PARAMETER_ORDINATES`](@ref) alone; empty for every other.
 - `source::String`: path of the configuration file; the run record carries its file name.
 """
 struct Configuration
@@ -59,6 +61,7 @@ struct Configuration
     significant_digits::Int
     record_hostname::Bool
     widths::Vector{WidthColumn}
+    parameters::Vector{ParameterColumn}
     source::String
 end
 
@@ -78,7 +81,7 @@ const DEFAULT_SIGNIFICANT_DIGITS = 7
 const SIGNIFICANT_DIGITS_BOUNDS = (1, 15)
 
 """Sections a configuration may hold; any other section is refused."""
-const SECTIONS = ("query", "retrieval", "output", "width")
+const SECTIONS = ("query", "retrieval", "output", "width", "fit_parameter")
 """Keys of each `[[width]]` table; all are required and any other is refused."""
 const WIDTH_KEYS = ("subentry", "column", "holds", "of")
 """The ordinate whose datasets are read through `[[width]]`."""
@@ -317,6 +320,18 @@ function load_configuration(path::AbstractString)
         )
     end
 
+    # A distribution over the number of neutrons is tabulated against that number, and nothing
+    # else is.
+    if (ordinate == DISTRIBUTION_ORDINATE) != (abscissa == ["neutron_number"])
+        throw(
+            ArgumentError(
+                "$(source): [query].ordinate \"$(DISTRIBUTION_ORDINATE)\" and \
+                 [query].abscissa [\"neutron_number\"] go together and with nothing else, \
+                 got \"$(ordinate)\" against $(abscissa)",
+            ),
+        )
+    end
+
     retrieval_section = get(table, "retrieval", Dict{String, Any}())
     retrieval_section isa AbstractDict ||
         throw(ArgumentError("$(source): [retrieval] must be a table of keys"))
@@ -448,6 +463,7 @@ function load_configuration(path::AbstractString)
     record_hostname = _optional(output_section, "record_hostname", false, "output", source)
 
     widths = _widths(table, ordinate, abscissa, source)
+    parameters = _parameters(table, ordinate, abscissa, source)
 
     return Configuration(
         Query(
@@ -478,6 +494,7 @@ function load_configuration(path::AbstractString)
         significant_digits,
         record_hostname,
         widths,
+        parameters,
         abspath(path),
     )
 end
@@ -544,6 +561,61 @@ function _widths(table::AbstractDict, ordinate, abscissa, source)
         push!(widths, WidthColumn(subentry, String(strip(column)), holds, of))
     end
     return widths
+end
+
+# The `[[fit_parameter]]` tables, validated: present exactly for the ordinates of
+# PARAMETER_ORDINATES, against mass alone, each naming a dataset identifier once and a column
+# that can hold a parameter.
+function _parameters(table::AbstractDict, ordinate, abscissa, source)
+    entries = get(table, "fit_parameter", Any[])
+    if !haskey(PARAMETER_ORDINATES, ordinate)
+        isempty(entries) || throw(
+            ArgumentError(
+                "$(source): [[fit_parameter]] applies to the ordinates \
+                 $(join(sort!(collect(keys(PARAMETER_ORDINATES))), ", ")) alone, not to \
+                 \"$(ordinate)\"",
+            ),
+        )
+        return ParameterColumn[]
+    end
+    abscissa == ["mass"] || throw(
+        ArgumentError(
+            "$(source): the ordinate \"$(ordinate)\" is tabulated against [\"mass\"] alone, \
+             not $(abscissa)",
+        ),
+    )
+    (entries isa AbstractVector && all(entry -> entry isa AbstractDict, entries)) ||
+        throw(ArgumentError("$(source): [[fit_parameter]] must be an array of tables"))
+    isempty(entries) && throw(
+        ArgumentError(
+            "$(source): the ordinate \"$(ordinate)\" is read only from the columns \
+             [[fit_parameter]] names, and the configuration names none",
+        ),
+    )
+    parameters = ParameterColumn[]
+    for (index, entry) in enumerate(entries)
+        path = "fit_parameter[$(index)]"
+        _reject_unknown(entry, PARAMETER_KEYS, "[[fit_parameter]] $(index)", source)
+        subentry = _require(entry, "subentry", String, path, source)
+        length(subentry) in (8, 9) || throw(
+            ArgumentError(
+                "$(source): [$(path)].subentry must have 8 characters, or 9 with a pointer, \
+                 got $(repr(subentry))",
+            ),
+        )
+        any(p -> p.subentry == subentry, parameters) &&
+            throw(ArgumentError("$(source): [$(path)].subentry $(subentry) is named twice"))
+        column = _require(entry, "column", String, path, source)
+        refusal = width_column_refusal(column)
+        refusal === nothing || throw(
+            ArgumentError(
+                "$(source): [$(path)].column: " *
+                replace(refusal, "a width" => "a parameter"),
+            ),
+        )
+        push!(parameters, ParameterColumn(subentry, String(strip(column))))
+    end
+    return parameters
 end
 
 """

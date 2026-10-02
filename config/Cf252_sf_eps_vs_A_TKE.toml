@@ -8,15 +8,17 @@ abscissa = ["mass", "total_kinetic_energy"]
                         # quantities the observable is tabulated against; one of:
                         #   ["mass"] | ["product_mass"] | ["charge"] | ["neutron_energy"] |
                         #   ["total_kinetic_energy"] | ["charge", "product_mass"] |
-                        #   ["mass", "total_kinetic_energy"]
+                        #   ["mass", "total_kinetic_energy"] | ["neutron_number"]
 ordinate = "neutron_kinetic_energy"
                         # the observable; one of:
                         #   "yield" | "multiplicity" | "multiplicity_per_fission" |
                         #   "fragment_kinetic_energy" | "product_kinetic_energy" |
                         #   "total_kinetic_energy" | "total_kinetic_energy_dispersion" |
                         #   "post_neutron_total_kinetic_energy" |
-                        #   "neutron_kinetic_energy" | "spectrum" |
-                        #   "spectrum_maxwellian_ratio" | "spectrum_cf252_ratio"
+                        #   "neutron_kinetic_energy" | "neutron_spectrum_temperature" |
+                        #   "neutron_spectrum_exponent" | "multiplicity_distribution" |
+                        #   "spectrum" | "spectrum_maxwellian_ratio" |
+                        #   "spectrum_cf252_ratio"
 
 [retrieval]
 concurrency = 4         # simultaneous requests, 1 to 16

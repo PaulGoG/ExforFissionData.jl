@@ -69,8 +69,13 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             continue
         end
         outcome = try
-            candidate =
-                screen_dataset(identifier, response.body, query; configuration.widths)
+            candidate = screen_dataset(
+                identifier,
+                response.body,
+                query;
+                configuration.widths,
+                configuration.parameters,
+            )
             parsed += 1
             candidate
         catch exception
@@ -128,7 +133,13 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             )
             continue
         end
-        outcome = select_dataset(candidate, subentry.body, query; configuration.widths)
+        outcome = select_dataset(
+            candidate,
+            subentry.body,
+            query;
+            configuration.widths,
+            configuration.parameters,
+        )
         if outcome isa Rejection
             push!(rejected, outcome)
         else
@@ -162,7 +173,8 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
 
     accepted = AcceptedDataset[]
     for dataset in accepted_datasets
-        reduced = reduce_dataset(dataset, query; configuration.widths)
+        reduced =
+            reduce_dataset(dataset, query; configuration.widths, configuration.parameters)
         if query.ordinate == WIDTH_ORDINATE
             # Every MISC-COL definition of the subentry, the width's and any other, quoted for
             # the record; the width itself is read only from the column the configuration names.

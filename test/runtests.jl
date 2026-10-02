@@ -3140,8 +3140,16 @@ of = "$(of)"
             points;
             thermal = true,
         )
+        # Where the subentry text is silent the publication it cites decides, and the record
+        # says which of the two the reading rests on.
         u233 = select_dataset("14369005", u233_data..., thermal_query(92, 233))
-        @test u233.record["ordinate_frame"] == "unstated"
+        @test u233.record["ordinate_frame"] == "centre_of_mass"
+        @test u233.record["ordinate_frame_basis"] == "publication"
+        @test occursin(
+            "The symbol eta is used for E_CM",
+            u233.record["ordinate_frame_evidence"],
+        )
+        @test pu.record["ordinate_frame_basis"] == "subentry"
         cf_data = neutron_energies("10000002", "98-CF-252(0,F)MASS,PR,KE,N", points)
         unstated = select_dataset("10000002", cf_data..., cf)
         @test unstated.record["ordinate_frame"] == "unstated"

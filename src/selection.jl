@@ -29,8 +29,9 @@ One EXFOR dataset, parsed and accepted for a query.
 - `units::Dict{String,String}`: the unit of each heading of `columns`, the first occurrence of a
   repeated heading deciding.
 - `record::Dict{String,Any}`: what selection read of the dataset beyond its columns, written to
-  the run record under the same keys: `ordinate_frame` and `ordinate_frame_evidence` of a mean
-  neutron energy, `maxwellian_temperature_mev` and `maxwellian_temperature_source` of a ratio
+  the run record under the same keys: `ordinate_frame` with its basis and evidence and the
+  `mean_` entries of a mean neutron energy, the `distribution_` and `mean_` entries of a
+  distribution P(ν), `maxwellian_temperature_mev` and `maxwellian_temperature_source` of a ratio
   to a Maxwellian, `ratio_numerator`, `ratio_denominator` and `ratio_orientation` of a ratio
   of two spectra. Empty for every other dataset, and for the eight-argument constructor.
 """
@@ -140,7 +141,8 @@ function parse_dataset(identifier::AbstractString, body::AbstractString)
 end
 
 """
-    screen_dataset(identifier, body, query; widths = WidthColumn[]) -> Union{Screened,Rejection}
+    screen_dataset(identifier, body, query; widths = WidthColumn[],
+        parameters = ParameterColumn[]) -> Union{Screened,Rejection}
 
 The first stage of [`select_dataset`](@ref): every test the csv rendering of one dataset can
 answer, in the order below, the first failure being reported.
@@ -168,6 +170,8 @@ DATA table until the second stage has compared the two.
 - `query`: the [`Query`](@ref) to answer.
 - `widths`: the width columns the configuration names, which alone the ordinate
   `total_kinetic_energy_dispersion` reads; see [`WidthColumn`](@ref).
+- `parameters`: the fit-parameter columns the configuration names, which alone the ordinates
+  of [`PARAMETER_ORDINATES`](@ref) read; see [`ParameterColumn`](@ref).
 
 # Returns
 A [`Screened`](@ref) or a [`Rejection`](@ref). Throws as [`parse_dataset`](@ref) does.
@@ -177,6 +181,7 @@ function screen_dataset(
     body::AbstractString,
     query;
     widths::AbstractVector{WidthColumn} = WidthColumn[],
+    parameters::AbstractVector{ParameterColumn} = ParameterColumn[],
 )
     table = parse_dataset(identifier, body)
     isempty(table) && return Rejection(identifier, "", "dataset is empty")
@@ -222,6 +227,9 @@ function screen_dataset(
         width = mapped_width(widths, identifier)
         ordinate = width === nothing ? "total_kinetic_energy" : width.of
     end
+    # A parameter of the fitted spectrum is read from the datasets of the mean neutron energy,
+    # which are selected as that mean is.
+    ordinate = selection_ordinate(ordinate)
     # Provisional masses disqualify a dataset against pre-neutron mass whatever its code says,
     # so this reason is given first.
     if "mass" in query.abscissa
@@ -248,6 +256,15 @@ function screen_dataset(
             identifier,
             code,
             "no width column of this dataset is named in the configuration ([[width]])",
+        )
+    end
+    if haskey(PARAMETER_ORDINATES, query.ordinate) &&
+       mapped_parameter(parameters, identifier) === nothing
+        return Rejection(
+            identifier,
+            code,
+            "no column of this dataset is named in the configuration as a parameter of the \
+             fitted spectrum ([[fit_parameter]])",
         )
     end
     conflict = channel_qualifier_conflict(query.channel, code)
@@ -391,6 +408,20 @@ function _ordinate_misalignment(
     return nothing
 end
 
+# The first row on which the ordinate of the csv rendering and the datum column `datum` of the
+# DATA table disagree as plain numbers, described, or `nothing` when they agree.
+function _value_misalignment(table::DataFrame, data::SubentryColumns, datum::Int)
+    ordinate = table[!, COL_Y]
+    for i in 1:nrow(table)
+        value = data.values[datum][i]
+        (ismissing(ordinate[i]) || ismissing(value)) && continue
+        isapprox(ordinate[i], value; rtol = RENDERING_TOLERANCE, atol = 1.0e-12) ||
+            return "row $(i): csv y $(ordinate[i]) against subentry \
+                    $(data.headings[datum]) $(value)"
+    end
+    return nothing
+end
+
 """
     neutron_energy_refusal(ordinate, unit) -> Union{String,Nothing}
 
@@ -424,8 +455,8 @@ function _column_table(data::SubentryColumns)
 end
 
 """
-    select_dataset(screened, subentry_text, query; widths = WidthColumn[])
-        -> Union{Dataset,Rejection}
+    select_dataset(screened, subentry_text, query; widths = WidthColumn[],
+        parameters = ParameterColumn[]) -> Union{Dataset,Rejection}
 
 Decide whether one retrieved dataset answers `query`, and reduce it to the rows that do.
 
@@ -474,6 +505,8 @@ name its frame.
 - `query`: the [`Query`](@ref) to answer.
 - `widths`: the width columns the configuration names, which alone the ordinate
   `total_kinetic_energy_dispersion` reads; see [`WidthColumn`](@ref).
+- `parameters`: the fit-parameter columns the configuration names, which alone the ordinates
+  of [`PARAMETER_ORDINATES`](@ref) read; see [`ParameterColumn`](@ref).
 
 # Returns
 A [`Dataset`](@ref) or a [`Rejection`](@ref). A [`SubentryError`](@ref) becomes a rejection;
@@ -484,9 +517,13 @@ function select_dataset(
     subentry_text::AbstractString,
     query;
     widths::AbstractVector{WidthColumn} = WidthColumn[],
+    parameters::AbstractVector{ParameterColumn} = ParameterColumn[],
 )
     identifier = screened.identifier
     code = screened.reaction_code
+    # The ordinate the dataset is selected as: the mean neutron energy for a parameter of its
+    # fitted spectrum.
+    source = selection_ordinate(query.ordinate)
     subentry = try
         parse_subentry(subentry_text, identifier)
     catch exception
@@ -522,7 +559,7 @@ function select_dataset(
     # The rendering writes one row per line that carries a datum: a line whose DATA field is
     # blank — the pointed column of another dataset holds the value there — has no row. The
     # DATA table is restricted to the lines with a datum before the two are compared.
-    datum_name = datum_heading(query.ordinate, subentry.data.headings)
+    datum_name = datum_heading(source, subentry.data.headings)
     datum = datum_name === nothing ? nothing : column(subentry.data, datum_name)
     datum === nothing && return Rejection(
         identifier,
@@ -534,7 +571,7 @@ function select_dataset(
 
     # A fragment energy coded as a neutron energy is named for what it is before anything else
     # is asked of its table.
-    if query.ordinate in CENTRE_OF_MASS_ORDINATES
+    if source in CENTRE_OF_MASS_ORDINATES
         refusal =
             neutron_energy_refusal(screened.table[screened.keep, COL_Y], screened.unit)
         refusal === nothing || return Rejection(identifier, code, refusal)
@@ -563,6 +600,22 @@ function select_dataset(
         )
         stale = width_row_refusal(identifier, data, width.column)
         stale === nothing || return Rejection(identifier, code, stale)
+    end
+
+    parameter =
+        haskey(PARAMETER_ORDINATES, query.ordinate) ?
+        mapped_parameter(parameters, identifier) : nothing
+    if parameter !== nothing
+        index = column(data, parameter.column)
+        index === nothing && return Rejection(
+            identifier,
+            code,
+            "the configuration names column $(parameter.column) as a parameter of the fitted \
+             spectrum, which the subentry DATA table does not carry",
+        )
+        refusal =
+            parameter_unit_refusal(query.ordinate, parameter.column, data.units[index])
+        refusal === nothing || return Rejection(identifier, code, refusal)
     end
 
     # The rendering can misstate the unit: 23268002 is counts, ARB-UNITS in its subentry and
@@ -597,8 +650,19 @@ function select_dataset(
     )
     # A datum in the centre-of-mass frame is read from its own column, so the rendering is held
     # against that column line by line before it stands for it.
-    if query.ordinate in CENTRE_OF_MASS_ORDINATES
+    if source in CENTRE_OF_MASS_ORDINATES
         misalignment = _ordinate_misalignment(screened.table, data, datum, screened.unit)
+        misalignment === nothing || return Rejection(
+            identifier,
+            code,
+            "the csv rendering and the subentry DATA table disagree at " * misalignment,
+        )
+    end
+
+    # The neutron number of a distribution is not in the rendering, so the two are aligned by
+    # their order alone; the probabilities are compared line by line to make that safe.
+    if query.ordinate == DISTRIBUTION_ORDINATE
+        misalignment = _value_misalignment(screened.table, data, datum)
         misalignment === nothing || return Rejection(
             identifier,
             code,
@@ -618,7 +682,7 @@ function select_dataset(
 
     # What selection reads of the dataset beyond its columns, for the run record.
     record = Dict{String, Any}()
-    if query.ordinate in CENTRE_OF_MASS_ORDINATES
+    if source in CENTRE_OF_MASS_ORDINATES
         frame = ordinate_frame(identifier, data.headings)
         frame.frame == "laboratory" && return Rejection(
             identifier,
@@ -627,7 +691,14 @@ function select_dataset(
              frame of the fragment: " * frame.evidence,
         )
         record["ordinate_frame"] = frame.frame
+        record["ordinate_frame_basis"] = frame.basis
         record["ordinate_frame_evidence"] = frame.evidence
+        merge!(record, mean_formation_record(identifier))
+        if parameter !== nothing
+            fit = get(SPECTRUM_FITS, identifier, nothing)
+            fit === nothing ||
+                merge!(record, Dict("fit_form" => first(fit), "fit_evidence" => last(fit)))
+        end
     end
 
     varying = varying_columns(data, query.abscissa)
@@ -665,8 +736,15 @@ function select_dataset(
     end
 
     product = collect(skipmissing(table[!, COL_PRODUCT_ZA]))
+    # A distribution coded with the product NPART, a number of particles, carries a product
+    # of zero in the rendering (21495003): no nuclide.
+    "neutron_number" in query.abscissa && filter!(!iszero, product)
     # An abscissa made of energies alone identifies no nuclide; every other one does.
-    identifies_product = !all(quantity -> quantity in ENERGY_ABSCISSAE, query.abscissa)
+    identifies_product =
+        !all(
+            quantity -> quantity in ENERGY_ABSCISSAE || quantity in PRODUCTLESS_ABSCISSAE,
+            query.abscissa,
+        )
     if !identifies_product
         isempty(product) || return Rejection(
             identifier,
@@ -724,6 +802,21 @@ function select_dataset(
             )
     end
 
+    # A distribution over the number of neutrons: whole numbers, and the mean of the neutrons
+    # emitted in a fission, not of those detected.
+    if query.ordinate == DISTRIBUTION_ORDINATE
+        numbers = data.values[column(data, "PART-OUT")]
+        all(n -> ismissing(n) || (isinteger(n) && n >= 0), numbers) || return Rejection(
+            identifier,
+            code,
+            "PART-OUT holds values that are no whole numbers of neutrons",
+        )
+        moments = distribution_moments(numbers, table[!, COL_Y], table[!, COL_DY])
+        refusal = distribution_refusal(moments, query)
+        refusal === nothing || return Rejection(identifier, code, refusal)
+        merge!(record, distribution_record(moments, query))
+    end
+
     # The record of a ratio says which of the two spectra is the numerator.
     if query.ordinate == REFERENCE_RATIO_ORDINATE
         ratio = spectrum_ratio(code, system_reaction(query), query.channel)
@@ -756,8 +849,8 @@ function select_dataset(
 end
 
 """
-    select_dataset(identifier, body, subentry_text, query; widths = WidthColumn[])
-        -> Union{Dataset,Rejection}
+    select_dataset(identifier, body, subentry_text, query; widths = WidthColumn[],
+        parameters = ParameterColumn[]) -> Union{Dataset,Rejection}
 
 The two stages of selection in one call: [`screen_dataset`](@ref) over the csv rendering
 `body`, then [`select_dataset`](@ref) over the subentry text of a dataset that passed.
@@ -768,8 +861,9 @@ function select_dataset(
     subentry_text::AbstractString,
     query;
     widths::AbstractVector{WidthColumn} = WidthColumn[],
+    parameters::AbstractVector{ParameterColumn} = ParameterColumn[],
 )
-    screened = screen_dataset(identifier, body, query; widths)
+    screened = screen_dataset(identifier, body, query; widths, parameters)
     screened isa Rejection && return screened
-    return select_dataset(screened, subentry_text, query; widths)
+    return select_dataset(screened, subentry_text, query; widths, parameters)
 end

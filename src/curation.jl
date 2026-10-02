@@ -728,6 +728,32 @@ const CORRELATION_GROUPS = [
          (Vorobyev 2013, 235-U over 252-Cf) in its STATUS (SPSDD); the two are one \
          measurement for any combination, and the later analysis is the authors' own choice",
     ),
+    CorrelationGroup(
+        ["30046011", "307720151", "307720152", "307720153"],
+        "one measurement of the 252-Cf(sf) neutron number distribution in the liquid \
+         scintillator tank of Boldeman: 30772015 gives it at three discriminator biases, 620, \
+         720 and 1950 keV ('Data for three bias values ... are given'), and 30046011 takes its \
+         values from the same Table III of Nucl. Sci. Eng. 91, 114 (1985) (STATUS); they are \
+         one measurement for any combination",
+    ),
+    CorrelationGroup(
+        ["30046008", "30772010"],
+        "one measurement of the 235-U(nth,f) neutron number distribution, published twice: \
+         30046008 (Boldeman 1967, AAEC/E-172) is marked superseded by 30772010 (Boldeman \
+         1985, the reanalysis) in its STATUS (SPSDD)",
+    ),
+    CorrelationGroup(
+        ["30046009", "30772011"],
+        "one measurement of the 239-Pu(nth,f) neutron number distribution, published twice: \
+         30046009 (Boldeman 1967, AAEC/E-172) is marked superseded by 30772011 (Boldeman \
+         1985, the reanalysis) in its STATUS (SPSDD)",
+    ),
+    CorrelationGroup(
+        ["30046007", "30772009"],
+        "one measurement of the 233-U(nth,f) neutron number distribution, published twice: \
+         30046007 (Boldeman 1967, AAEC/E-172) is marked superseded by 30772009 (Boldeman \
+         1985, the reanalysis) in its STATUS (SPSDD)",
+    ),
 ]
 
 """
@@ -929,37 +955,55 @@ end
 const ORDINATE_FRAME_VALUES = ("centre_of_mass", "laboratory", "unstated")
 
 """
-    FrameReading(frame, evidence)
+What a frame reading rests on, as `ordinate_frame_basis` of the run record: the heading of the
+datum, the text of the subentry, or the publication the subentry cites.
+"""
+const FRAME_BASES = ("heading", "subentry", "publication")
+
+"""
+    FrameReading(frame, [basis,] evidence)
 
 The frame of the datum of one dataset, with what establishes it.
 
 # Fields
 - `frame::String`: one of [`ORDINATE_FRAME_VALUES`](@ref).
-- `evidence::String`: the heading, or the words of the subentry, the frame is read from; for an
-  unstated frame, what the subentry does say.
+- `basis::String`: one of [`FRAME_BASES`](@ref); `"subentry"` when not given. An unstated frame
+  carries the basis that was consulted last and left it open.
+- `evidence::String`: the heading, the words of the subentry, or the sentence or equation of
+  the publication, with its DOI, that the frame is read from; for an unstated frame, what the
+  sources do say.
 
 # Throws
-- `ArgumentError` for a frame outside [`ORDINATE_FRAME_VALUES`](@ref).
+- `ArgumentError` for a frame outside [`ORDINATE_FRAME_VALUES`](@ref) or a basis outside
+  [`FRAME_BASES`](@ref).
 """
 struct FrameReading
     frame::String
+    basis::String
     evidence::String
-    function FrameReading(frame::AbstractString, evidence::AbstractString)
+    function FrameReading(
+        frame::AbstractString,
+        basis::AbstractString,
+        evidence::AbstractString,
+    )
         frame in ORDINATE_FRAME_VALUES || throw(
             ArgumentError("frame \"$(frame)\" is not one of $(ORDINATE_FRAME_VALUES)"),
         )
-        return new(String(frame), String(evidence))
+        basis in FRAME_BASES ||
+            throw(ArgumentError("basis \"$(basis)\" is not one of $(FRAME_BASES)"))
+        return new(String(frame), String(basis), String(evidence))
     end
 end
 
+FrameReading(frame::AbstractString, evidence::AbstractString) =
+    FrameReading(frame, "subentry", evidence)
+
 """
 The frame of mean neutron energies whose subentry heads them `DATA`, keyed by dataset
-identifier and read from the subentry text alone; see [`FrameReading`](@ref) and
-[`ordinate_frame`](@ref). A dataset headed `DATA` and absent from this table is recorded as
-unstated.
-
-What a publication says beyond the subentry is quoted in the evidence and does not change the
-reading: the frame recorded is the one the archive states.
+identifier; see [`FrameReading`](@ref) and [`ordinate_frame`](@ref). The text of the subentry
+decides where it names the frame; where it does not, the publication the subentry cites does,
+quoted with its DOI, and a dataset whose publication leaves the frame open, or which is absent
+from this table, is recorded as unstated.
 """
 const ORDINATE_FRAMES = Dict{String, FrameReading}(
     "41502009" => FrameReading(
@@ -973,32 +1017,54 @@ const ORDINATE_FRAMES = Dict{String, FrameReading}(
          fragment mass in fragment center of mass system'",
     ),
     "23175012" => FrameReading(
-        "unstated",
-        "the REACTION text reads 'Average fission neutron kinetic energy as function of mass' \
-         and names no frame; the MISC columns hold the temperature and the exponent of a \
-         Weisskopf spectrum from the same figure, Fig. 17 of Nucl. Phys. A 490, 307 \
-         (doi:10.1016/0375-9474(88)90508-8). The authors' contribution of the same title and \
-         data to INDC(NDS)-220 (Mito 1988, p. 199) gives Fig. 17a as the average of 'the \
-         neutron energy in the center-of-mass system of the fragment', which the subentry \
-         does not repeat",
+        "centre_of_mass",
+        "publication",
+        "the REACTION text, 'Average fission neutron kinetic energy as function of mass', \
+         names no frame. The authors' contribution of the same title and data to \
+         INDC(NDS)-220 (Mito 1988, p. 181) does: 'The neutron energy eta in the \
+         center-of-mass system of the fragment was evaluated event by event' (section 3.2.3, \
+         p. 199), from V_CM^2 = V_F^2 + V_LAB^2 - 2 V_F V_LAB cos(theta_LAB) (Eq. 1), and \
+         'Fig. 17 a displays the average energy eta as function of A' (p. 201), the figure \
+         the subentry digitises. The article itself, Nucl. Phys. A 490, 307 \
+         (doi:10.1016/0375-9474(88)90508-8), was not obtained",
     ),
     "14369005" => FrameReading(
-        "unstated",
-        "the REACTION text reads 'Energy of neutrons emitted with the fragment specified' and \
-         names no frame; the data are read from Fig. 5 of Milton and Fraser, Salzburg 1965, \
-         vol. 2, p. 39, which was not consulted",
+        "centre_of_mass",
+        "publication",
+        "the REACTION text, 'Energy of neutrons emitted with the fragment specified', names \
+         no frame. The figure the subentry digitises does: Fig. 5 of Milton and Fraser, \
+         Physics and Chemistry of Fission (Salzburg 1965), IAEA STI/PUB/101, vol. 2, p. 47, \
+         is captioned 'As in Fig. 4 but for n + U233. The symbol eta is used for E_CM', \
+         Fig. 4 giving the 'average centre-of-mass moment <V^2> = <E_CM>/0.5228', and the \
+         tables of the paper define E_CM as 'the average energy of the neutrons arising from \
+         the fragments in the fragment system' (p. 51). The review the subentry cites first, \
+         Annu. Rev. Nucl. Sci. 16, 379 (doi:10.1146/annurev.ns.16.120166.002115), was not \
+         obtained",
     ),
     "41689005" => FrameReading(
-        "unstated",
-        "the REACTION record carries no text, and neither subentry 001 nor 005 names the \
-         frame of the neutron energy; the entry compares it with the centre-of-mass energies \
-         of Bowman 1962 (REL-REF 14065001)",
+        "centre_of_mass",
+        "publication",
+        "the REACTION record carries no text. The authors' paper of the same title and data \
+         at the Kiev conference of 1975 (Neitronnaya Fizika, part 5, p. 92, Moscow 1976, \
+         INDC(CCP)-99) captions the figure of these points, its Fig. 4, 'Mean energy of the \
+         neutrons in the c.m.s. as a function of fragment mass' ('Srednyaya energiya \
+         neitronov v s.ts.i. v zavisimosti ot massy oskolka'), the c.m.s. being 'the frame \
+         of the moving fragment' (p. 97), and plots the component isotropic in the \
+         laboratory apart; its formula for the mean (p. 100) weights that component in, \
+         and the authors put about 10 % on the mean for the unknown division of it between \
+         the fragments (p. 107). The article the subentry cites, Yad. Fiz. 25, 723 (1977), \
+         has no DOI and was not obtained",
     ),
     "22660004" => FrameReading(
-        "unstated",
-        "the REACTION text reads 'Average Neutron Energy as a function of fragment mass and \
-         total kinetic energy of fragments' and names no frame; 22660003 of the same entry, \
-         against mass alone, is headed DATA-CM",
+        "centre_of_mass",
+        "publication",
+        "the REACTION text, 'Average Neutron Energy as a function of fragment mass and total \
+         kinetic energy of fragments', names no frame. The figure the subentry tabulates \
+         does: Fig. 5 of Nishio 1998 (doi:10.1080/18811248.1998.9733919, p. 635) is \
+         captioned 'Average neutron energy in the center-of-mass system as a function of \
+         total kinetic energy', the neutron energy having been 'transformed to the c.m. \
+         system of the respective fragment ... using the fragment velocity and the neutron \
+         emission angle' (p. 634)",
     ),
 )
 
@@ -1015,6 +1081,7 @@ function ordinate_frame(
 )
     CENTRE_OF_MASS_DATUM in headings && return FrameReading(
         "centre_of_mass",
+        "heading",
         "the subentry heads the value $(CENTRE_OF_MASS_DATUM)",
     )
     return get(
@@ -1027,6 +1094,277 @@ function ordinate_frame(
         ),
     )
 end
+
+"""
+How a tabulated mean neutron energy was formed, as `mean_formed_from` of the run record: the
+first moment of the measured centre-of-mass spectrum, the first moment of a form fitted to it,
+that of the measured spectrum completed beyond its range by a fitted form, or not stated by the
+publication consulted.
+"""
+const MEAN_SOURCES =
+    ("measured_spectrum", "fitted_spectrum", "completed_spectrum", "unstated")
+
+"""
+    MeanFormation(from, form, threshold, threshold_frame, evidence)
+
+How the mean neutron energy of one dataset was formed, as its publication states it.
+
+# Fields
+- `from::String`: one of [`MEAN_SOURCES`](@ref).
+- `form::String`: the fitted form the mean is the first moment of, or the form a measured
+  spectrum was completed with and where; empty where none.
+- `threshold::Union{Nothing,Float64}`: the low-energy threshold of the neutron detection, in
+  MeV, where the publication states one.
+- `threshold_frame::String`: the frame the threshold is stated in, `"laboratory"` or
+  `"centre_of_mass"`; empty without a threshold.
+- `evidence::String`: the sentence or equation, with the DOI.
+
+# Throws
+- `ArgumentError` for a source outside [`MEAN_SOURCES`](@ref).
+"""
+struct MeanFormation
+    from::String
+    form::String
+    threshold::Union{Nothing, Float64}
+    threshold_frame::String
+    evidence::String
+    function MeanFormation(from, form, threshold, threshold_frame, evidence)
+        from in MEAN_SOURCES ||
+            throw(ArgumentError("mean source \"$(from)\" is not one of $(MEAN_SOURCES)"))
+        return new(from, form, threshold, threshold_frame, evidence)
+    end
+end
+
+"""
+    mean_formation(identifier) -> MeanFormation
+
+The reading of [`MEAN_FORMATIONS`](@ref) for a dataset, or an unstated one where no publication
+has been read for it.
+"""
+mean_formation(identifier::AbstractString) = get(
+    MEAN_FORMATIONS,
+    String(identifier),
+    MeanFormation(
+        "unstated",
+        "",
+        nothing,
+        "",
+        "no reading of the publication for how the mean was formed is recorded",
+    ),
+)
+
+"""
+    mean_formation_record(identifier) -> Dict{String,Any}
+
+The entries [`mean_formation`](@ref) adds to the run record of a mean neutron energy:
+`mean_formed_from`, `mean_evidence`, and where they apply `mean_fitted_form`,
+`mean_threshold_mev` and `mean_threshold_frame`.
+"""
+function mean_formation_record(identifier::AbstractString)
+    formation = mean_formation(identifier)
+    record = Dict{String, Any}(
+        "mean_formed_from" => formation.from,
+        "mean_evidence" => formation.evidence,
+    )
+    isempty(formation.form) || (record["mean_fitted_form"] = formation.form)
+    if formation.threshold !== nothing
+        record["mean_threshold_mev"] = formation.threshold
+        record["mean_threshold_frame"] = formation.threshold_frame
+    end
+    return record
+end
+
+const _BOWMAN_MEAN = MeanFormation(
+    "measured_spectrum",
+    "",
+    0.52,
+    "laboratory",
+    "Bowman 1963 (doi:10.1103/PhysRev.129.2133): the multiplicity and the mean energy 'may be \
+     regarded as the zeroth and second moments of the velocity spectrum of the emitted \
+     neutrons' (p. 2134), formed by sums 'carried out, event by event, over all events' of \
+     the counters at 11.25 and 168.75 degrees (Appendix A, p. 2145), with no fitted form. \
+     'At no time are velocities less than 1 cm/nsec used' (Appendix B, p. 2146), 0.52 MeV \
+     in the laboratory; the fraction of the centre-of-mass spectrum missed is put at \
+     0.16 %, and the mean is not corrected for it",
+)
+
+const _CASCADE_FORM = "const eta^lambda exp(-eta/T)"
+
+"""
+How the mean neutron energy of each dataset was formed, keyed by dataset identifier and read
+from its publication; see [`MeanFormation`](@ref). A threshold is recorded only from a
+publication read: what the EXFOR entry alone says of one is quoted in the evidence, the entry
+of Nishio 1998 giving 0.2 MeV where the article prints 0.3 MeV.
+"""
+const MEAN_FORMATIONS = Dict{String, MeanFormation}(
+    "14065003" => _BOWMAN_MEAN,
+    "14065010" => _BOWMAN_MEAN,
+    "23175012" => MeanFormation(
+        "fitted_spectrum",
+        _CASCADE_FORM,
+        0.3,
+        "laboratory",
+        "the tabulated mean equals (lambda + 1) T of the form fitted to the centre-of-mass \
+         spectrum, with the T and lambda of the MISC columns, to 0.4 % rms and 1.1 % at most \
+         over the 79 masses: the first moment of that form. The authors' contribution of the \
+         same title and data to INDC(NDS)-220 (Mito 1988) does not say how the mean was \
+         formed: 'The neutron spectrum belonging to each mass A was evaluated and T(A) and \
+         lambda(A) were determined using equation [8]. Fig. 17 a displays the average energy \
+         eta as function of A' (p. 201); a maximum-likelihood fit of that form has the mean \
+         of the measured spectrum as its first moment, so the two readings may coincide. \
+         'The applied neutron detector threshold of 0.3 MeV did therefore insure that all \
+         wanted neutrons were taken into account' (p. 191), only neutrons emitted forward \
+         in the centre of mass being used. The article, Nucl. Phys. A 490, 307 \
+         (doi:10.1016/0375-9474(88)90508-8), was not obtained",
+    ),
+    "23268011" => MeanFormation(
+        "unstated",
+        "",
+        0.7,
+        "laboratory",
+        "Goeoek 2014 (doi:10.1103/PhysRevC.90.064611) does not say how the mean of Fig. 18a \
+         was formed: the spectra 'were evaluated by using Eq. (14); the result is displayed \
+         in Fig. 18, together with the average neutron energy in the center-of-mass frame' \
+         (pp. 064611-11, 12). For the spectrum of all fragments the average quoted, 1.45 MeV, is \
+         not the first moment (lambda + 1) T_eff = 1.52 MeV of its fit, T_eff = 1.07 and \
+         lambda = 0.42. 'A pulse-height threshold corresponding to 0.7 MeV proton-recoil \
+         energy (about 100 keVee) was applied' (p. 064611-4), and only neutrons with \
+         v_L >= v_F / cos(theta_L), emitted forward in the centre of mass, are used \
+         (Eq. 10)",
+    ),
+    "41689005" => MeanFormation(
+        "completed_spectrum",
+        "sqrt(eta) exp(-eta/T) above 1.5 MeV",
+        0.4,
+        "laboratory",
+        "the authors' paper of the same title and data at the Kiev conference of 1975 \
+         (Neitronnaya Fizika, part 5, p. 92, Moscow 1976): the limited statistics 'did not \
+         allow spectra in the c.m.s. to be obtained' above 1.5 MeV, so 'the spectra were \
+         completed artificially on the assumption that the energy distribution of the \
+         neutrons in the c.m.s. is described by the Maxwell formula', its parameter T \
+         'determined by least squares on the measured part of the spectrum' (p. 98, in \
+         translation); the estimator of the mean itself is not spelled out. The detector \
+         threshold is given as a neutron energy of about 400 keV (p. 95). The article, \
+         Yad. Fiz. 25, 723 (1977), was not obtained",
+    ),
+    "22464003" => MeanFormation(
+        "unstated",
+        "",
+        nothing,
+        "",
+        "the article, Nucl. Phys. A 632, 540 (doi:10.1016/S0375-9474(98)00008-6), was not \
+         obtained. The authors' paper on the same measurement, J. Nucl. Sci. Technol. 34, \
+         439 (1997), fits the centre-of-mass spectra with const sqrt(eta) exp(-eta/T_eff) \
+         and derives the temperature from the mean, T = (3/4) <eta> (Eq. 3, p. 441), \
+         without saying how the mean was formed, and states no threshold",
+    ),
+    "41502008" => MeanFormation(
+        "unstated",
+        "",
+        nothing,
+        "",
+        "the publication, AIP Conf. Proc. 769, 1003 (doi:10.1063/1.1945175), was not \
+         obtained. Entry 41502 says of the analysis that 'the assumption that neutron \
+         spectrum has Maxwell shape was used' and gives a 'neutron registration threshold \
+         about 200 keV' (41502001, ANALYSIS, DETECTOR)",
+    ),
+    "41502009" => MeanFormation(
+        "unstated",
+        "",
+        nothing,
+        "",
+        "the publication, AIP Conf. Proc. 769, 1003 (doi:10.1063/1.1945175), was not \
+         obtained. Entry 41502 says of the analysis that 'the assumption that neutron \
+         spectrum has Maxwell shape was used' and gives a 'neutron registration threshold \
+         about 200 keV' (41502001, ANALYSIS, DETECTOR)",
+    ),
+    "23444006" => MeanFormation(
+        "unstated",
+        "",
+        nothing,
+        "",
+        "Goeoek 2018 (doi:10.1103/PhysRevC.98.044615) gives 'the average c.m. neutron energy \
+         as a function of the fission fragment mass' in Fig. 11 (p. 044615-8) without \
+         saying how it was formed; 'the neutron energy eta in the c.m. system has been \
+         evaluated on an event-by-event basis' (p. 044615-6). Pulse-height thresholds \
+         depending on the time of flight are applied, with no value stated, and neutrons \
+         emitted backward in the centre of mass are left out",
+    ),
+    "22650008" => MeanFormation(
+        "unstated",
+        "",
+        nothing,
+        "",
+        "the article, Tsuchiya 2000 (doi:10.1080/18811248.2000.9714976), was not obtained. \
+         Entry 22650 gives a neutron threshold of the detector of 0.2 MeV (22650001, \
+         DETECTOR)",
+    ),
+    "14369005" => MeanFormation(
+        "measured_spectrum",
+        "",
+        nothing,
+        "",
+        "Milton and Fraser, Physics and Chemistry of Fission (Salzburg 1965), IAEA \
+         STI/PUB/101, vol. 2, p. 39: 'the four velocity moments ... in both the laboratory \
+         and centre-of-mass co-ordinate systems are then calculated', each event 'sorted, \
+         with its proper weight' (p. 44), and the mean energy is E_CM = 0.5228 <V^2> from \
+         the data of the counter at 10 degrees (Fig. 4, p. 46), with no fitted form. The \
+         efficiency of the neutron detector 'goes to zero at about 200 keV' and 0.52 to \
+         13.1 MeV are 'limits of the useful energy range' of the 235-U runs (pp. 41, 42); \
+         the conditions 'were considerably different during the U233 runs' (p. 55) and \
+         their limits are not given. The results are called provisional (p. 44)",
+    ),
+    "22660003" => MeanFormation(
+        "measured_spectrum",
+        "",
+        0.3,
+        "laboratory",
+        "Nishio 1998 (doi:10.1080/18811248.1998.9733919): the centre-of-mass spectra exceed \
+         the fitted Maxwellian above 3 MeV, and 'the mean values of the neutron energy, \
+         eta, calculated from the experimental data are plotted as a function of fragment \
+         mass in Fig. 4' (p. 634). 'The neutron bias level was set at 0.3 MeV' (p. 632), \
+         where entry 22660 gives 0.2 MeV, and only events with V_n > V_FF1 / cos(theta), \
+         emitted forward in the centre of mass, enter the spectrum (p. 634)",
+    ),
+    "22660004" => MeanFormation(
+        "unstated",
+        "",
+        0.3,
+        "laboratory",
+        "Nishio 1998 (doi:10.1080/18811248.1998.9733919) shows 'the dependence of average \
+         neutron energy on TKE for the specified fragment' in Fig. 5, with a mass gate of \
+         4 u (p. 636), under the symbol of the means of Fig. 4, which are 'calculated from \
+         the experimental data' (p. 634), without saying so of Fig. 5. 'The neutron bias \
+         level was set at 0.3 MeV' (p. 632), where entry 22660 gives 0.2 MeV",
+    ),
+)
+
+"""
+The form fitted to the centre-of-mass spectrum of the datasets whose fit parameters a
+configuration may name ([`PARAMETER_ORDINATES`](@ref)), keyed by dataset identifier, as the
+form and the equation of the publication it is from. Written to the run record of a parameter
+as `fit_form` and `fit_evidence`.
+"""
+const SPECTRUM_FITS = Dict{String, Tuple{String, String}}(
+    "23175012" => (
+        _CASCADE_FORM,
+        "Eq. [8] of the authors' contribution to INDC(NDS)-220 (Mito 1988, p. 199), the \
+         cascade evaporation spectrum of Le Couteur and Lang, whose 'parameters lambda, T \
+         ... were then treated by us as free parameters to be determined from the \
+         experimental eta-distributions', and 'T(A) and lambda(A) were determined using \
+         equation [8]' (p. 201). The subentry calls the same form, const AKE^lambda \
+         exp(-AKE/T), a Weisskopf spectrum; MISC1 holds T and MISC2 lambda, digitised from \
+         Fig. 17 B and C of Nucl. Phys. A 490, 307 (doi:10.1016/0375-9474(88)90508-8)",
+    ),
+    "23268011" => (
+        "const eta^lambda exp(-eta/T_eff)",
+        "Eq. (14) of Goeoek 2014 (doi:10.1103/PhysRevC.90.064611, p. 064611-7), 'the \
+         expression for cascade neutron emission', 'where eta is the center-of-mass neutron \
+         energy while lambda and T_eff are fit parameters'; the spectra of each mass 'were \
+         evaluated by using Eq. (14)', and MISC holds the temperature of Fig. 18b. The \
+         lambda of Fig. 18c is not in the archive",
+    ),
+)
 
 """
 The qualifier written among the `qualifiers` of a dataset whose [`ordinate_frame`](@ref) is

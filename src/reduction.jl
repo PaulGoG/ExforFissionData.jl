@@ -306,6 +306,24 @@ function _width_values(
     return σ, δ, source
 end
 
+# The values of a fit-parameter column, a temperature in MeV, with their uncertainties and where
+# those came from: the column `<column>-ERR` in the parameter's own unit, or none.
+function _parameter_values(dataset::Dataset, parameter::ParameterColumn)
+    values = dataset.columns[!, parameter.column]
+    unit = dataset.units[parameter.column]
+    factor = something(energy_factor(unit), 1.0)
+    error_heading = parameter.column * "-ERR"
+    has_errors =
+        error_heading in names(dataset.columns) && dataset.units[error_heading] == unit
+    errors = has_errors ? dataset.columns[!, error_heading] : fill(missing, length(values))
+    source = all(ismissing, errors) ? "none" : "subentry $(error_heading)"
+    return (
+        Union{Missing, Float64}[ismissing(v) ? missing : v * factor for v in values],
+        Union{Missing, Float64}[ismissing(e) ? missing : abs(e) * factor for e in errors],
+        source,
+    )
+end
+
 """
 What a yield's unit token says of its normalisation, as the subentry states the unit. Written to
 the run record as `normalisation` for every yield, so that no consumer has to know that a mass
@@ -348,7 +366,7 @@ function _tke_grid(dataset::Dataset, written::AbstractVector)
 end
 
 # The values of each abscissa quantity for every row, in configuration order: a mass as the
-# subentry gives it, unrounded; a charge as an integer; an energy in MeV. Also the bin pair of the
+# subentry gives it, unrounded; a charge or a number of neutrons as an integer; an energy in MeV. Also the bin pair of the
 # mass when the mass came from one, and whether any quantity came from a bin pair.
 function _abscissa(dataset::Dataset, abscissa::AbstractVector{<:AbstractString})
     String[abscissa...] in ABSCISSAE ||
@@ -366,7 +384,7 @@ function _abscissa(dataset::Dataset, abscissa::AbstractVector{<:AbstractString})
                 _heading_values(dataset, bin_headings[2], false),
             )
         end
-        per_quantity[position] = if quantity == "charge"
+        per_quantity[position] = if quantity in INTEGER_ABSCISSAE
             Union{Missing, Int}[ismissing(z) ? missing : round(Int, z) for z in values]
         else
             values
@@ -477,6 +495,7 @@ function reduce_dataset(
     dataset::Dataset,
     query;
     widths::AbstractVector{WidthColumn} = WidthColumn[],
+    parameters::AbstractVector{ParameterColumn} = ParameterColumn[],
 )
     table = dataset.table
     abscissa_columns = [Symbol(ABSCISSA_TOKEN[quantity]) for quantity in query.abscissa]
@@ -486,8 +505,10 @@ function reduce_dataset(
     raw_values = table[!, COL_Y]
     raw_uncertainties = table[!, COL_DY]
     uncertainty_source = "csv"
-    # A width is read from the column the configuration names, never from the datum.
+    # A width is read from the column the configuration names, never from the datum, and so is
+    # a parameter of the fitted spectrum.
     width = nothing
+    parameter = nothing
     A₀ = query.target_A + (query.spontaneous ? 0 : 1)
     if query.ordinate == WIDTH_ORDINATE
         width = mapped_width(widths, dataset.identifier)
@@ -501,6 +522,16 @@ function reduce_dataset(
             coordinates[mass_position]
         raw_values, raw_uncertainties, uncertainty_source =
             _width_values(dataset, width, A₀, masses)
+    elseif haskey(PARAMETER_ORDINATES, query.ordinate)
+        parameter = mapped_parameter(parameters, dataset.identifier)
+        parameter === nothing && throw(
+            ArgumentError(
+                "dataset $(dataset.identifier): the configuration names no fit-parameter \
+                 column for it",
+            ),
+        )
+        raw_values, raw_uncertainties, uncertainty_source =
+            _parameter_values(dataset, parameter)
     elseif all(ismissing, raw_uncertainties)
         fallback = _subentry_uncertainties(
             dataset,
@@ -710,6 +741,10 @@ function reduce_dataset(
     if width !== nothing
         # Converted to MeV from the width column's own unit in `_width_values`.
         unit_written = "MEV"
+    elseif parameter !== nothing
+        # A temperature is converted to MeV from its column's unit in `_parameter_values`.
+        unit_written =
+            PARAMETER_ORDINATES[query.ordinate] == :energy ? "MEV" : DIMENSIONLESS_UNIT
     elseif query.ordinate in ENERGY_ORDINATES && ordinate_factor !== nothing
         factor = ordinate_factor
         if factor != 1.0
@@ -771,6 +806,11 @@ function reduce_dataset(
             diagnostics["width_rows_excluded"] =
                 ["A = $(Int(x.mass)): $(x.reason)" for x in excluded]
         )
+    end
+    if parameter !== nothing
+        diagnostics["parameter_column"] = parameter.column
+        diagnostics["parameter_unit"] = dataset.units[parameter.column]
+        diagnostics["parameter_is"] = PARAMETER_MEANINGS[query.ordinate]
     end
     tke = findfirst(==("total_kinetic_energy"), query.abscissa)
     if tke !== nothing && !isempty(final_keys)

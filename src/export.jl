@@ -282,13 +282,42 @@ function write_metadata(
         ),
         "platform" => _platform(configuration.record_hostname),
     )
-    if query.ordinate in CENTRE_OF_MASS_ORDINATES
+    if selection_ordinate(query.ordinate) in CENTRE_OF_MASS_ORDINATES
         record["conventions"]["ordinate_frame"] = "the frame of the neutron energy, per dataset: centre_of_mass where the subentry \
-             heads the value $(CENTRE_OF_MASS_DATUM) or its text says so, unstated where it \
-             says neither; a value stated to be in the laboratory frame is refused. \
-             `ordinate_frame_evidence` gives the heading or the words read"
+             heads the value $(CENTRE_OF_MASS_DATUM), its text says so, or the publication \
+             it cites does; unstated where none of them says; a value stated to be in the \
+             laboratory frame is refused. `ordinate_frame_basis` names which of the three \
+             the reading rests on, heading, subentry or publication, and \
+             `ordinate_frame_evidence` gives the heading or the words read, with the DOI of \
+             a publication"
         record["conventions"]["ordinate_bound"] = "a dataset holding more than $(MAXIMUM_NEUTRON_KINETIC_ENERGY) MeV on any row is \
              refused as no mean neutron energy"
+        record["conventions"]["mean_formation"] = "how each mean was formed, as its publication states it: `mean_formed_from` is \
+             measured_spectrum, the first moment of the measured centre-of-mass spectrum, \
+             fitted_spectrum, the first moment of the form in `mean_fitted_form` fitted to \
+             it, or unstated; `mean_threshold_mev` and `mean_threshold_frame` give the \
+             low-energy threshold of the neutron detection where one is stated, and \
+             `mean_evidence` the sentence or equation read"
+    end
+    if haskey(PARAMETER_ORDINATES, query.ordinate)
+        record["conventions"]["fit_parameter"] = "each table is a column of the dataset of the mean neutron energy, named in the \
+             configuration ([[fit_parameter]]): $(PARAMETER_MEANINGS[query.ordinate]). \
+             `parameter_column` and `parameter_unit` give the column, `fit_form` the form \
+             fitted and `fit_evidence` the equation of the publication; the uncertainty is \
+             the column <column>-ERR"
+    elseif query.ordinate == DISTRIBUTION_ORDINATE
+        record["conventions"]["distribution"] = "P(nu), the probability of emitting nu neutrons in a fission, written as \
+             tabulated and never renormalised. Per dataset: `distribution_sum` is the sum \
+             of the P(nu) and `distribution_normalised` whether it lies within \
+             $(NORMALISATION_TOLERANCE) of one; `mean_multiplicity` is sum(nu P)/sum(P), \
+             with its uncertainty where every line states one, the lines taken as \
+             uncorrelated; `mean_deviation` is mean_multiplicity/mean_nubar - 1 against the \
+             total nubar of the IAEA neutron data standards 2017 \
+             (doi:10.1016/j.nds.2018.02.002), which includes the delayed neutrons, and \
+             `mean_consistent` whether it lies within $(PAIR_SUM_TOLERANCE_SIGMAS) standard \
+             deviations of zero. A distribution whose mean lies further than \
+             $(MEAN_MULTIPLICITY_BAND) of nubar from it is refused as not that of the \
+             neutrons emitted"
     elseif query.ordinate == REFERENCE_RATIO_ORDINATE
         record["conventions"]["ratio"] = "each dataset is the ratio of the spectrum of $(system_reaction(query)) and that \
              of $(REFERENCE_SPECTRUM), both at the outgoing neutron energy E, written as \
