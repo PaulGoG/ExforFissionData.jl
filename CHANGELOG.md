@@ -11,8 +11,9 @@ Notable changes to ExforFissionData.jl. The format follows
 The mean centre-of-mass energy of the prompt neutrons against fragment mass becomes retrievable,
 the spectrum as a ratio to a Maxwellian extends to 239-Pu and 233-U, and a new ordinate takes the
 spectrum as a ratio to that of 252-Cf(sf): twelve configurations, 46 in all. Every table and
-stored subentry that 0.2.3 writes is written unchanged by 0.2.4; the records of the two
-Maxwellian-ratio retrievals of 0.2.3 gain the temperature keys, and nothing else changes in any
+stored subentry that 0.2.3 writes is written unchanged by 0.2.4: run against the archive on
+2026-10-02, the 34 configurations of 0.2.3 give the same 516 files byte for byte. The records of
+its two Maxwellian-ratio retrievals gain the temperature keys, and nothing else changes in any
 record beyond the `[run]` table and the timestamps.
 
 ### Added
