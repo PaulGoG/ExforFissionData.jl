@@ -6,6 +6,23 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-10-02
+
+The mean neutron energies of Batenkov 2004 read from their publication. Every table and stored
+subentry that 0.2.5 writes is written unchanged; two records change as stated below.
+
+### Changed
+
+- `41502008` (235-U) and `41502009` (239-Pu), Batenkov 2004
+  ([doi:10.1063/1.1945175](https://doi.org/10.1063/1.1945175)): the publication gives "the mean
+  energy in the fragment center of mass system" against mass in its Fig. 7 without saying how
+  the mean was formed, so `mean_formed_from` stays `unstated`, now on the publication itself. The
+  Maxwell shape that entry 41502 mentions is assumed for the ratios of the total laboratory
+  spectra to that of 252-Cf, not for the mean. "The experimental neutron registration threshold
+  was about 200 keV": the records of `U235_nth/eps_vs_A` and `Pu239_nth/eps_vs_A` gain
+  `mean_threshold_mev = 0.2` and `mean_threshold_frame = "laboratory"` for these datasets, and
+  their `mean_evidence` is rewritten.
+
 ## [0.2.5] - 2026-10-02
 
 The temperature and the exponent of the form fitted to the centre-of-mass neutron spectrum
@@ -499,7 +516,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.2...v0.2.3

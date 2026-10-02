@@ -3851,7 +3851,8 @@ of = "$(of)"
             ("14369005", "measured_spectrum", nothing),
             ("22464003", "unstated", 0.2),
             ("22650008", "measured_spectrum", 0.5),
-            ("41502008", "unstated", nothing),
+            ("41502008", "unstated", 0.2),
+            ("41502009", "unstated", 0.2),
             ("23444006", "unstated", nothing),
         )
             formation = mean_formation(identifier)
@@ -3879,7 +3880,10 @@ of = "$(of)"
             "mean_threshold_frame",
             "mean_threshold_mev",
         ]
-        @test formation_keys("41502008") == ["mean_evidence", "mean_formed_from"]
+        @test formation_keys("23444006") == ["mean_evidence", "mean_formed_from"]
+        # The publication read without finding how the mean was formed still gives its threshold.
+        @test occursin("doi:10.1063/1.1945175", mean_formation("41502008").evidence)
+        @test mean_formation("41502009").threshold_frame == "laboratory"
         # A threshold is stated in the frame its publication gives it in: the detector
         # threshold in the laboratory, the lower limit of the averaged spectrum in the centre
         # of mass (22650008).

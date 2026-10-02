@@ -1187,6 +1187,20 @@ const _BOWMAN_MEAN = MeanFormation(
      0.16 %, and the mean is not corrected for it",
 )
 
+const _BATENKOV_MEAN = MeanFormation(
+    "unstated",
+    "",
+    0.2,
+    "laboratory",
+    "Batenkov 2004 (doi:10.1063/1.1945175) names 'the mean neutron multiplicity <nu> and mean \
+     energy in the fragment center of mass system <epsilon>' (p. 1004) and shows 'the mass \
+     dependence of the mean neutron energy, <epsilon(m*)>' in Fig. 7 (p. 1006) without saying \
+     how the mean was formed; the results are called preliminary. The Maxwell shape entry \
+     41502 mentions is assumed for the ratios of the total laboratory spectra to that of \
+     252-Cf (p. 1005), not for the mean. 'The experimental neutron registration threshold \
+     was about 200 keV' (p. 1004)",
+)
+
 const _CASCADE_FORM = "const eta^lambda exp(-eta/T)"
 
 """
@@ -1256,26 +1270,8 @@ const MEAN_FORMATIONS = Dict{String, MeanFormation}(
          of Fig. 4' (p. 545), not how they were formed. 'The neutron threshold level of the \
          detector was set at 0.2 MeV' (p. 542)",
     ),
-    "41502008" => MeanFormation(
-        "unstated",
-        "",
-        nothing,
-        "",
-        "the publication, AIP Conf. Proc. 769, 1003 (doi:10.1063/1.1945175), was not \
-         obtained. Entry 41502 says of the analysis that 'the assumption that neutron \
-         spectrum has Maxwell shape was used' and gives a 'neutron registration threshold \
-         about 200 keV' (41502001, ANALYSIS, DETECTOR)",
-    ),
-    "41502009" => MeanFormation(
-        "unstated",
-        "",
-        nothing,
-        "",
-        "the publication, AIP Conf. Proc. 769, 1003 (doi:10.1063/1.1945175), was not \
-         obtained. Entry 41502 says of the analysis that 'the assumption that neutron \
-         spectrum has Maxwell shape was used' and gives a 'neutron registration threshold \
-         about 200 keV' (41502001, ANALYSIS, DETECTOR)",
-    ),
+    "41502008" => _BATENKOV_MEAN,
+    "41502009" => _BATENKOV_MEAN,
     "23444006" => MeanFormation(
         "unstated",
         "",
