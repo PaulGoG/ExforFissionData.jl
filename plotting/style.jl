@@ -123,6 +123,7 @@ const QUANTITY_LABELS = Dict{String, LaTeXString}(
     "neutron_kinetic_energy" => L"$\varepsilon$ [MeV]",
     "spectrum" => L"Spectrum [MeV$^{-1}$]",
     "spectrum_maxwellian_ratio" => LaTeXString("Ratio to Maxwellian"),
+    "spectrum_cf252_ratio" => L"Ratio to $^{252}$Cf(sf), either orientation",
     "mass" => L"Fragment mass $A$",
     "product_mass" => L"Fragment mass $A'$",
     "charge" => L"Fragment charge $Z$",
@@ -144,6 +145,7 @@ const QUANTITY_SYMBOLS = Dict{String, String}(
     "neutron_kinetic_energy" => "\\varepsilon",
     "spectrum" => "\\mathrm{spectrum}",
     "spectrum_maxwellian_ratio" => "\\mathrm{ratio}",
+    "spectrum_cf252_ratio" => "\\mathrm{ratio}",
 )
 
 """
