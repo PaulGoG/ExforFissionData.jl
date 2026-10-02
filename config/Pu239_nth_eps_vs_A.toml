@@ -1,15 +1,14 @@
-# Prompt neutron multiplicity per fragment against fragment mass and total kinetic energy jointly, thermal-neutron-induced fission of 233-U.
+# Mean centre-of-mass energy of the prompt neutrons against pre-neutron fragment mass, thermal-neutron-induced fission of 239-Pu.
 
 [query]
-target_Z = 92           # atomic number of the target, 1 to 118
-target_A = 233          # mass number of the target, at least target_Z and at most 300
+target_Z = 94           # atomic number of the target, 1 to 118
+target_A = 239          # mass number of the target, at least target_Z and at most 300
 channel = "nth"         # entrance channel, one of: "sf" | "nth" | "nres" | "nfast"
-abscissa = ["mass", "total_kinetic_energy"]
-                        # quantities the observable is tabulated against; one of:
+abscissa = ["mass"]     # quantities the observable is tabulated against; one of:
                         #   ["mass"] | ["product_mass"] | ["charge"] | ["neutron_energy"] |
                         #   ["total_kinetic_energy"] | ["charge", "product_mass"] |
                         #   ["mass", "total_kinetic_energy"]
-ordinate = "multiplicity"
+ordinate = "neutron_kinetic_energy"
                         # the observable; one of:
                         #   "yield" | "multiplicity" | "multiplicity_per_fission" |
                         #   "fragment_kinetic_energy" | "product_kinetic_energy" |

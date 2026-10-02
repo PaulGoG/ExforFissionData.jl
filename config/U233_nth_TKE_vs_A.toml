@@ -15,7 +15,7 @@ ordinate = "total_kinetic_energy"
                         #   "total_kinetic_energy" | "total_kinetic_energy_dispersion" |
                         #   "post_neutron_total_kinetic_energy" |
                         #   "neutron_kinetic_energy" | "spectrum" |
-                        #   "spectrum_maxwellian_ratio"
+                        #   "spectrum_maxwellian_ratio" | "spectrum_cf252_ratio"
 energy_min = 0.0        # incident energy window, MeV, inside the channel interval:
 energy_max = 1.0e-7     #   nth 0 to 1.0e-7 | nres 1.0e-7 to 0.1 | nfast 0.1 to 20
 

@@ -15,7 +15,7 @@ ordinate = "spectrum"   # the observable; one of:
                         #   "total_kinetic_energy" | "total_kinetic_energy_dispersion" |
                         #   "post_neutron_total_kinetic_energy" |
                         #   "neutron_kinetic_energy" | "spectrum" |
-                        #   "spectrum_maxwellian_ratio"
+                        #   "spectrum_maxwellian_ratio" | "spectrum_cf252_ratio"
 
 [retrieval]
 concurrency = 4         # simultaneous requests, 1 to 16
