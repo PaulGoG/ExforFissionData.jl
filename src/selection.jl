@@ -434,7 +434,9 @@ settles what the dataset is tabulated against. The first failure is reported.
 
 1–5. the csv tests of [`screen_dataset`](@ref), in its order;
 6. the subentry parses; for a spectrum, its energies are not in the centre-of-mass frame
-   (`E-CM`, `DATA-CM`); and a DATA column the subentry gives in arbitrary units is taken as
+   (`E-CM`, `DATA-CM`); a ratio to the spectrum of 252-Cf(sf) has no variable headed for its
+   numerator or denominator alone (`-NM`, `-DN`), so that both spectra are taken at one
+   outgoing energy; and a DATA column the subentry gives in arbitrary units is taken as
    such, whatever unit the csv rendering reports, and passes only where the observable admits a
    relative scale. A mean neutron energy exceeds [`MAXIMUM_NEUTRON_KINETIC_ENERGY`](@ref) on
    no row of step 5; see [`neutron_energy_refusal`](@ref);
@@ -454,9 +456,7 @@ settles what the dataset is tabulated against. The first failure is reported.
     fragment-mass abscissae, present and charge-coded for the charge abscissae, and absent for
     the energy abscissae;
 11. a spectrum given as a ratio to a Maxwellian states the temperature of that Maxwellian; see
-    [`maxwellian_temperature`](@ref). A ratio to the spectrum of 252-Cf(sf) has no variable
-    headed for its numerator or denominator alone (`-NM`, `-DN`), so that both spectra are taken
-    at one outgoing energy.
+    [`maxwellian_temperature`](@ref).
 
 Step 5 is a row filter rather than a whole-dataset test. An EXFOR dataset frequently reports the
 same product at several incident energies; admitting all of them and combining them later would
@@ -503,6 +503,19 @@ function select_dataset(
             code,
             "energies are in the centre-of-mass frame (E-CM), not the laboratory frame of a \
              spectrum",
+        )
+    end
+
+    # The two spectra of a ratio are taken at one outgoing energy: a variable headed for the
+    # numerator or the denominator alone (-NM, -DN) says they are not.
+    if query.ordinate == REFERENCE_RATIO_ORDINATE
+        split_headings =
+            filter(h -> endswith(h, "-NM") || endswith(h, "-DN"), subentry.data.headings)
+        isempty(split_headings) || return Rejection(
+            identifier,
+            code,
+            "numerator and denominator are tabulated against variables of their own \
+             ($(join(split_headings, ", "))), not both at one outgoing energy",
         )
     end
 
@@ -711,17 +724,8 @@ function select_dataset(
             )
     end
 
-    # The two spectra of a ratio are taken at one outgoing energy, and the record says which
-    # of them is the numerator.
+    # The record of a ratio says which of the two spectra is the numerator.
     if query.ordinate == REFERENCE_RATIO_ORDINATE
-        split_headings =
-            filter(h -> endswith(h, "-NM") || endswith(h, "-DN"), data.headings)
-        isempty(split_headings) || return Rejection(
-            identifier,
-            code,
-            "numerator and denominator are tabulated against variables of their own \
-             ($(join(split_headings, ", "))), not both at one outgoing energy",
-        )
         ratio = spectrum_ratio(code, system_reaction(query), query.channel)
         ratio isa String && return Rejection(identifier, code, ratio)
         record["ratio_numerator"] = ratio.numerator
