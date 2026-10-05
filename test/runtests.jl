@@ -4638,8 +4638,13 @@ of = "$(of)"
         end
         @test group("40418005").members == ["40418004", "40418005"]
         @test group("40418004").relation == "repeated_run"
-        # 40418007, a ratio the average 40418008 depends on, stands in no group.
-        @test group("40418007") === nothing
+        # One member formed from another: 40418008 from 40418007, superseding 40418006, and
+        # 30099003 from 30099002.
+        @test group("40418007").members == ["40418006", "40418007", "40418008"]
+        @test group("40418008").relation == "dependent"
+        @test group("30099003").members == ["30099002", "30099003"]
+        @test group("30099002").relation == "dependent"
+        @test "dependent" in relations
     end
 
     @testset "results the archive marks preliminary" begin
@@ -4738,6 +4743,133 @@ of = "$(of)"
         )
     end
 
+    @testset "a spectrum as the archive holds it" begin
+        cf = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["neutron_energy"],
+            ordinate = "spectrum",
+        )
+        # The csv rendering and the subentry of one spectrum of spontaneous fission, the
+        # energies as the subentry tabulates them, headed MEV, and the values in `unit`.
+        function spectrum_data(identifier, code, energies, values, unit)
+            local rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    reaction_code = code,
+                    value_kind = "Data($(unit))",
+                    secondary_ev = energy * 1.0e6,
+                    y = value,
+                ) for (energy, value) in zip(energies, values)
+            ]
+            local text = exfor_subentry(;
+                entry = first(identifier, 5),
+                subentry = identifier,
+                bib = ["REACTION   ($(code))"],
+                headings = ["E", "DATA"],
+                units = ["MEV", unit],
+                rows = [[energy, value] for (energy, value) in zip(energies, values)],
+            )
+            return exfor_csv(rows), text
+        end
+        selected(
+            identifier,
+            code,
+            energies;
+            values = [8.3, 9.1, 58.7],
+            unit = "ARB-UNITS",
+        ) = select_dataset(
+            identifier,
+            spectrum_data(identifier, code, energies, values, unit)...,
+            cf,
+        )
+        relative = "98-CF-252(0,F),PR,NU/DE,,REL"
+        headed = [5.128, 85.0, 2132.8]
+        in_mev = [0.005128, 0.085, 2.1328]
+
+        # 40064031 (Kroshkin 1970) heads its energies MEV where they are keV, and the table is
+        # written from keV.
+        miscoded = selected("40064031", relative, headed)
+        @test miscoded isa Dataset
+        @test ExforFissionData.miscoded_energy(miscoded) !== nothing
+        reduced = reduce_dataset(miscoded, cf)
+        @test isapprox(reduced.table.E, in_mev; rtol = 1.0e-12)
+        @test reduced.diagnostics["energy_unit_reported"] == "MEV"
+        @test occursin("keV", reduced.diagnostics["energy_unit_miscoded"])
+        # An entry the archive has corrected is read as headed.
+        corrected = selected("40064031", relative, in_mev)
+        @test corrected isa Dataset
+        @test ExforFissionData.miscoded_energy(corrected) === nothing
+        reduced = reduce_dataset(corrected, cf)
+        @test reduced.table.E == in_mev
+        @test !haskey(reduced.diagnostics, "energy_unit_miscoded")
+        # The reading belongs to the one dataset; any other is read as headed.
+        other = reduce_dataset(selected("10000002", relative, headed), cf)
+        @test isapprox(other.table.E, headed; rtol = 1.0e-12)
+        @test !haskey(other.diagnostics, "energy_unit_miscoded")
+
+        # RRE: N(E)/sqrt(E), written as tabulated and flagged.
+        reduced_form =
+            selected("10000003", "98-CF-252(0,F),PR,NU/DE,,RRE/REL", [0.5, 1.0, 2.0])
+        @test reduced_form isa Dataset
+        form = ExforFissionData.SPECTRUM_FORM_QUALIFIER
+        @test form in ExforFissionData._qualifiers(reduced_form)
+        @test startswith(form, "spectrum_form: N(E)/sqrt(E)")
+        # EVAL: an evaluation, written and flagged.
+        evaluation = selected(
+            "10000004",
+            "98-CF-252(0,F),PR,NU/DE,,NPD,EVAL",
+            [0.5, 1.0, 2.0];
+            values = [3.2e-7, 2.7e-7, 1.7e-7],
+            unit = "1/EV",
+        )
+        @test evaluation isa Dataset
+        evaluated = ExforFissionData.EVALUATION_QUALIFIER
+        @test evaluated in ExforFissionData._qualifiers(evaluation)
+        # A plain relative spectrum carries neither.
+        @test isdisjoint(ExforFissionData._qualifiers(miscoded), (form, evaluated))
+
+        # The run record of `datasets` under the configuration of `cf`; the warnings name them.
+        function run_record(datasets)
+            local directory = mktempdir()
+            local config_path = joinpath(directory, "configuration.toml")
+            write(
+                config_path,
+                """
+                [query]
+                target_Z = 98
+                target_A = 252
+                channel = "sf"
+                abscissa = ["neutron_energy"]
+                ordinate = "spectrum"
+                """,
+            )
+            local retrieved = DateTime(2026, 10, 1, 12)
+            local accepted = [
+                AcceptedDataset(
+                    dataset,
+                    reduce_dataset(dataset, cf),
+                    "$(dataset.identifier).dat",
+                    retrieved,
+                    false,
+                ) for dataset in datasets
+            ]
+            local record_path = joinpath(directory, "retrieval.toml")
+            write_metadata(
+                record_path,
+                load_configuration(config_path),
+                accepted,
+                Rejection[],
+                ExforFissionData.Listing(["10"], retrieved, false),
+            )
+            return TOML.parsefile(record_path)
+        end
+        record = run_record([reduced_form, evaluation])
+        @test endswith(record["datasets"]["spectrum_form_warning"], "10000003")
+        @test endswith(record["datasets"]["evaluation_warning"], "10000004")
+    end
+
     @testset "datasets a subentry marks superseded" begin
         superseded_qualifier = ExforFissionData.superseded_qualifier
         qualifier = superseded_qualifier("41516017")
@@ -4755,9 +4887,16 @@ of = "$(of)"
         @test startswith(superseded_qualifier("40875002"), "superseded: by 41158002")
         # Each shares a correlation group with the dataset that supersedes it, and no other.
         for (identifier, superseded) in ExforFissionData.SUPERSEDED_DATASETS
-            @test ExforFissionData.correlation_group(identifier).members ==
-                  [identifier, superseded.by]
-            @test ExforFissionData.correlation_group(identifier).relation == "republication"
+            shared = ExforFissionData.correlation_group(identifier)
+            @test superseded.by in shared.members
+            # A pair is a republication; with a third member formed from the same data the
+            # group is dependent.
+            if length(shared.members) == 2
+                @test shared.members == [identifier, superseded.by]
+                @test shared.relation == "republication"
+            else
+                @test shared.relation == "dependent"
+            end
         end
     end
 

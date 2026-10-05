@@ -137,11 +137,37 @@ function resolve_isomers(values::AbstractVector, uncertainties::AbstractVector, 
     return (value, uncertainty, :ambiguous, imputed)
 end
 
-# The values of the subentry column headed `heading` of every row, an energy converted to MeV,
-# or `nothing` when the dataset carries no such column.
+"""
+    miscoded_energy(dataset) -> Union{NamedTuple,Nothing}
+
+The entry of [`MISCODED_ENERGY_UNITS`](@ref) for `dataset` while the miscoding stands: the
+column is there, headed with the unit reported, and holds a value beyond the bound of the
+entry. `nothing` otherwise, so that an entry the archive has corrected is read as it is headed.
+"""
+function miscoded_energy(dataset::Dataset)
+    entry = get(MISCODED_ENERGY_UNITS, dataset.identifier, nothing)
+    entry === nothing && return nothing
+    entry.heading in names(dataset.columns) || return nothing
+    get(dataset.units, entry.heading, nothing) == entry.reported || return nothing
+    factor = energy_factor(entry.reported)
+    stands = any(
+        value -> value * factor > entry.beyond,
+        skipmissing(dataset.columns[!, entry.heading]),
+    )
+    return stands ? entry : nothing
+end
+
+# The values of the subentry column headed `heading` of every row, an energy converted to MeV
+# from the unit of its heading, or from the unit its values are in where the heading miscodes
+# it; `nothing` when the dataset carries no such column.
 function _heading_values(dataset::Dataset, heading::AbstractString, is_energy::Bool)
     heading in names(dataset.columns) || return nothing
-    factor = is_energy ? energy_factor(dataset.units[heading]) : 1.0
+    unit = dataset.units[heading]
+    if is_energy
+        miscoding = miscoded_energy(dataset)
+        miscoding !== nothing && miscoding.heading == heading && (unit = miscoding.unit)
+    end
+    factor = is_energy ? energy_factor(unit) : 1.0
     factor === nothing && throw(
         ArgumentError(
             "dataset $(dataset.identifier): unit \"$(dataset.units[heading])\" of column \
@@ -786,6 +812,11 @@ function reduce_dataset(
     )
     merge!(diagnostics, placement)
     miscoded === nothing || (diagnostics["unit_miscoded"] = miscoded)
+    energy_miscoding = miscoded_energy(dataset)
+    if energy_miscoding !== nothing
+        diagnostics["energy_unit_reported"] = energy_miscoding.reported
+        diagnostics["energy_unit_miscoded"] = energy_miscoding.evidence
+    end
     isempty(note) || (diagnostics["mass_placement_refused"] = note)
     if mass_position !== nothing && !isempty(final_keys)
         written = [key[mass_position] for key in final_keys]

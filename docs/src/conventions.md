@@ -165,13 +165,19 @@ recorded per dataset without rejecting it where the observable admits them, and 
 except that a spectrum no measurement of the channel can have been made in rejects the dataset;
 see [Entrance channels](channels.md).
 
+Two statements of the reaction code on what a dataset is are written among its `qualifiers` under
+a prefix of their own and named in a warning, the dataset being written as the archive holds it:
+`spectrum_form:` for a spectrum coded `RRE`, which is N(E)/√E and is not converted
+(`spectrum_form_warning`), and `evaluation:` for a dataset coded `EVAL` (`evaluation_warning`).
+
 A dataset its subentry marks superseded (`STATUS`, code `SPSDD`) is written beside the dataset
 that supersedes it, and neither is refused. The two are one measurement, a group of relation
-`republication`, and name each other as `correlated_with`, which does not say which of them the
-authors withdrew; the superseded one carries among its `qualifiers` an entry beginning
-`superseded: by` followed by the accession of the other, and `superseded_warning` under
-`[datasets]` lists the pairs. A consumer wanting one of the two takes the superseding dataset on
-that entry.
+`republication`, or `dependent` where a third dataset formed from the same data joins them, as for
+`40418006`, `40418007` and `40418008`, and name each other as `correlated_with`, which does not
+say which of them the authors withdrew; the superseded one carries among its `qualifiers` an
+entry beginning `superseded: by` followed by the accession of the other, and `superseded_warning`
+under `[datasets]` lists the pairs. A consumer wanting one of the two takes the superseding
+dataset on that entry.
 
 Datasets of one experiment are written separately and grouped ([`CORRELATION_GROUPS`](@ref)):
 each names the others as `correlated_with`, with the reason as `correlation` and the relation as
@@ -186,6 +192,8 @@ of [`CORRELATION_RELATIONS`](@ref), and says what a consumer does with the group
   at another flight path; combine the members as one.
 - `complementary_range`: parts of one spectrum, each over its own range; join them under one
   normalisation.
+- `dependent`: one member is formed from another, an average that includes it or a derivation;
+  use one, never both.
 
 A group is formed from the text of the subentries, and of the publication where they do not
 decide, case by case; the archive's `COREL` alone does not make one.
@@ -332,3 +340,12 @@ it reports at 85 keV to 0.75 MeV. The column is keV. The dataset is retrieved an
 archive states it, since a unit token is not something this package overrules, but its abscissa is
 a factor of 1000 too large and it is the one dataset in `Cf252_sf/spectrum_vs_E` reaching past
 40 MeV — a sanity check on the abscissa range finds it immediately.
+
+### An energy column headed with the wrong unit
+
+`40064031` (Kroshkin 1970) heads its outgoing energies `MEV` where they run from 5.128 to 2132.8,
+and its own text gives "the 5 keV - 2 MeV energy range". The values are keV, and the table is
+written from keV, a factor 1000 below what the subentry and the rendering state; the record
+carries `energy_unit_reported` and `energy_unit_miscoded`. The reading stands only while the
+column as headed holds a value beyond 100 MeV, so that an entry the archive corrects is read as
+headed.

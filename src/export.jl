@@ -163,8 +163,13 @@ function _curation_record(identifier::AbstractString)
     return record
 end
 
+# The reaction-code tags of a spectrum held as N(E)/sqrt(E) and of an evaluation.
+const SPECTRUM_FORM_TAG = "SF8:RRE"
+const EVALUATION_TAG = "SF9:EVAL"
+
 # The qualifiers of one accepted dataset for the run record: those of its reaction code, of
-# both reactions where it is a ratio, the flag of a mean neutron energy whose frame the
+# both reactions where it is a ratio, the flags of a spectrum held as N(E)/sqrt(E) and of an
+# evaluation, the flag of a mean neutron energy whose frame the
 # subentry leaves unstated, that of a dataset the archive marks preliminary, that of a dataset
 # its subentry marks superseded, that of a multiplicity derived from fragment masses, and that
 # of a mean whose threshold its publication leaves unsettled.
@@ -175,6 +180,10 @@ function _qualifiers(dataset::Dataset)
         haskey(dataset.record, key) &&
             union!(qualifiers, code_qualifiers(dataset.record[key]))
     end
+    has_code(dataset.reaction_code, SPECTRUM_FORM_TAG) &&
+        push!(qualifiers, SPECTRUM_FORM_QUALIFIER)
+    has_code(dataset.reaction_code, EVALUATION_TAG) &&
+        push!(qualifiers, EVALUATION_QUALIFIER)
     get(dataset.record, "ordinate_frame", nothing) == "unstated" &&
         push!(qualifiers, FRAME_UNSTATED_QUALIFIER)
     preliminary = preliminary_qualifier(dataset.identifier)
@@ -432,6 +441,27 @@ function write_metadata(
              `qualifiers`, and where one of the two is wanted the superseding dataset is \
              the authors' own choice: " * join(superseded, ", ")
     end
+    reduced_form = [
+        entry.dataset.identifier for
+        entry in accepted if has_code(entry.dataset.reaction_code, SPECTRUM_FORM_TAG)
+    ]
+    if !isempty(reduced_form)
+        record["datasets"]["spectrum_form_warning"] =
+            "these datasets hold N(E)/sqrt(E), the spectrum divided by the square root of \
+             the outgoing neutron energy (RRE in their reaction code), and not the spectrum; \
+             they are written as tabulated and flagged among their `qualifiers`: " *
+            join(reduced_form, ", ")
+    end
+    evaluations = [
+        entry.dataset.identifier for
+        entry in accepted if has_code(entry.dataset.reaction_code, EVALUATION_TAG)
+    ]
+    if !isempty(evaluations)
+        record["datasets"]["evaluation_warning"] =
+            "these datasets are evaluations (EVAL in their reaction code), not \
+             measurements; they are written and flagged among their `qualifiers`: " *
+            join(evaluations, ", ")
+    end
     if !isempty(flagged)
         record["datasets"]["scale_warning"] =
             "these datasets carry a reaction-code qualifier that bears on their scale — see \
@@ -464,8 +494,9 @@ function write_metadata(
              a republication take one, by default the one not flagged `superseded:`; of an \
              alternative_analysis, one measurement reduced more than once, take one or \
              combine the members as one; of a repeated_run combine the members as one; of a \
-             complementary_range join the members under one normalisation. No group counts \
-             once per member: " * join(correlated, ", ")
+             complementary_range join the members under one normalisation; of a dependent \
+             group, one member formed from another, use one. No group counts once per \
+             member: " * join(correlated, ", ")
     end
     relative = [
         entry.dataset.identifier for

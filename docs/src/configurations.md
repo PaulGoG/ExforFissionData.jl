@@ -97,19 +97,26 @@ so these configurations omit `energy_min` and `energy_max`.
   14477002 and 14477003 (Blain 2017), the high- and low-energy portions of one measurement, and
   40064027 and 40064031 (Kroshkin 1970), two figures of one measurement, are relation
   `complementary_range`, each naming the other as `correlated_with`; 40064027 is tabulated as
-  N(E)/√E, and 40064031 is written with the energies its subentry heads `MEV` where its own text
-  gives keV. 40418004 and 40418005 (Blinov 1973), one spectrum at two flight paths, are relation
-  `repeated_run`, each naming the other as `correlated_with`.
+  N(E)/√E; the subentry of 40064031 heads the energies `MEV` where they are keV, and the table is
+  written from keV. 40418004 and 40418005 (Blinov 1973), one spectrum at two flight paths, are
+  relation `repeated_run`, each naming the other as `correlated_with`. 30099003 (Jeki 1971) is
+  derived from 30099002, relation `dependent`, each naming the other as `correlated_with`.
+  23175004, 40064027, 40250003 and 41689002 are N(E)/√E and carry a qualifier beginning
+  `spectrum_form:`; V0101002 (Mannhart 1987) is an evaluation and carries one beginning
+  `evaluation:`.
 - `Cf252_sf_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, against
-  secondary neutron energy. The subentry of 40418006 (Blinov 1973) marks it superseded by
-  40418008, a table of the same measurement where it was read off a figure; that of 40875003
-  (Dyachenko 1989), with uncertainties, marks it superseded by 41158003 (Lajtai 1990), which
-  states none. Each pair is written, each naming the other as `correlated_with`, and the
-  superseded one carries a qualifier beginning `superseded:`. The ten datasets of 22202 (Chalupka
+  secondary neutron energy. 40418006, 40418007 and 40418008 (Blinov 1973) are one group of
+  relation `dependent`, each naming the others as `correlated_with`: 40418008, the table, is
+  formed from 40418007, the ratio at 50 cm, and supersedes 40418006, read off a figure, which
+  carries a qualifier beginning `superseded:`; one of the three is used. The subentry of
+  40875003 (Dyachenko 1989), with uncertainties, marks it superseded by 41158003 (Lajtai 1990),
+  which states none; both are written, each naming the other as `correlated_with`, and
+  40875003 carries a qualifier beginning `superseded:`. The ten datasets of 22202 (Chalupka
   1990) are selections of one measurement by energy grouping and detector bias, relation
-  `alternative_analysis`, each naming the others as `correlated_with`: one measurement,
-  never counted as several. 40535002 to 40535005 (Blinov 1980) are one spectrum at four flight paths over
-  successive ranges, relation `complementary_range`, each naming the others as `correlated_with`.
+  `alternative_analysis`, each naming the others as `correlated_with`: one measurement, never
+  counted as several. 40535002 to 40535005 (Blinov 1980) are one spectrum at four flight paths
+  over successive ranges, relation `complementary_range`, each naming the others as
+  `correlated_with`.
 - `Cf252_sf_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 14065003
   (Bowman 1963), 23175012 (Budtz-Jørgensen 1988), 23268011 (Göök 2014) and 41689005 (Piksaykin
   1977), the second and fourth headed `DATA` and in the centre of mass by their publications.

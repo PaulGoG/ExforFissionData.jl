@@ -708,9 +708,16 @@ know to use them as the one measurement they are:
   at another flight path; combine the members as one.
 - `complementary_range`: parts of one spectrum, each over its own range; join them under one
   normalisation.
+- `dependent`: one member is formed from another, an average that includes it or a derivation;
+  use one, never both.
 """
-const CORRELATION_RELATIONS =
-    ("republication", "alternative_analysis", "repeated_run", "complementary_range")
+const CORRELATION_RELATIONS = (
+    "republication",
+    "alternative_analysis",
+    "repeated_run",
+    "complementary_range",
+    "dependent",
+)
 
 """
     CorrelationGroup(members, relation, reason)
@@ -828,15 +835,18 @@ const CORRELATION_GROUPS = [
          one measurement for any combination, not four",
     ),
     CorrelationGroup(
-        ["40418006", "40418008"],
-        "republication",
+        ["40418006", "40418007", "40418008"],
+        "dependent",
         "one measurement of the ratio of the 252-Cf(sf) spectrum to a Maxwellian of 1.42 MeV \
-         (Blinov 1973), published twice: 40418006, 98 points from 0.012 to 6.7 MeV digitised \
-         from Fig. 4 of the Antwerp 1982 proceedings, is marked superseded in its STATUS \
-         (SPSDD) by 40418008, the 79 energy groups from 0.012 to 11.4 MeV of Table 5 of \
-         INDC(CCP)-0238, whose STATUS says 'This data supersede data of Subent 006'. \
-         40418006 carries nothing its successor lacks but a finer grid, read off a figure \
-         whose symbols overlap (COMMENT)",
+         (Blinov 1973) in three datasets, of which 40418008 is the derived one: the 79 energy \
+         groups from 0.012 to 11.4 MeV of Table 5 of INDC(CCP)-0238, an average over the \
+         flight paths of 25, 50 and 100 cm and two measurement steps. Its STATUS names \
+         40418007, the ratio of the second step at 50 cm, among the data it depends on (DEP), \
+         and says 'This data supersede data of Subent 006': 40418006, 98 points from 0.012 to \
+         6.7 MeV digitised from Fig. 4 of the Antwerp 1982 proceedings, is the earlier average \
+         over the three flight paths, marked superseded in its own STATUS (SPSDD), with \
+         nothing its successor lacks but a finer grid read off a figure whose symbols overlap \
+         (COMMENT). One of the three is used, by default 40418008, never two",
     ),
     CorrelationGroup(
         ["40875003", "41158003"],
@@ -954,8 +964,8 @@ const CORRELATION_GROUPS = [
          1970, vol. 2, p. 183), each naming the other in its STATUS (COREL): 40064027, Fig. 4, \
          17 points from 0.47 to 6.0 MeV, and 40064031, Fig. 7, 48 points over 'the 5 keV - 2 \
          MeV energy range'. The two are not in one form: 40064027 is N(E)/sqrt(E), RRE in its \
-         code, and 40064031 heads its energies MEV where they run from 5.1 to 2133, the keV \
-         of its own text, and is written as headed",
+         code. 40064031 heads its energies MEV where they run from 5.1 to 2133, the keV of \
+         its own text, and is written from keV",
     ),
     CorrelationGroup(
         ["40418004", "40418005"],
@@ -965,6 +975,15 @@ const CORRELATION_GROUPS = [
          (40418004, 0.014 to 7.7 MeV) and 50 cm (40418005, 0.054 to 8.7 MeV), over nearly the \
          same range; each names the other in its STATUS (COREL). The ratio to a Maxwellian \
          40418008 of the same entry names 40418004 among the data it depends on (DEP)",
+    ),
+    CorrelationGroup(
+        ["30099002", "30099003"],
+        "dependent",
+        "two tables of one measurement of the 252-Cf(sf) spectrum from 0.002 to 1 MeV (Jeki \
+         1971, KFKI-71-63), of which 30099003 is the derived one: Table 2, 'the summarized \
+         results of the measurement ... in the range 0.009-0.095 MeV', 16 points, formed from \
+         the 63 points from 0.0024 to 1.07 MeV of Table 1, 30099002, in a way its STATUS \
+         calls 'unspecified' (DEP). One of the two is used, never both",
     ),
     CorrelationGroup(
         ["40871006", "40871014"],
@@ -1738,6 +1757,54 @@ const MASS_DIFFERENCE_QUALIFIER = "multiplicity_from_masses: the multiplicity is
 """
 mass_difference_qualifier(identifier::AbstractString) =
     haskey(MASS_DIFFERENCE_MULTIPLICITIES, identifier) ? MASS_DIFFERENCE_QUALIFIER : nothing
+
+"""
+The qualifier of a spectrum the archive holds divided by the square root of the outgoing
+neutron energy, `RRE` among the modifiers of its reaction code. The table is written as
+tabulated; `spectrum_form_warning` names the datasets.
+"""
+const SPECTRUM_FORM_QUALIFIER = "spectrum_form: N(E)/sqrt(E), the spectrum divided by the \
+     square root of the outgoing neutron energy (RRE in its reaction code); written as \
+     tabulated, not converted to N(E)"
+
+"""
+The qualifier of a dataset the archive holds as an evaluation, `EVAL` as the data type of its
+reaction code. It is written and flagged, like every other statement of the archive on the
+standing of a dataset; `evaluation_warning` names the datasets.
+"""
+const EVALUATION_QUALIFIER = "evaluation: EVAL in its reaction code; an evaluation, not a \
+     measurement, written as the archive holds it"
+
+"""
+Energy columns whose unit the subentry miscodes, keyed by the dataset identifier: the `heading`
+of the column, the unit `reported` for it, the `unit` its values are in, and the `evidence`. The
+miscoding is taken to stand while the column, read as headed, holds a value `beyond` so many
+MeV, which no fission neutron reaches; an entry the archive has corrected is then read as it is
+headed. The reduction converts from the unit the values are in and records the miscoding as
+`energy_unit_miscoded`; see [`miscoded_energy`](@ref).
+"""
+const MISCODED_ENERGY_UNITS = Dict{
+    String,
+    @NamedTuple{
+        heading::String,
+        reported::String,
+        unit::String,
+        beyond::Float64,
+        evidence::String,
+    }
+}(
+    "40064031" => (
+        heading = "E",
+        reported = "MEV",
+        unit = "KEV",
+        beyond = 100.0,
+        evidence = "the subentry heads E MEV, a miscoding: its values run from 5.128 to \
+                    2132.8, and its REACTION text gives the range of the figure digitised as \
+                    'the 5 keV - 2 MeV energy range'. They are keV, and the energies are \
+                    written in MeV from keV, a factor 1000 below what the subentry and the \
+                    csv rendering state",
+    ),
+)
 
 """
 The qualifier written among the `qualifiers` of a dataset whose [`ordinate_frame`](@ref) is

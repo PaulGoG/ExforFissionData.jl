@@ -228,6 +228,12 @@ column for the other systems.
 
 ## Spectrum ratios
 
+Under `spectrum` the archive holds four 252-Cf(sf) datasets as N(E)/√E, `RRE` among the
+modifiers of their code: `23175004`, `40064027`, `40250003` and `41689002`. They are written as
+tabulated, not converted, and carry a qualifier beginning `spectrum_form:`. It holds one
+evaluation there, `V0101002` (Mannhart 1987), written and flagged with a qualifier beginning
+`evaluation:`.
+
 The archive gives the spectrum as a ratio in two forms, and each is an ordinate of its own.
 
 `spectrum_maxwellian_ratio` is the spectrum divided by a Maxwellian √E exp(−E/T), coded with

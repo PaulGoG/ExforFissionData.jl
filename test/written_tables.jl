@@ -11,7 +11,8 @@
 # in the tree: every stored subentry whose STATUS carries SPSDD is listed in `SUPERSEDED_DATASETS`
 # with the accession the code names, and none else; PRELM in the common subentry of an entry puts
 # the entry in `PRELIMINARY_ENTRIES`, PRELM in the subentry itself puts it in
-# `PRELIMINARY_SUBENTRIES`, and none else.
+# `PRELIMINARY_SUBENTRIES`, and none else. A `DEP` code naming a dataset written in the same
+# directory puts the two in one correlation group of relation `dependent`.
 #
 # The tree is the directory named by EXFORFISSIONDATA_TREE, else the repository's own data/.
 # Without one, as in continuous integration, the check is skipped.
@@ -117,6 +118,7 @@ if isdir(TREE)
         superseded = String[]
         entries = String[]
         subentries = String[]
+        dependent = String[]
         checked = 0
         for (directory, _, files) in walkdir(TREE)
             basename(directory) == "subentries" || continue
@@ -141,12 +143,24 @@ if isdir(TREE)
                 ("PRELM" in codes.own) ==
                 haskey(ExforFissionData.PRELIMINARY_SUBENTRIES, first(identifier, 8)) ||
                     push!(subentries, identifier)
+                # DEP on a dataset written beside it: the two share a dependent group.
+                for code in codes.own
+                    startswith(code, "DEP,") || continue
+                    source = String(last(split(code, ',')))
+                    any(startswith(source), files) || continue
+                    shared = ExforFissionData.correlation_group(identifier)
+                    shared !== nothing &&
+                    shared.relation == "dependent" &&
+                    any(startswith(source), shared.members) ||
+                        push!(dependent, "$(identifier): STATUS depends on $(source)")
+                end
             end
         end
         @test checked > 0
         @test isempty(superseded)
         @test isempty(entries)
         @test isempty(subentries)
+        @test isempty(dependent)
         @info "flags checked against the STATUS codes of the stored subentries" tree = TREE checked
     end
 else
