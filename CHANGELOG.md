@@ -6,6 +6,60 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-10-05
+
+The spectrum datasets of one experiment grouped, and three multiplicity and mean-energy readings
+taken from their articles. Every table and stored subentry that 0.2.7 writes is written
+unchanged: run against the archive on 2026-10-05, its 52 configurations give the same 638 files
+byte for byte, and no dataset changes status. The record entries of 31 datasets change, in the
+keys named below, with two warnings under `[datasets]` and one rejection reason.
+
+### Added
+
+- Correlation groups for seven sets of spectrum datasets that the archive links with `COREL`,
+  so that their members gain `correlated_with`, `correlation` and `correlation_relation`:
+  - `222020031` to `222020072`, the ten datasets of Chalupka 1990 in
+    `Cf252_sf/spectrum_maxwellian_ratio_vs_E`, `alternative_analysis`: selections of one
+    measurement by energy grouping and detector bias;
+  - `40535002` to `40535005` (Blinov 1980) in the same directory, `complementary_range`: one
+    spectrum at four flight paths over successive ranges, 0.36 keV to 2 MeV;
+  - `14477002` and `14477003` (Blain 2017) in `Cf252_sf/spectrum_vs_E`, `complementary_range`:
+    the high- and low-energy portions from two detectors;
+  - `40064027` and `40064031` (Kroshkin 1970) in the same directory, `complementary_range`: two
+    figures of one measurement;
+  - `40418004` and `40418005` (Blinov 1973) in the same directory, `repeated_run`: one spectrum
+    at two flight paths;
+  - `40871006` and `40871014` in `Pu239_nth/spectrum_vs_E`, and `40871007` and `40871015` in
+    `U235_nth/spectrum_vs_E` (Nefedov 1983), `complementary_range`: flight paths of 51 cm below
+    about 2 MeV and 2.313 m above.
+- A qualifier beginning `multiplicity_from_masses:` on `23012008` (Nishio 1995,
+  [doi:10.1080/18811248.1995.9731725](https://doi.org/10.1080/18811248.1995.9731725)) in
+  `Pu239_nth/nu_vs_A`, with the passages of the article as `curation`: its ν(m*) is the
+  difference of the pre- and post-neutron fragment masses of one measurement of both velocities
+  and energies, no neutron being detected (p. 404); its total is 3.2 ± 0.1, "about 10 % larger
+  than the evaluated value of JENDL-3" (p. 411); and the ν(m*) of Apalin enters its correction
+  for the plasma delay (p. 408). It is selected by its code as before and is not refused.
+- A qualifier beginning `mean_threshold_unsettled:` on `22650008` (Tsuchiya 2000) in
+  `Pu239_nth/eps_vs_A`. The article averages "all experimental points above 0.5 MeV" and leaves
+  open whether the range below enters the mean; `mean_evidence` says so, and
+  `mean_threshold_mev` is not to be applied as a cut.
+
+### Changed
+
+- `alternative_analysis` means one measurement: take one member, or combine the members as one,
+  and never count them as several. It said to take one. `correlated_warning` carries the new
+  wording in the thirteen records that held it, and the `correlation` of `41720002` and
+  `41694002` in `Cf252_sf/nu_vs_A` and of `41720004` and `41694003` in `Pu239_nth/nu_vs_A` says
+  that the two reductions may be combined as one, their difference entering as an uncertainty.
+- `22650004` (Tsuchiya 2000,
+  [doi:10.1080/18811248.2000.9714976](https://doi.org/10.1080/18811248.2000.9714976)) in
+  `Pu239_nth/nu_vs_A` is read with its article: the multiplicity is normalised to 2.88 neutrons
+  per fission and the mass resolution is about 6 u (p. 944). Its pair sum, 3.9 % above ν̄, is
+  then the consistency of the tabulated ν(A) and Y(A) with that normalisation, not a scale of
+  its own. `curation` is rewritten, `classification_basis` becomes `data+paper`, and
+  `pair_sum_warning` in that record no longer calls every deviation a scale. The reason
+  `22650004` is refused with in `Pu239_nth/P_vs_nu` quotes its curation and changes with it.
+
 ## [0.2.7] - 2026-10-05
 
 How the datasets of one experiment are related, and the archive's marks of superseded and
@@ -593,7 +647,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.7...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.8...HEAD
+[0.2.8]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.4...v0.2.5
