@@ -8,11 +8,24 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [0.2.8] - 2026-10-05
 
-The spectrum datasets of one experiment grouped, and three multiplicity and mean-energy readings
-taken from their articles. Every table and stored subentry that 0.2.7 writes is written
-unchanged: run against the archive on 2026-10-05, its 52 configurations give the same 638 files
-byte for byte, and no dataset changes status. The record entries of 31 datasets change, in the
-keys named below, with two warnings under `[datasets]` and one rejection reason.
+The spectrum datasets of one experiment grouped, three multiplicity and mean-energy readings
+taken from their articles, and four statements of the archive on its spectrum datasets carried
+into the record. One table changes, the exception to byte identity in this release:
+`Cf252_sf/spectrum_vs_E/relative/40064031_N.I.Kroshkin_1970.dat`, whose energies are written a
+factor 1000 lower (see Fixed). Every other table and every stored subentry that 0.2.7 writes is
+written unchanged: run against the archive on 2026-10-05, its 52 configurations give 637 of the
+638 files byte for byte, and no dataset changes status. The record entries of 40 datasets
+change, in the keys named below, with four warnings under `[datasets]` and one rejection reason.
+
+### Fixed
+
+- `40064031` (Kroshkin 1970) in `Cf252_sf/spectrum_vs_E/relative`: the subentry heads its
+  outgoing energies `MEV` where the values run from 5.128 to 2132.8, and its own text gives "the
+  5 keV - 2 MeV energy range". They are keV. The energies of the table are now written from
+  keV, 0.005128 to 2.1328 MeV, a factor 1000 below those of 0.2.7; the 48 ordinates and
+  uncertainties are unchanged. The record gains `energy_unit_reported = "MEV"` and
+  `energy_unit_miscoded`, the evidence. The reading stands only while the column, read as
+  headed, holds a value beyond 100 MeV, so an entry the archive corrects is read as headed.
 
 ### Added
 
@@ -32,6 +45,18 @@ keys named below, with two warnings under `[datasets]` and one rejection reason.
   - `40871006` and `40871014` in `Pu239_nth/spectrum_vs_E`, and `40871007` and `40871015` in
     `U235_nth/spectrum_vs_E` (Nefedov 1983), `complementary_range`: flight paths of 51 cm below
     about 2 MeV and 2.313 m above.
+- A fifth relation, `dependent`: one member is formed from another, an average that includes it
+  or a derivation; use one, never both. `30099003` (Jeki 1971), the summarised table, is derived
+  from `30099002` in `Cf252_sf/spectrum_vs_E`, and both gain `correlated_with`, `correlation`
+  and `correlation_relation`. `40418007` joins `40418006` and `40418008` in
+  `Cf252_sf/spectrum_maxwellian_ratio_vs_E` (see Changed).
+- A qualifier beginning `spectrum_form:` on the four spectra the archive holds as N(E)/√E, `RRE`
+  among the modifiers of their code: `23175004`, `40064027`, `40250003` and `41689002` in
+  `Cf252_sf/spectrum_vs_E`, with `spectrum_form_warning` under `[datasets]`. Their tables are
+  written as tabulated, as before, and are not converted.
+- A qualifier beginning `evaluation:` on `V0101002` (Mannhart 1987) in `Cf252_sf/spectrum_vs_E`,
+  whose code carries `EVAL`, with `evaluation_warning` under `[datasets]`. An evaluation is
+  written and flagged, like every other statement of the archive on the standing of a dataset.
 - A qualifier beginning `multiplicity_from_masses:` on `23012008` (Nishio 1995,
   [doi:10.1080/18811248.1995.9731725](https://doi.org/10.1080/18811248.1995.9731725)) in
   `Pu239_nth/nu_vs_A`, with the passages of the article as `curation`: its ν(m*) is the
@@ -46,9 +71,18 @@ keys named below, with two warnings under `[datasets]` and one rejection reason.
 
 ### Changed
 
+- `40418006` and `40418008` (Blinov 1973), a `republication` pair in 0.2.7, stand with
+  `40418007` in one group of relation `dependent`: `40418008`, the table, is formed from
+  `40418007`, the ratio at 50 cm (`DEP` in its `STATUS`), and supersedes `40418006`. A dataset
+  stands in one group, so the three share one; `correlated_with`, `correlation` and
+  `correlation_relation` change on the two and are new on `40418007`. `40418006` keeps its
+  `superseded:` qualifier. One of the three is used.
+- The check of the `superseded:` and `preliminary:` flags against the `STATUS` codes of the
+  stored subentries also holds the relation `dependent` to the `DEP` codes that name a dataset
+  written in the same directory.
 - `alternative_analysis` means one measurement: take one member, or combine the members as one,
   and never count them as several. It said to take one. `correlated_warning` carries the new
-  wording in the thirteen records that held it, and the `correlation` of `41720002` and
+  wording, and the relation `dependent`, in the thirteen records that held it, and the `correlation` of `41720002` and
   `41694002` in `Cf252_sf/nu_vs_A` and of `41720004` and `41694003` in `Pu239_nth/nu_vs_A` says
   that the two reductions may be combined as one, their difference entering as an uncertainty.
 - `22650004` (Tsuchiya 2000,
