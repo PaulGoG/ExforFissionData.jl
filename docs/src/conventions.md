@@ -180,7 +180,8 @@ of [`CORRELATION_RELATIONS`](@ref), and says what a consumer does with the group
 
 - `republication`: one result published twice, the earlier marked superseded by the later; take
   one, by default the later, the one not flagged `superseded:`.
-- `alternative_analysis`: one set of events reduced twice; take one.
+- `alternative_analysis`: one measurement reduced more than once; take one, or combine the
+  members as one; never count them as several.
 - `repeated_run`: the quantity measured again in the same experiment, in another run or cycle or
   at another flight path; combine the members as one.
 - `complementary_range`: parts of one spectrum, each over its own range; join them under one
@@ -246,8 +247,18 @@ experiment's own where its entry has a pre-neutron Y(A) (`pair_sum_yields_own = 
 fallback for the system: `23268003` (Göök 2014) for 252-Cf, `21981005`, `21981006` and
 `21981007` (Geltenbort 1985) for 233-U, 235-U and 239-Pu. `scale_consistent` is false where the
 deviation exceeds three standard deviations, and absent where the dataset states no uncertainty.
-A dataset whose scale is not that of ν̄ is accepted on its reading, its values uncorrected, and
-named in `pair_sum_warning`.
+A dataset whose pair sum misses ν̄ by more than three standard deviations is accepted on its
+reading, its values uncorrected, and named in `pair_sum_warning`; `curation` says what the
+deviation is, a scale other than that of ν̄ or, for a set its publication normalises to a stated
+ν̄, the consistency of the tabulated ν(A) and Y(A) with that normalisation.
+
+A multiplicity obtained as the difference of the pre- and post-neutron fragment masses of one
+measurement, no neutron being detected, is selected by its code and flagged: a qualifier
+beginning `multiplicity_from_masses:`, and the passages of its publication as `curation`.
+`23012008` (Nishio 1995,
+[doi:10.1080/18811248.1995.9731725](https://doi.org/10.1080/18811248.1995.9731725)) is the one
+such dataset: its total is 3.2 ± 0.1, and the ν(m*) of Apalin enters its correction for the
+plasma delay.
 
 **Basis.** `classification_basis` is `data` where the data alone decide and `data+paper` where
 the publication, consulted, agrees. Every reading carries its test values as `curation` in the run
@@ -267,7 +278,7 @@ Read per fragment, and accepted where the configuration's incident-energy window
 | `41502007` (Batenkov 2004), 239-Pu at 0.296 eV | 9 pairs; χ² per pair 14 | −0.020 ± 0.037, fallback | `data` |
 | `41712005` (Alkhazov 1988), ν(A, TKE) | two mass groups; at the mean TKE 0.57 rms from `41712002`, 2.06 from its pair sum | — | `data` |
 | `14652004` (Britt 1964) | 16 pairs, no uncertainty; one change of sign, 1.7 × 10⁻⁴ as noise | −0.007, fallback; not weighed | `data` |
-| `22650004` (Tsuchiya 2000) | 42 pairs; χ² per pair 105 | +0.039 ± 0.006, own; **not consistent** | `data` |
+| `22650004` (Tsuchiya 2000) | 42 pairs; χ² per pair 105 | +0.039 ± 0.006, own; **not consistent**, the deviation of the table from its stated normalisation | `data+paper`: p. 944 of [doi:10.1080/18811248.2000.9714976](https://doi.org/10.1080/18811248.2000.9714976), normalised to 2.88 neutrons per fission, mass resolution about 6 u |
 | `41502006` (Batenkov 2004) | 9 pairs; χ² per pair 74 | −0.107 ± 0.013, fallback; **not consistent** | `data` |
 
 No shipped configuration writes `21834009` and `21834010`, at fast energies; `41502007`, in the

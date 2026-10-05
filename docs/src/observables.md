@@ -160,7 +160,9 @@ measured centre-of-mass spectrum; `fitted_spectrum`, the first moment of a form 
 is stated in, the detector threshold in the laboratory or the lower limit of the averaged
 centre-of-mass spectrum, and `mean_evidence`
 the sentence or equation, with the DOI. A threshold is recorded only from a publication read;
-what an EXFOR entry alone says of one is quoted in `mean_evidence`.
+what an EXFOR entry alone says of one is quoted in `mean_evidence`. Where a publication leaves open
+whether the range below the limit enters the mean, the dataset carries a qualifier beginning
+`mean_threshold_unsettled:` and the limit is not a cut.
 
 | Dataset | `mean_formed_from` | Threshold and its frame | Source |
 | :--- | :--- | :--- | :--- |
@@ -171,7 +173,7 @@ what an EXFOR entry alone says of one is quoted in `mean_evidence`.
 | `22464003` (Nishio 1998, 235-U) | `unstated`: "the mean values of the neutron energy" are plotted without a word on how they were formed | 0.2 MeV, laboratory | [doi:10.1016/S0375-9474(98)00008-6](https://doi.org/10.1016/S0375-9474(98)00008-6) |
 | `41502008`, `41502009` (Batenkov 2004) | `unstated`: the mean energy in the fragment centre-of-mass system is shown without a word on how it was formed; the Maxwell shape the entry mentions is assumed for the ratios of the total spectra to 252-Cf, not for the mean; the publication calls its results preliminary, which the `qualifiers` say | 0.2 MeV, laboratory | [doi:10.1063/1.1945175](https://doi.org/10.1063/1.1945175) |
 | `23444006` (Göök 2018) | `unstated` | none stated as a value | [doi:10.1103/PhysRevC.98.044615](https://doi.org/10.1103/PhysRevC.98.044615) |
-| `22650008` (Tsuchiya 2000) | `measured_spectrum`: not 3T_eff/2 of the Maxwellian "but the average value of all experimental points above 0.5 MeV" | 0.5 MeV, centre of mass; detector threshold 0.2 MeV | [doi:10.1080/18811248.2000.9714976](https://doi.org/10.1080/18811248.2000.9714976) |
+| `22650008` (Tsuchiya 2000) | `measured_spectrum`: not 3T_eff/2 of the Maxwellian "but the average value of all experimental points above 0.5 MeV"; the publication leaves open whether the range below 0.5 MeV enters the mean, which the `qualifiers` say in an entry beginning `mean_threshold_unsettled:`, and the limit is not to be applied as a cut | 0.5 MeV, centre of mass; detector threshold 0.2 MeV | [doi:10.1080/18811248.2000.9714976](https://doi.org/10.1080/18811248.2000.9714976) |
 | `14369005` (Fraser 1966) | `measured_spectrum`: E_CM = 0.5228⟨V²⟩ from event-weighted velocity moments, counter at 10° | not given for the 233-U runs | Salzburg 1965 |
 | `22660003` (Nishio 1998, 233-U) | `measured_spectrum`, "calculated from the experimental data" | 0.3 MeV, laboratory; the EXFOR entry says 0.2 | [doi:10.1080/18811248.1998.9733919](https://doi.org/10.1080/18811248.1998.9733919) |
 | `22660004` (Nishio 1998, 233-U, A and TKE) | `unstated` for Fig. 5 | 0.3 MeV, laboratory | the same |

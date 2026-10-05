@@ -283,17 +283,21 @@ const MULTIPLICITY_READINGS = Dict{String, Curation}(
     # Per fragment, with a pair sum off the scale of nubar.
     "22650004" => Curation(
         "multiplicity",
-        "curated: per fragment, though coded without FRG, by the data alone; the article, \
-         Tsuchiya 2000 (doi:10.1080/18811248.2000.9714976), was not consulted, and its abstract \
-         calls nu(m*) a sawtooth. Over 42 pairs (A, A_0 - A), A_0 = 240, nu(A) - nu(A_0 - A) \
-         changes sign along the sawtooth and reaches 4.19, a median 5 times its uncertainty, chi2 \
-         per pair 105 against zero. Its scale is not that of nubar: the pair sum weighted with \
-         the yield of 22650002, the same measurement, is 2.989 +- 0.011 against 2.878 +- 0.013, \
-         the $(_NUBAR), 3.9 % and 6.3 standard deviations above it, and 2.914 +- 0.010 with the \
-         yield of 21981007. The subentry heads DATA and DATA-ERR PC/FIS, a miscoding: the values, \
-         0.70 to 5.36, are neutrons per fission, and are written as tabulated, not divided by 100 \
-         as the csv rendering has them",
-        ComplementReading("data", PairSum(0.0387, 0.0061, 2.878, "22650002", true)),
+        "curated: per fragment, though coded without FRG, by the data and the article. Tsuchiya \
+         2000 (doi:10.1080/18811248.2000.9714976) obtains the multiplicity against fragment mass \
+         'from the number of the fragment-neutron coincidences divided by the number of two \
+         fragment coincidences with a normalization of 2.88 neutrons per fission', and estimates \
+         the mass resolution at 'about 6 amu' (p. 944). Over 42 pairs (A, A_0 - A), A_0 = 240, \
+         nu(A) - nu(A_0 - A) changes sign along the sawtooth and reaches 4.19, a median 5 times \
+         its uncertainty, chi2 per pair 105 against zero. The set is normalised to 2.88 by \
+         construction, so its pair sum measures the consistency of the tabulated nu(A) and Y(A) \
+         with that normalisation, not a scale of its own: weighted with the yield of 22650002, \
+         the same measurement, it is 2.989 +- 0.011 against 2.878 +- 0.013, the $(_NUBAR), 3.9 % \
+         and 6.3 standard deviations above it, and 2.914 +- 0.010 with the yield of 21981007. \
+         The subentry heads DATA and DATA-ERR PC/FIS, a miscoding: the values, 0.70 to 5.36, are \
+         neutrons per fission, and are written as tabulated, not divided by 100 as the csv \
+         rendering has them",
+        ComplementReading("data+paper", PairSum(0.0387, 0.0061, 2.878, "22650002", true)),
     ),
     "41502006" => Curation(
         "multiplicity",
@@ -698,7 +702,8 @@ know to use them as the one measurement they are:
 
 - `republication`: one result published twice, the earlier marked superseded by the later; take
   one, by default the later, [`SUPERSEDED_DATASETS`](@ref) saying which that is.
-- `alternative_analysis`: one set of events reduced twice; take one.
+- `alternative_analysis`: one measurement reduced more than once; take one, or combine the
+  members as one; never count them as several.
 - `repeated_run`: the quantity measured again in the same experiment, in another run or cycle or
   at another flight path; combine the members as one.
 - `complementary_range`: parts of one spectrum, each over its own range; join them under one
@@ -880,7 +885,8 @@ const CORRELATION_GROUPS = [
          an Al2O3 backing of 30 microgram/cm2; 41694, 4 u, 4 ns, 60 microgram/cm2, and \
          corrections for the angular resolution and for the neutron efficiency against \
          energy that 41720 does not name. The two tables differ by 0.34 neutrons rms over \
-         their 80 shared masses, so one of the two is taken, never both",
+         their 80 shared masses. They are one measurement: take one, or combine the two as one, \
+         their difference entering as an uncertainty; never count both",
     ),
     CorrelationGroup(
         ["41694003", "41720004"],
@@ -893,8 +899,86 @@ const CORRELATION_GROUPS = [
          1253081 with the neutron counter at 0 degrees in 41694, and 2.9E+5 neutrons, as the \
          entry has it, against 28778. The stated resolutions differ as for 252-Cf, 3.5 u and \
          about 1 ns against 4 u and 4 ns. The two tables differ by 0.36 neutrons rms over \
-         their 73 shared masses, 41720004 lying 4 % lower on average, so one of the two is \
-         taken, never both",
+         their 73 shared masses, 41720004 lying 4 % lower on average. They are one \
+         measurement: take one, or combine the two as one, their difference entering as an \
+         uncertainty; never count both",
+    ),
+    CorrelationGroup(
+        [
+            "222020031",
+            "222020032",
+            "222020041",
+            "222020042",
+            "222020051",
+            "222020052",
+            "222020061",
+            "222020062",
+            "222020071",
+            "222020072",
+        ],
+        "alternative_analysis",
+        "ten selections from one measurement of the 252-Cf(sf) spectrum from 9 to 29 MeV, as a \
+         ratio to a Maxwellian of 1.42 MeV (Chalupka 1990, Nucl. Sci. Eng. 106, 367, Tables II \
+         to VI): 22202003, 005, 006 and 007 hold 9 to 13, 9 to 16, 9 to 19 and 10 to 20 MeV in \
+         bins of 0.25, 0.5, 1 and 2 MeV, each reduced at the detector biases of 2.0 and 2.75 \
+         MeV, and 22202004 holds 14 to 29 MeV at the biases of 4.0 and 5.0 MeV. The entry says \
+         that 'different selections from the same experimental data ... are correlated with \
+         each other' and that 'one may combine results from different bias settings and \
+         different energy groups to generate a new continuous set' (COMMENT; COREL in the \
+         STATUS of 22202003 and 005), with a restriction on combining bias settings whose \
+         wording is unclear. They are one measurement: at any energy take one selection, or \
+         combine the selections as one; never count several",
+    ),
+    CorrelationGroup(
+        ["40535002", "40535003", "40535004", "40535005"],
+        "complementary_range",
+        "four parts of one measurement of the 252-Cf(sf) spectrum from 0.3 keV to 2 MeV, as a \
+         ratio to a Maxwellian (Blinov 1980, Kiev 1980, vol. 3, p. 109), one per flight path: \
+         6.25 cm (40535002, 0.36 to 60 keV), 12.5 cm (40535003, 10 to 200 keV), 25 cm \
+         (40535004, 64 keV to 1.0 MeV) and 50 cm (40535005, 0.17 to 2.0 MeV); each subentry \
+         names the other three in its STATUS (COREL)",
+    ),
+    CorrelationGroup(
+        ["14477002", "14477003"],
+        "complementary_range",
+        "two parts of one measurement of the 252-Cf(sf) spectrum (Blain 2017, Phys. Rev. C 95, \
+         064615, Tables 2 and 3), in arbitrary units: 14477002 is 'the high energy portion' \
+         from two EJ-301 liquid scintillators, 0.75 to 7.3 MeV, and 14477003 'the low energy \
+         portion' from the EJ-204 detector, 0.05 to 2.8 MeV; each names the other in its \
+         STATUS (COREL)",
+    ),
+    CorrelationGroup(
+        ["40064027", "40064031"],
+        "complementary_range",
+        "two figures of one measurement of the 252-Cf(sf) spectrum (Kroshkin 1970; Helsinki \
+         1970, vol. 2, p. 183), each naming the other in its STATUS (COREL): 40064027, Fig. 4, \
+         17 points from 0.47 to 6.0 MeV, and 40064031, Fig. 7, 48 points over 'the 5 keV - 2 \
+         MeV energy range'. The two are not in one form: 40064027 is N(E)/sqrt(E), RRE in its \
+         code, and 40064031 heads its energies MEV where they run from 5.1 to 2133, the keV \
+         of its own text, and is written as headed",
+    ),
+    CorrelationGroup(
+        ["40418004", "40418005"],
+        "repeated_run",
+        "one measurement of the 252-Cf(sf) spectrum at two flight paths (Blinov 1973; Kiev \
+         1977, vol. 3, p. 197), digitised from one figure, in arbitrary units: 25 cm \
+         (40418004, 0.014 to 7.7 MeV) and 50 cm (40418005, 0.054 to 8.7 MeV), over nearly the \
+         same range; each names the other in its STATUS (COREL). The ratio to a Maxwellian \
+         40418008 of the same entry names 40418004 among the data it depends on (DEP)",
+    ),
+    CorrelationGroup(
+        ["40871006", "40871014"],
+        "complementary_range",
+        "two parts of one measurement of the 239-Pu(nth,f) spectrum (Nefedov 1983), one per \
+         flight path: 51 cm (40871006, 0.14 to 2.05 MeV) and 2.313 m (40871014, 2.04 to 7.15 \
+         MeV); each names the other in its STATUS (COREL)",
+    ),
+    CorrelationGroup(
+        ["40871007", "40871015"],
+        "complementary_range",
+        "two parts of one measurement of the 235-U(nth,f) spectrum (Nefedov 1983), one per \
+         flight path: 51 cm (40871007, 0.11 to 1.91 MeV) and 2.313 m (40871015, 1.04 to 7.49 \
+         MeV); each names the other in its STATUS (COREL)",
     ),
 ]
 
@@ -1438,7 +1522,10 @@ const MEAN_FORMATIONS = Dict{String, MeanFormation}(
          the average value of all experimental points above 0.5 MeV, because the measured \
          neutron spectrum data exceed the Maxwellian above 3 MeV' (p. 944), the points being \
          those of the spectrum in the centre-of-mass system. 'The neutron threshold level of \
-         the detector was set at 0.2 MeV' (p. 942)",
+         the detector was set at 0.2 MeV' (p. 942). The article leaves open whether the range \
+         below 0.5 MeV enters the mean, through the Maxwellian fitted to the spectrum or \
+         otherwise: the limit is that of the points it names, and is not established as a cut \
+         on the mean",
     ),
     "14369005" => MeanFormation(
         "measured_spectrum",
@@ -1588,6 +1675,69 @@ function superseded_qualifier(identifier::AbstractString)
     return isempty(superseded.beside) ? qualifier :
            "$(qualifier), beside $(superseded.beside)"
 end
+
+"""
+Datasets of a mean neutron energy whose publication leaves open whether the range below the
+recorded threshold enters the mean, keyed by the dataset identifier, with what it leaves open.
+Each carries [`mean_threshold_qualifier`](@ref) among its `qualifiers`, so that
+`mean_threshold_mev` is not applied as a cut where a mean is calculated to compare with it.
+"""
+const MEAN_THRESHOLDS_UNSETTLED = Dict{String, String}(
+    "22650008" => "the publication averages 'all experimental points above 0.5 MeV' and does \
+                   not say whether the range below enters the mean; `mean_threshold_mev` is \
+                   not established as a cut and is not to be applied as one",
+)
+
+"""
+    mean_threshold_qualifier(identifier) -> Union{String,Nothing}
+
+The qualifier of a dataset among [`MEAN_THRESHOLDS_UNSETTLED`](@ref),
+`mean_threshold_unsettled:` followed by what its publication leaves open, or `nothing`.
+"""
+function mean_threshold_qualifier(identifier::AbstractString)
+    unsettled = get(MEAN_THRESHOLDS_UNSETTLED, identifier, nothing)
+    return unsettled === nothing ? nothing : "mean_threshold_unsettled: " * unsettled
+end
+
+"""
+Multiplicities obtained as the difference of the pre- and post-neutron fragment masses of one
+measurement, no neutron being detected, keyed by the dataset identifier, with the passages of
+the publication. Such a dataset is selected by its reaction code like any other and is not
+among [`CURATED_DATASETS`](@ref); the passages are written as `curation` in its run record, and
+[`mass_difference_qualifier`](@ref) among its `qualifiers`.
+"""
+const MASS_DIFFERENCE_MULTIPLICITIES = Dict{String, String}(
+    "23012008" => "curated: per fragment by its code; the multiplicity is derived from masses, \
+                   not from detected neutrons. Nishio 1995 \
+                   (doi:10.1080/18811248.1995.9731725) measures the velocities and the \
+                   energies of both fragments, so that 'both of the pre-neutron emission \
+                   fragment mass m* and the post-neutron mass m were obtained. The fragment \
+                   mass dependent neutron multiplicity nu(m*) was deduced by subtracting m \
+                   from m*' (p. 404), where the data of Apalin and of Fraser it is compared \
+                   with 'were obtained by the direct neutron detection method' (p. 411). Its \
+                   total: 'The present value of <nu_total> has become 3.2 +- 0.1 which is \
+                   about 10 % larger than the evaluated value of JENDL-3' (p. 411). It is not \
+                   independent of Apalin's measurement: 'For the distribution of nu(m*) in \
+                   Eq. (17), the data of Apalin et al. was referred' (p. 408), Eq. (17) being \
+                   the momentum balance that fixes its correction for the plasma delay",
+)
+
+"""
+The qualifier written among the `qualifiers` of a dataset of
+[`MASS_DIFFERENCE_MULTIPLICITIES`](@ref).
+"""
+const MASS_DIFFERENCE_QUALIFIER = "multiplicity_from_masses: the multiplicity is the difference \
+     of the pre- and post-neutron fragment masses of one measurement, not a count of detected \
+     neutrons; `curation` gives the passages of the publication"
+
+"""
+    mass_difference_qualifier(identifier) -> Union{String,Nothing}
+
+[`MASS_DIFFERENCE_QUALIFIER`](@ref) for a dataset among
+[`MASS_DIFFERENCE_MULTIPLICITIES`](@ref), or `nothing`.
+"""
+mass_difference_qualifier(identifier::AbstractString) =
+    haskey(MASS_DIFFERENCE_MULTIPLICITIES, identifier) ? MASS_DIFFERENCE_QUALIFIER : nothing
 
 """
 The qualifier written among the `qualifiers` of a dataset whose [`ordinate_frame`](@ref) is

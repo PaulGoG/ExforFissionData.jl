@@ -84,7 +84,8 @@ so these configurations omit `energy_min` and `energy_max`.
 - `Cf252_sf_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41720002
   (Basova 1979) and 41694002 (Zamyatnin 1979), which differ by 0.34 neutrons rms over 80 shared
   masses, are two reductions of one measurement, relation `alternative_analysis`, each naming
-  the other as `correlated_with`: one of the two is taken.
+  the other as `correlated_with`: one measurement, taken singly or combined as one, never
+  counted as two.
 - `Cf252_sf_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
 - `Cf252_sf_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
@@ -93,12 +94,22 @@ so these configurations omit `energy_min` and `energy_max`.
   (Dyachenko 1989, absolute) marks it superseded by 41158002 (Lajtai 1990, arbitrary units, under
   `relative/`). Each pair is written, each naming the other as `correlated_with`; the superseded
   one carries a qualifier beginning `superseded:`, and 40644003 one beginning `preliminary:` too.
+  14477002 and 14477003 (Blain 2017), the high- and low-energy portions of one measurement, and
+  40064027 and 40064031 (Kroshkin 1970), two figures of one measurement, are relation
+  `complementary_range`, each naming the other as `correlated_with`; 40064027 is tabulated as
+  N(E)/√E, and 40064031 is written with the energies its subentry heads `MEV` where its own text
+  gives keV. 40418004 and 40418005 (Blinov 1973), one spectrum at two flight paths, are relation
+  `repeated_run`, each naming the other as `correlated_with`.
 - `Cf252_sf_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, against
   secondary neutron energy. The subentry of 40418006 (Blinov 1973) marks it superseded by
   40418008, a table of the same measurement where it was read off a figure; that of 40875003
   (Dyachenko 1989), with uncertainties, marks it superseded by 41158003 (Lajtai 1990), which
   states none. Each pair is written, each naming the other as `correlated_with`, and the
-  superseded one carries a qualifier beginning `superseded:`.
+  superseded one carries a qualifier beginning `superseded:`. The ten datasets of 22202 (Chalupka
+  1990) are selections of one measurement by energy grouping and detector bias, relation
+  `alternative_analysis`, each naming the others as `correlated_with`: one measurement,
+  never counted as several. 40535002 to 40535005 (Blinov 1980) are one spectrum at four flight paths over
+  successive ranges, relation `complementary_range`, each naming the others as `correlated_with`.
 - `Cf252_sf_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 14065003
   (Bowman 1963), 23175012 (Budtz-Jørgensen 1988), 23268011 (Göök 2014) and 41689005 (Piksaykin
   1977), the second and fourth headed `DATA` and in the centre of mass by their publications.
@@ -132,6 +143,9 @@ so these configurations omit `energy_min` and `energy_max`.
 - `U235_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
 - `U235_nth_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
+  40871007 and 40871015 (Nefedov 1983), at the flight paths of 51 cm and 2.313 m, are one
+  measurement in two parts, relation `complementary_range`, each naming the other as
+  `correlated_with`.
 - `U235_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, against
   secondary neutron energy. 40930006, 40930013, 40930014 and 40930015 (Starostov 1985) are one
   measurement in four parts, the first cycle with each of three detectors and the second
@@ -205,10 +219,19 @@ be written under a directory of its own.
 - `Pu239_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41720004
   (Basova 1979) and 41694003 (Zamyatnin 1979), which differ by 0.36 neutrons rms over 73 shared
   masses, are two reductions of one measurement, relation `alternative_analysis`, each naming
-  the other as `correlated_with`: one of the two is taken.
+  the other as `correlated_with`: one measurement, taken singly or combined as one, never
+  counted as two. 22650004 (Tsuchiya 2000) is normalised to 2.88 neutrons per fission by its
+  publication; its pair sum, 3.9 % above ν̄, measures the consistency of its table with that
+  normalisation. 23012008 (Nishio 1995) is the difference of the pre- and post-neutron masses of
+  one measurement of both fragment velocities and energies, no neutron being detected; it
+  carries a qualifier beginning `multiplicity_from_masses:`, and its publication gives its
+  total as 3.2 ± 0.1, about 10 % above the evaluation it compares with.
 - `Pu239_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
 - `Pu239_nth_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
+  40871006 and 40871014 (Nefedov 1983), at the flight paths of 51 cm and 2.313 m, are one
+  measurement in two parts, relation `complementary_range`, each naming the other as
+  `correlated_with`.
 - `Pu239_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, from
   40873006 (Boytsov 1983), 40930008, 40930016, 40930017 and 40930018 (Starostov 1985) and
   41611011 (Vorobyev 2016), all formed with T = 1.382 MeV; 14684003, from 0.95 MeV, lies outside
@@ -220,7 +243,7 @@ be written under a directory of its own.
   (Vorobyev 2016), 239-Pu over 252-Cf in arbitrary units, under `relative/`.
 - `Pu239_nth_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 22650008
   (Tsuchiya 2000) and 41502009 (Batenkov 2004), the second headed `DATA` and in the centre of
-  mass by its `REACTION` text.
+  mass by its `REACTION` text. 22650008 carries a qualifier beginning `mean_threshold_unsettled:`.
 - `Pu239_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833008 (Gwin 1984), 30046009
   (Boldeman 1967) and 30772011 (Boldeman 1985). The subentry of 30046009 marks it superseded by
   30772011; both are written, each naming the other as `correlated_with`, and 30046009 carries a

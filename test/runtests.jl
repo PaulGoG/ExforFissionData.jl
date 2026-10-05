@@ -1960,8 +1960,9 @@ include("fixtures.jl")
         @test !haskey(record, "scale_consistent")
         @test !haskey(record, "pair_sum_deviation_uncertainty")
 
-        # 22650004 (Tsuchiya 2000): per fragment by the data, with a pair sum 3.9 % above nubar
-        # on its own yields. The scale is recorded and flagged; it does not refuse the dataset.
+        # 22650004 (Tsuchiya 2000): per fragment by the data and the article, with a pair sum
+        # 3.9 % above nubar on its own yields. The deviation is recorded and flagged; it does not
+        # refuse the dataset.
         pu(ordinate) = test_query(; target_Z = 94, target_A = 239, ordinate = ordinate)
         rows = [
             exfor_row(;
@@ -1983,7 +1984,12 @@ include("fixtures.jl")
         @test record["pair_sum_deviation_uncertainty"] > 0
         @test record["pair_sum_yields"] == "22650002"
         @test record["pair_sum_yields_own"] == true
-        @test record["classification_basis"] == "data"
+        @test record["classification_basis"] == "data+paper"
+        # The article normalises the set to 2.88 neutrons per fission, so the pair sum measures
+        # the consistency of the table with it, and the curation says so.
+        @test occursin("normalization of 2.88 neutrons per fission", record["curation"])
+        @test occursin("about 6 amu", record["curation"])
+        @test !occursin("not consulted", record["curation"])
         @test ExforFissionData._curation_record("23268005")["scale_consistent"] == true
         @test ExforFissionData._curation_record("23268005")["classification_basis"] ==
               "data+paper"
@@ -3889,6 +3895,15 @@ of = "$(of)"
         # threshold in the laboratory, the lower limit of the averaged spectrum in the centre
         # of mass (22650008).
         @test mean_formation("22650008").threshold_frame == "centre_of_mass"
+        # Its publication leaves open whether the range below the limit enters the mean: the
+        # evidence says so, and a qualifier keeps the limit from being applied as a cut.
+        @test occursin("leaves open", mean_formation("22650008").evidence)
+        unsettled = ExforFissionData.mean_threshold_qualifier("22650008")
+        @test startswith(unsettled, "mean_threshold_unsettled: ")
+        @test ExforFissionData.mean_threshold_qualifier("41502009") === nothing
+        for identifier in keys(ExforFissionData.MEAN_THRESHOLDS_UNSETTLED)
+            @test mean_formation(identifier).threshold !== nothing
+        end
         @test mean_formation("22464003").threshold_frame == "laboratory"
 
         # A mean neutron energy headed DATA: the rendering in eV, the subentry in MeV.
@@ -4598,7 +4613,7 @@ of = "$(of)"
         # Boldeman's four biases are four runs, by the fission numbers of the publication.
         @test group("307720152").relation == "repeated_run"
         @test occursin("doi:10.13182/NSE85-A17133", group("30046011").reason)
-        # Basova 1979 and Zamyatnin 1979: one set of events reduced twice, for each system.
+        # Basova 1979 and Zamyatnin 1979: two reductions of one measurement, for each system.
         @test group("41720002").members == ["41694002", "41720002"]
         @test group("41720004").members == ["41694003", "41720004"]
         @test group("41694003").relation == "alternative_analysis"
@@ -4611,6 +4626,20 @@ of = "$(of)"
             @test length(g.members) == 2
             @test ExforFissionData.SUPERSEDED_DATASETS[g.members[1]].by == g.members[2]
         end
+        # The spectrum groups: selections of one set of events, parts of one spectrum by flight
+        # path, detector or figure, and one spectrum measured at two flight paths.
+        chalupka = group("222020052")
+        @test length(chalupka.members) == 10
+        @test chalupka.relation == "alternative_analysis"
+        @test group("222020041") === chalupka
+        @test group("40535004").members == ["40535002", "40535003", "40535004", "40535005"]
+        for identifier in ("40535002", "14477003", "40064031", "40871014", "40871007")
+            @test group(identifier).relation == "complementary_range"
+        end
+        @test group("40418005").members == ["40418004", "40418005"]
+        @test group("40418004").relation == "repeated_run"
+        # 40418007, a ratio the average 40418008 depends on, stands in no group.
+        @test group("40418007") === nothing
     end
 
     @testset "results the archive marks preliminary" begin
@@ -4676,6 +4705,37 @@ of = "$(of)"
         @test accepted.record["mean_formed_from"] == "unstated"
         @test accepted.record["mean_threshold_mev"] == 0.2
         @test occursin("Mannhart", accepted.record["mean_evidence"])
+        # A mean whose threshold is settled carries no flag for it.
+        @test !any(
+            startswith("mean_threshold_unsettled:"),
+            ExforFissionData._qualifiers(accepted),
+        )
+    end
+
+    @testset "a multiplicity derived from fragment masses" begin
+        # 23012008 (Nishio 1995): nu(m*) is the pre- minus the post-neutron mass of one
+        # measurement of both velocities and energies. It is read by its code and flagged.
+        qualifier = ExforFissionData.mass_difference_qualifier("23012008")
+        @test startswith(qualifier, "multiplicity_from_masses: ")
+        @test ExforFissionData.mass_difference_qualifier("22650004") === nothing
+        record = ExforFissionData._curation_record("23012008")
+        for passage in (
+            "doi:10.1080/18811248.1995.9731725",
+            "subtracting m from m*",
+            "3.2 +- 0.1",
+            "Eq. (17)",
+        )
+            @test occursin(passage, record["curation"])
+        end
+        # The passages stand beside the selection and take no part in it.
+        for identifier in keys(ExforFissionData.MASS_DIFFERENCE_MULTIPLICITIES)
+            @test !haskey(ExforFissionData.CURATED_DATASETS, identifier)
+        end
+        # Two reductions of one measurement may be combined as one; they never count as two.
+        @test occursin(
+            "never count both",
+            ExforFissionData.correlation_group("41720002").reason,
+        )
     end
 
     @testset "datasets a subentry marks superseded" begin

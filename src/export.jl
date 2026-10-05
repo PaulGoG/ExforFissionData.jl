@@ -139,7 +139,7 @@ function _revision()
 end
 
 # What src/curation.jl records of one dataset, for its entry in the run record: the curated
-# reading with its basis and scale, the compilation defects left out, and the runs of the same
+# reading with its basis and scale, the passages on a multiplicity derived from masses, the compilation defects left out, and the runs of the same
 # experiment. Empty for a dataset it records nothing of.
 function _curation_record(identifier::AbstractString)
     record = Dict{String, Any}()
@@ -150,6 +150,8 @@ function _curation_record(identifier::AbstractString)
         curation.complement === nothing ||
             merge!(record, _complement_record(curation.complement))
     end
+    masses = get(MASS_DIFFERENCE_MULTIPLICITIES, identifier, nothing)
+    masses === nothing || (record["curation"] = masses)
     defects = get(ARCHIVE_DEFECTS, identifier, nothing)
     defects === nothing || (record["archive_defects"] = [d.description for d in defects])
     group = correlation_group(identifier)
@@ -163,8 +165,9 @@ end
 
 # The qualifiers of one accepted dataset for the run record: those of its reaction code, of
 # both reactions where it is a ratio, the flag of a mean neutron energy whose frame the
-# subentry leaves unstated, that of a dataset the archive marks preliminary, and that of a
-# dataset its subentry marks superseded.
+# subentry leaves unstated, that of a dataset the archive marks preliminary, that of a dataset
+# its subentry marks superseded, that of a multiplicity derived from fragment masses, and that
+# of a mean whose threshold its publication leaves unsettled.
 function _qualifiers(dataset::Dataset)
     qualifiers = code_qualifiers(dataset.reaction_code)
     # A ratio carries the qualifiers of its two reactions.
@@ -178,6 +181,12 @@ function _qualifiers(dataset::Dataset)
     preliminary === nothing || push!(qualifiers, preliminary)
     superseded = superseded_qualifier(dataset.identifier)
     superseded === nothing || push!(qualifiers, superseded)
+    masses = mass_difference_qualifier(dataset.identifier)
+    masses === nothing || push!(qualifiers, masses)
+    unsettled = mean_threshold_qualifier(dataset.identifier)
+    unsettled === nothing ||
+        !haskey(dataset.record, "mean_threshold_mev") ||
+        push!(qualifiers, unsettled)
     return qualifiers
 end
 
@@ -367,8 +376,10 @@ function write_metadata(
         record["datasets"]["pair_sum_warning"] =
             "the pair sum of these datasets, weighted with the light-fragment yield, misses \
              nubar by more than $(PAIR_SUM_TOLERANCE_SIGMAS) standard deviations; their reading \
-             stands, their scale is not that of nubar and is not corrected, and \
-             `pair_sum_deviation` on each gives it: " * join(off_scale, ", ")
+             stands and their values are not corrected. `pair_sum_deviation` on each gives \
+             the deviation, and `curation` what it is: a scale other than that of nubar, or \
+             the consistency of the table with a normalisation its publication states: " *
+            join(off_scale, ", ")
     end
     unstated = [
         entry.dataset.identifier for entry in accepted if
@@ -451,10 +462,10 @@ function write_metadata(
             "these datasets stand in groups that are one experiment, each naming the others \
              as `correlated_with` and how its group is related as `correlation_relation`: of \
              a republication take one, by default the one not flagged `superseded:`; of an \
-             alternative_analysis, one set of events reduced twice, take one; of a \
-             repeated_run combine the members as one; of a complementary_range join the \
-             members under one normalisation. No group counts once per member: " *
-            join(correlated, ", ")
+             alternative_analysis, one measurement reduced more than once, take one or \
+             combine the members as one; of a repeated_run combine the members as one; of a \
+             complementary_range join the members under one normalisation. No group counts \
+             once per member: " * join(correlated, ", ")
     end
     relative = [
         entry.dataset.identifier for
