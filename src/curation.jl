@@ -693,29 +693,57 @@ function defect_lines(defects::AbstractVector{RowDefect}, data::SubentryColumns)
 end
 
 """
-    CorrelationGroup(members, reason)
+How the members of a [`CorrelationGroup`](@ref) are related, which is what a consumer needs to
+know to use them as the one measurement they are:
 
-Datasets that are repeated runs of one experiment: accepted separately, each on its own file,
-and one measurement for any combination of them.
+- `republication`: one result published twice, the earlier marked superseded by the later; take
+  one, by default the later, [`SUPERSEDED_DATASETS`](@ref) saying which that is.
+- `alternative_analysis`: one set of events reduced twice; take one.
+- `repeated_run`: the quantity measured again in the same experiment, in another run or cycle or
+  at another flight path; combine the members as one.
+- `complementary_range`: parts of one spectrum, each over its own range; join them under one
+  normalisation.
+"""
+const CORRELATION_RELATIONS =
+    ("republication", "alternative_analysis", "repeated_run", "complementary_range")
+
+"""
+    CorrelationGroup(members, relation, reason)
+
+Datasets of one experiment: accepted separately, each on its own file, and one measurement for
+any combination of them.
 
 # Fields
-- `members::Vector{String}`: the dataset identifiers.
+- `members::Vector{String}`: the dataset identifiers; of a `republication`, the superseded one
+  first.
+- `relation::String`: how they are related, one of [`CORRELATION_RELATIONS`](@ref).
 - `reason::String`: why they are one experiment.
 """
 struct CorrelationGroup
     members::Vector{String}
+    relation::String
     reason::String
+    function CorrelationGroup(members, relation, reason)
+        relation in CORRELATION_RELATIONS || throw(
+            ArgumentError(
+                "relation $(repr(relation)) of the group of $(first(members)) is \
+                 none of $(join(CORRELATION_RELATIONS, ", "))",
+            ),
+        )
+        return new(members, relation, reason)
+    end
 end
 
 """
 Groups of datasets that repeat one experiment, give it in parts, or publish it twice; see
 [`CorrelationGroup`](@ref). Each accepted
-member carries the others as `correlated_with` in the run record, so that no weighting downstream
-counts one experiment once per run.
+member carries the others as `correlated_with` in the run record, with the relation of the group
+as `correlation_relation`, so that no weighting downstream counts one experiment once per member.
 """
 const CORRELATION_GROUPS = [
     CorrelationGroup(
         ["400170091", "400170092", "400170093", "400170094", "400170095", "400170096"],
+        "repeated_run",
         "six thermal-neutron runs of one experiment (Dyachenko 1969, report YFI-8, p. 7; \
          INDC(CCP)-008), each taken alternately with one fast-neutron run at 120 to 600 keV in \
          the same apparatus; they agree within 0.2 MeV over the heavy-fragment peak and are \
@@ -723,6 +751,7 @@ const CORRELATION_GROUPS = [
     ),
     CorrelationGroup(
         ["41516017", "41597002"],
+        "republication",
         "one measurement of the 235-U to 252-Cf spectrum ratio at 0.0363 eV, published twice: \
          41516017 (Vorobyev 2010, 252-Cf over 235-U) is marked superseded by 41597002 \
          (Vorobyev 2013, 235-U over 252-Cf) in its STATUS (SPSDD); the two are one \
@@ -730,53 +759,142 @@ const CORRELATION_GROUPS = [
     ),
     CorrelationGroup(
         ["30046011", "307720151", "307720152", "307720153"],
-        "one measurement of the 252-Cf(sf) neutron number distribution in the liquid \
-         scintillator tank of Boldeman: 30772015 gives it at three discriminator biases, 620, \
-         720 and 1950 keV ('Data for three bias values ... are given'), and 30046011 takes its \
-         values from the same Table III of Nucl. Sci. Eng. 91, 114 (1985) (STATUS); they are \
-         one measurement for any combination",
+        "repeated_run",
+        "four runs of one measurement of the 252-Cf(sf) neutron number distribution in the \
+         liquid scintillator tank of Boldeman, all in Table III of Boldeman and Hines 1985 \
+         (doi:10.13182/NSE85-A17133): 30046011 is the run of Boldeman and Dalton, 20E+6 \
+         fissions at a discriminator bias of 480 keV, and 30772015 gives the 'recent data for \
+         three other bias values', 8.7E+6 fissions at 620 keV, 8.4E+6 at 720 keV and 6.8E+6 \
+         at 1950 keV (p. 115). The runs are separate sets of events in one apparatus, each \
+         normalised to a nubar of 3.757; they are one measurement for any combination",
     ),
     CorrelationGroup(
         ["30046008", "30772010"],
+        "republication",
         "one measurement of the 235-U(nth,f) neutron number distribution, published twice: \
          30046008 (Boldeman 1967, AAEC/E-172) is marked superseded by 30772010 (Boldeman \
          1985, the reanalysis) in its STATUS (SPSDD)",
     ),
     CorrelationGroup(
         ["30046009", "30772011"],
+        "republication",
         "one measurement of the 239-Pu(nth,f) neutron number distribution, published twice: \
          30046009 (Boldeman 1967, AAEC/E-172) is marked superseded by 30772011 (Boldeman \
          1985, the reanalysis) in its STATUS (SPSDD)",
     ),
     CorrelationGroup(
         ["30046007", "30772009"],
+        "republication",
         "one measurement of the 233-U(nth,f) neutron number distribution, published twice: \
          30046007 (Boldeman 1967, AAEC/E-172) is marked superseded by 30772009 (Boldeman \
          1985, the reanalysis) in its STATUS (SPSDD)",
     ),
     CorrelationGroup(
         ["40930004", "40930010", "40930011", "40930012"],
+        "complementary_range",
         "four parts of one measurement of the 233-U(nth,f) spectrum (Starostov 1985, Fig. 4 \
          bottom of INDC(CCP)-252, p. 16): the first cycle with the anthracene crystal \
-         (40930004), the stilbene crystal (40930010) and the plastic scintillator (40930011), \
-         and the second cycle (40930012); each subentry names the other three in its STATUS \
-         (COREL), and they are one measurement for any combination, not four",
+         (40930004, 0.10 to 1.7 MeV), the stilbene crystal (40930010, 1.6 to 4.5 MeV) and \
+         the plastic scintillator (40930011, 3.8 to 9.4 MeV), and the second cycle \
+         (40930012, 0.02 to 3.3 MeV), which repeats the lower range and extends it \
+         downwards; each subentry names the other three in its STATUS (COREL), and they are \
+         one measurement for any combination, not four",
     ),
     CorrelationGroup(
         ["40930006", "40930013", "40930014", "40930015"],
+        "complementary_range",
         "four parts of one measurement of the 235-U(nth,f) spectrum (Starostov 1985, Fig. 4 \
          top of INDC(CCP)-252, p. 16): the first cycle with the anthracene crystal \
-         (40930006), the stilbene crystal (40930013) and the plastic scintillator (40930014), \
-         and the second cycle (40930015); each subentry names the other three in its STATUS \
-         (COREL), and they are one measurement for any combination, not four",
+         (40930006, 0.10 to 1.8 MeV), the stilbene crystal (40930013, 0.92 to 7.4 MeV) and \
+         the plastic scintillator (40930014, 4.4 to 10.6 MeV), and the second cycle \
+         (40930015, 0.02 to 2.7 MeV), which repeats the lower range and extends it \
+         downwards; each subentry names the other three in its STATUS (COREL), and they are \
+         one measurement for any combination, not four",
     ),
     CorrelationGroup(
         ["40930008", "40930016", "40930017", "40930018"],
+        "complementary_range",
         "four parts of one measurement of the 239-Pu(nth,f) spectrum (Starostov 1985, Fig. 3 \
          bottom of INDC(CCP)-252, p. 16): the first cycle with the anthracene crystal \
-         (40930008), the stilbene crystal (40930016) and the plastic scintillator (40930017), \
-         and the second cycle (40930018); each subentry names the other three in its STATUS \
-         (COREL), and they are one measurement for any combination, not four",
+         (40930008, 0.14 to 2.2 MeV), the stilbene crystal (40930016, 1.8 to 6.7 MeV) and \
+         the plastic scintillator (40930017, 2.9 to 11.3 MeV), and the second cycle \
+         (40930018, 0.02 to 4.4 MeV), which repeats the lower range and extends it \
+         downwards; each subentry names the other three in its STATUS (COREL), and they are \
+         one measurement for any combination, not four",
+    ),
+    CorrelationGroup(
+        ["40418006", "40418008"],
+        "republication",
+        "one measurement of the ratio of the 252-Cf(sf) spectrum to a Maxwellian of 1.42 MeV \
+         (Blinov 1973), published twice: 40418006, 98 points from 0.012 to 6.7 MeV digitised \
+         from Fig. 4 of the Antwerp 1982 proceedings, is marked superseded in its STATUS \
+         (SPSDD) by 40418008, the 79 energy groups from 0.012 to 11.4 MeV of Table 5 of \
+         INDC(CCP)-0238, whose STATUS says 'This data supersede data of Subent 006'. \
+         40418006 carries nothing its successor lacks but a finer grid, read off a figure \
+         whose symbols overlap (COMMENT)",
+    ),
+    CorrelationGroup(
+        ["40875003", "41158003"],
+        "republication",
+        "one measurement of the 252-Cf(sf) spectrum below 1.22 MeV as a ratio to a \
+         Maxwellian, published twice: 40875003 (Dyachenko 1989) is marked superseded in its \
+         STATUS (SPSDD, 'Final publication') by 41158003 (Lajtai 1990, Table 2 of Nucl. \
+         Instrum. Methods A 293, 555), whose STATUS says 'This Subent superseded Subent \
+         40875.003'. The two hold the same 70 energies from 0.025 to 1.22 MeV; 68 of the 70 \
+         values are revised in 41158003, 1.10 to 1.075 at 0.045 MeV, and 40875003 states an \
+         uncertainty on every row where 41158003 states none",
+    ),
+    CorrelationGroup(
+        ["40644003", "40644002"],
+        "republication",
+        "one measurement of the 252-Cf(sf) spectrum (Starostov 1979), published twice: \
+         40644003, Table 1 of the Paris 1976 proceedings, in arbitrary units, is marked \
+         preliminary, outdated and superseded in its STATUS (PRELM; OUTDT,40644002; \
+         SPSDD,40644002, 'Superseded by spectrum normalized to 1. according to authors' \
+         comment') by 40644002, Table 1 of NIIAR-1(360), 1979, normalised to the number of \
+         neutrons. 40644003 holds 99 points from 0.01 MeV against the 79 from 0.0143 MeV of \
+         its successor, and no scale",
+    ),
+    CorrelationGroup(
+        ["40875002", "41158002"],
+        "republication",
+        "one measurement of the 252-Cf(sf) spectrum below 1.22 MeV, published twice: \
+         40875002 (Dyachenko 1989), in neutrons per fission, MeV and steradian, is marked \
+         superseded in its STATUS (SPSDD, 'Final publication') by 41158002 (Lajtai 1990, \
+         Table 2 of Nucl. Instrum. Methods A 293, 555), whose STATUS says 'This Subent \
+         superseds Subent 40875.002'. The two hold the same 70 energies from 0.025 to 1.22 \
+         MeV; 41158002 is in arbitrary units, and the ratio of its values to those of \
+         40875002 varies by 20 % over the table, so the shape is revised and 40875002 alone \
+         carries an absolute scale",
+    ),
+    CorrelationGroup(
+        ["41694002", "41720002"],
+        "alternative_analysis",
+        "two reductions of one measurement of nu(A) of 252-Cf(sf), by the same authors at \
+         one institute: 41720002 (Basova 1979, At. Energ. 46, 240, submitted 13 March 1978) \
+         and 41694002 (Zamyatnin 1979, Yad. Fiz. 29, 595, submitted 19 May 1978). The STATUS \
+         of 41720002 calls 41694002 an 'Alternative result' (COREL). Both entries quote 7.84E+6 \
+         fissions and 2.83E+5 fragment-neutron coincidences with the neutron counter at 0 \
+         degrees, which points to one set of events reduced twice; against it they state the \
+         measurement differently: 41720, mass resolution 3.5 u, time resolution about 1 ns, \
+         an Al2O3 backing of 30 microgram/cm2; 41694, 4 u, 4 ns, 60 microgram/cm2, and \
+         corrections for the angular resolution and for the neutron efficiency against \
+         energy that 41720 does not name. The two tables differ by 0.34 neutrons rms over \
+         their 80 shared masses, so one of the two is taken, never both",
+    ),
+    CorrelationGroup(
+        ["41694003", "41720004"],
+        "alternative_analysis",
+        "two reductions of one measurement of nu(A) of 239-Pu(nth,f), in the publications of \
+         41720002 and 41694002: 41720004 (Basova 1979) and 41694003 (Zamyatnin 1979). The \
+         STATUS of 41720004 calls 41694003 an 'Alternative result' (COREL), and both describe \
+         the sample in the same words, 'deposited electrically on a Au-covered organic film'. \
+         The counts quoted are close and not equal: 1.28E+6 fissions in 41720 against \
+         1253081 with the neutron counter at 0 degrees in 41694, and 2.9E+5 neutrons, as the \
+         entry has it, against 28778. The stated resolutions differ as for 252-Cf, 3.5 u and \
+         about 1 ns against 4 u and 4 ns. The two tables differ by 0.36 neutrons rms over \
+         their 73 shared masses, 41720004 lying 4 % lower on average, so one of the two is \
+         taken, never both",
     ),
 ]
 
@@ -1389,41 +1507,71 @@ const SPECTRUM_FITS = Dict{String, Tuple{String, String}}(
 )
 
 """
-Entries whose publication calls its results preliminary, keyed by the five-character entry
-number, with the words. Every accepted dataset of such an entry carries the qualifier
-[`preliminary_qualifier`](@ref) among its `qualifiers`, and the run record names them in
-`preliminary_warning`; none is refused for it.
+Entries the archive marks preliminary, with the code PRELM under `STATUS` in their common
+subentry, keyed by the five-character entry number, with the evidence: the code and what stands
+beside it, and the words of the publication where it has been read. The code decides; a
+publication adds its sentence and never gates. Every accepted dataset of such an entry carries
+the qualifier [`preliminary_qualifier`](@ref) among its `qualifiers`, and the run record names
+them in `preliminary_warning`; none is refused for it. See [`PRELIMINARY_SUBENTRIES`](@ref) for
+the code in a subentry of its own.
 """
 const PRELIMINARY_ENTRIES = Dict{String, String}(
     "41502" => "Batenkov 2004 (doi:10.1063/1.1945175) presents 'some preliminary results of \
                 the average number and kinetic energies of prompt neutrons as a function \
                 fragment mass' (abstract, p. 1003), and the entry carries STATUS PRELM",
+    "41516" => "the entry carries STATUS (PRELM), 'Data are preliminary.'",
+)
+
+"""
+Subentries that carry PRELM under their own `STATUS`, keyed by the eight-character subentry
+number, with the code and what stands beside it. Every dataset of such a subentry is flagged
+as those of [`PRELIMINARY_ENTRIES`](@ref) are.
+"""
+const PRELIMINARY_SUBENTRIES = Dict{String, String}(
+    "40644003" => "its subentry carries STATUS (PRELM), beside (OUTDT,40644002) and \
+                   (SPSDD,40644002)",
+    "41516012" => "its subentry carries STATUS (PRELM), 'Data are presented on Fig.7 left of \
+                   S,ISINN-17,60,2010, Fig.5 left of J,EPJ/CS,8,03004,2010.'",
+    "41738004" => "its subentry carries STATUS (PRELM), beside (TABLE), 'Data from author \
+                   Sh.Zeynalov. Data are presented on Fig.7 of Eur.Phys.J. Conf.Ser.,v.146,\
+                   p.04022,2017'",
 )
 
 """
     preliminary_qualifier(identifier) -> Union{String,Nothing}
 
-The qualifier of a dataset whose entry is among [`PRELIMINARY_ENTRIES`](@ref), `preliminary:`
-followed by the words of the publication, or `nothing`.
+The qualifier of a dataset whose entry is among [`PRELIMINARY_ENTRIES`](@ref) or whose subentry
+is among [`PRELIMINARY_SUBENTRIES`](@ref), `preliminary:` followed by the evidence of the entry
+and that of the subentry, or `nothing`.
 """
 function preliminary_qualifier(identifier::AbstractString)
-    evidence = get(PRELIMINARY_ENTRIES, first(identifier, 5), nothing)
-    return evidence === nothing ? nothing : "preliminary: " * evidence
+    evidence = String[]
+    for (table, width) in ((PRELIMINARY_ENTRIES, 5), (PRELIMINARY_SUBENTRIES, 8))
+        found = get(table, first(identifier, width), nothing)
+        found === nothing || push!(evidence, found)
+    end
+    return isempty(evidence) ? nothing : "preliminary: " * join(evidence, "; ")
 end
 
 """
 Datasets whose subentry marks them superseded, under `STATUS` with the code `SPSDD`, keyed by
-the dataset identifier, with the accession the code names as superseding them. Each is written,
+the dataset identifier, with the accession the code names as superseding them, `by`, and any
+other code of the same `STATUS` that bears on the standing of the dataset, `beside`. Each is
+written,
 carries [`superseded_qualifier`](@ref) among its `qualifiers`, and is named in
 `superseded_warning`; none is refused for it. A superseded dataset and the one that supersedes
 it are one measurement and share one of the [`CORRELATION_GROUPS`](@ref), whose
 `correlated_with` reads alike on both; the qualifier says which of the two the authors withdrew.
 """
-const SUPERSEDED_DATASETS = Dict{String, String}(
-    "30046007" => "30772009",
-    "30046008" => "30772010",
-    "30046009" => "30772011",
-    "41516017" => "41597002",
+const SUPERSEDED_DATASETS = Dict{String, @NamedTuple{by::String, beside::String}}(
+    "30046007" => (by = "30772009", beside = ""),
+    "30046008" => (by = "30772010", beside = ""),
+    "30046009" => (by = "30772011", beside = ""),
+    "40418006" => (by = "40418008", beside = ""),
+    "40644003" => (by = "40644002", beside = "(PRELM) and (OUTDT,40644002)"),
+    "40875002" => (by = "41158002", beside = ""),
+    "40875003" => (by = "41158003", beside = ""),
+    "41516017" => (by = "41597002", beside = ""),
 )
 
 """
@@ -1433,10 +1581,12 @@ The qualifier of a dataset among [`SUPERSEDED_DATASETS`](@ref), `superseded: by`
 accession that supersedes it and the `STATUS` code of its subentry that says so, or `nothing`.
 """
 function superseded_qualifier(identifier::AbstractString)
-    successor = get(SUPERSEDED_DATASETS, identifier, nothing)
-    successor === nothing && return nothing
-    return "superseded: by $(successor), as the STATUS of its subentry states \
-            (SPSDD,$(successor))"
+    superseded = get(SUPERSEDED_DATASETS, identifier, nothing)
+    superseded === nothing && return nothing
+    qualifier = "superseded: by $(superseded.by), as the STATUS of its subentry states \
+                 (SPSDD,$(superseded.by))"
+    return isempty(superseded.beside) ? qualifier :
+           "$(qualifier), beside $(superseded.beside)"
 end
 
 """

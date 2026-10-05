@@ -1400,6 +1400,7 @@ include("fixtures.jl")
         @test sort(runs["correlated_with"]) ==
               ["400170091", "400170092", "400170094", "400170095", "400170096"]
         @test occursin("one measurement", runs["correlation"])
+        @test runs["correlation_relation"] == "repeated_run"
         @test ExforFissionData.correlation_group("40235017") === nothing
         @test isempty(ExforFissionData._curation_record("10000002"))
     end
@@ -4556,6 +4557,7 @@ of = "$(of)"
         @test !any(startswith("superseded:"), entries["30772011"]["qualifiers"])
         @test entries["30046009"]["correlated_with"] == ["30772011"]
         @test entries["30772011"]["correlated_with"] == ["30046009"]
+        @test entries["30046009"]["correlation_relation"] == "republication"
         @test record["datasets"]["accepted"] == 2
         @test endswith(record["datasets"]["superseded_warning"], "30046009 by 30772011")
     end
@@ -4582,15 +4584,65 @@ of = "$(of)"
         @test allunique(
             reduce(vcat, [g.members for g in ExforFissionData.CORRELATION_GROUPS]),
         )
+        # Every group says how its members are related, from a closed set.
+        relations = ExforFissionData.CORRELATION_RELATIONS
+        @test all(g -> g.relation in relations, ExforFissionData.CORRELATION_GROUPS)
+        @test_throws ArgumentError ExforFissionData.CorrelationGroup(
+            ["10000001", "10000002"],
+            "duplicate",
+            "no relation of the set",
+        )
+        @test group("400170093").relation == "repeated_run"
+        @test group("30046008").relation == "republication"
+        @test group("40930011").relation == "complementary_range"
+        # Boldeman's four biases are four runs, by the fission numbers of the publication.
+        @test group("307720152").relation == "repeated_run"
+        @test occursin("doi:10.13182/NSE85-A17133", group("30046011").reason)
+        # Basova 1979 and Zamyatnin 1979: one set of events reduced twice, for each system.
+        @test group("41720002").members == ["41694002", "41720002"]
+        @test group("41720004").members == ["41694003", "41720004"]
+        @test group("41694003").relation == "alternative_analysis"
+        written = ExforFissionData._curation_record("41720004")
+        @test written["correlated_with"] == ["41694003"]
+        @test written["correlation_relation"] == "alternative_analysis"
+        # A republication is a superseded dataset and the one that supersedes it, in that order.
+        for g in ExforFissionData.CORRELATION_GROUPS
+            g.relation == "republication" || continue
+            @test length(g.members) == 2
+            @test ExforFissionData.SUPERSEDED_DATASETS[g.members[1]].by == g.members[2]
+        end
     end
 
-    @testset "results a publication calls preliminary" begin
+    @testset "results the archive marks preliminary" begin
         qualifier = ExforFissionData.preliminary_qualifier("41502008")
         @test startswith(qualifier, "preliminary: ")
         @test occursin("doi:10.1063/1.1945175", qualifier)
         # The flag belongs to the entry: its multiplicities carry it as its energies do.
         @test ExforFissionData.preliminary_qualifier("41502005") == qualifier
         @test ExforFissionData.preliminary_qualifier("41425014") === nothing
+        @test endswith(qualifier, "and the entry carries STATUS PRELM")
+        # The code alone flags: entry 41516 in its common subentry, 41516012 in its own too.
+        preliminary_qualifier = ExforFissionData.preliminary_qualifier
+        @test preliminary_qualifier("41516017") ==
+              "preliminary: the entry carries STATUS (PRELM), 'Data are preliminary.'"
+        @test startswith(
+            preliminary_qualifier("41516012"),
+            preliminary_qualifier("41516017"),
+        )
+        @test occursin(
+            "; its subentry carries STATUS (PRELM)",
+            preliminary_qualifier("41516012"),
+        )
+        # A subentry flags each of its pointers, and no other subentry of its entry.
+        @test preliminary_qualifier("417380041") == preliminary_qualifier("417380042")
+        @test startswith(
+            preliminary_qualifier("417380041"),
+            "preliminary: its subentry carries",
+        )
+        @test preliminary_qualifier("41738003") === nothing
+        @test occursin("(OUTDT,40644002)", preliminary_qualifier("40644003"))
+        @test preliminary_qualifier("40644002") === nothing
+        @test preliminary_qualifier("41597002") === nothing
 
         # It is written among the qualifiers of the dataset, and never refuses it.
         query = test_query(;
@@ -4634,10 +4686,18 @@ of = "$(of)"
         # `correlated_with` reads alike on both of a pair; the qualifier is on one alone.
         @test superseded_qualifier("41597002") === nothing
         @test superseded_qualifier("30046011") === nothing
+        # 40644003 is marked preliminary and outdated beside it, and the qualifier says so.
+        @test endswith(
+            superseded_qualifier("40644003"),
+            "(SPSDD,40644002), beside (PRELM) and (OUTDT,40644002)",
+        )
+        # The absolute spectrum of 40875002 is superseded by one in arbitrary units.
+        @test startswith(superseded_qualifier("40875002"), "superseded: by 41158002")
         # Each shares a correlation group with the dataset that supersedes it, and no other.
-        for (identifier, successor) in ExforFissionData.SUPERSEDED_DATASETS
+        for (identifier, superseded) in ExforFissionData.SUPERSEDED_DATASETS
             @test ExforFissionData.correlation_group(identifier).members ==
-                  [identifier, successor]
+                  [identifier, superseded.by]
+            @test ExforFissionData.correlation_group(identifier).relation == "republication"
         end
     end
 

@@ -7,6 +7,12 @@
 # record names, read from the same tree. A table written on another scale than the one the test
 # was made on, as 22650004 was before 0.2.3, misses it by its factor.
 #
+# The `superseded:` and `preliminary:` flags are held to the STATUS codes of the subentries stored
+# in the tree: every stored subentry whose STATUS carries SPSDD is listed in `SUPERSEDED_DATASETS`
+# with the accession the code names, and none else; PRELM in the common subentry of an entry puts
+# the entry in `PRELIMINARY_ENTRIES`, PRELM in the subentry itself puts it in
+# `PRELIMINARY_SUBENTRIES`, and none else.
+#
 # The tree is the directory named by EXFORFISSIONDATA_TREE, else the repository's own data/.
 # Without one, as in continuous integration, the check is skipped.
 
@@ -60,6 +66,28 @@ function pair_sum(ν, yields, A₀)
     return weighted / total
 end
 
+# The codes under STATUS in a stored subentry file, those of the common subentry of the entry
+# and those of the data subentry apart: `PRELM`, or with the accession a code names,
+# `SPSDD,41597002`.
+function status_codes(path)
+    codes = (common = String[], own = String[])
+    level = :common
+    keyword = ""
+    for line in eachline(path)
+        label = strip(first(line, 10))
+        isempty(label) || (keyword = label)
+        if label == "SUBENT"
+            level = endswith(split(line)[2], "001") ? :common : :own
+        elseif keyword == "STATUS"
+            for found in eachmatch(r"\(([A-Z]+)(?:,([0-9A-Z]{8}))?[,)]", line)
+                code, accession = found.captures
+                push!(codes[level], accession === nothing ? code : "$(code),$(accession)")
+            end
+        end
+    end
+    return codes
+end
+
 const TREE = get(ENV, "EXFORFISSIONDATA_TREE", joinpath(dirname(@__DIR__), "data"))
 
 if isdir(TREE)
@@ -84,6 +112,42 @@ if isdir(TREE)
             end
         end
         @info "pair sums checked against their run records" tree = TREE checked
+    end
+    @testset "flags held to the STATUS codes of the subentries stored in $(TREE)" begin
+        superseded = String[]
+        entries = String[]
+        subentries = String[]
+        checked = 0
+        for (directory, _, files) in walkdir(TREE)
+            basename(directory) == "subentries" || continue
+            for file in files
+                identifier = String(first(split(file, '_')))
+                codes = status_codes(joinpath(directory, file))
+                checked += 1
+                # SPSDD with the accession that supersedes the dataset; a bare SPSDD names none.
+                named = [
+                    code == "SPSDD" ? "" : String(last(split(code, ','))) for
+                    code in vcat(codes.common, codes.own) if
+                    code == "SPSDD" || startswith(code, "SPSDD,")
+                ]
+                listed = get(ExforFissionData.SUPERSEDED_DATASETS, identifier, nothing)
+                named == (listed === nothing ? String[] : [listed.by]) || push!(
+                    superseded,
+                    "$(identifier): STATUS names $(named), listed $(listed)",
+                )
+                ("PRELM" in codes.common) ==
+                haskey(ExforFissionData.PRELIMINARY_ENTRIES, first(identifier, 5)) ||
+                    push!(entries, identifier)
+                ("PRELM" in codes.own) ==
+                haskey(ExforFissionData.PRELIMINARY_SUBENTRIES, first(identifier, 8)) ||
+                    push!(subentries, identifier)
+            end
+        end
+        @test checked > 0
+        @test isempty(superseded)
+        @test isempty(entries)
+        @test isempty(subentries)
+        @info "flags checked against the STATUS codes of the stored subentries" tree = TREE checked
     end
 else
     @info "no retrieval tree at $(TREE); the written tables are not checked"

@@ -156,14 +156,15 @@ function _curation_record(identifier::AbstractString)
     if group !== nothing
         record["correlated_with"] = filter(!=(identifier), group.members)
         record["correlation"] = group.reason
+        record["correlation_relation"] = group.relation
     end
     return record
 end
 
 # The qualifiers of one accepted dataset for the run record: those of its reaction code, of
 # both reactions where it is a ratio, the flag of a mean neutron energy whose frame the
-# subentry leaves unstated, that of an entry whose publication calls its results preliminary,
-# and that of a dataset its subentry marks superseded.
+# subentry leaves unstated, that of a dataset the archive marks preliminary, and that of a
+# dataset its subentry marks superseded.
 function _qualifiers(dataset::Dataset)
     qualifiers = code_qualifiers(dataset.reaction_code)
     # A ratio carries the qualifiers of its two reactions.
@@ -209,12 +210,13 @@ excluded, with the reason.
 The rejection list is the point of this file. A dataset missing from the output is otherwise
 indistinguishable from one the archive does not hold. An accepted dataset carries the evidence
 for a curated reading as `curation`, the compilation defects left out of it as `archive_defects`,
-and the other runs of its experiment as `correlated_with`; see src/curation.jl. A dataset its
-subentry marks superseded names the superseding one among its `qualifiers`; see
-[`SUPERSEDED_DATASETS`](@ref). A multiplicity read by the complement test carries
-`classification_basis` and, where its pair sum is formed, `pair_sum_deviation` with its
-uncertainty, the yields it was weighted with, and `scale_consistent`; see
-[`ComplementReading`](@ref). A mean neutron energy carries `ordinate_frame` with its evidence,
+and the other runs of its experiment as `correlated_with`, with the relation of the group as
+`correlation_relation`; see src/curation.jl. A dataset its subentry marks superseded names the
+superseding one among its `qualifiers`, and a dataset the archive marks preliminary says so there
+too; see [`SUPERSEDED_DATASETS`](@ref) and [`PRELIMINARY_ENTRIES`](@ref). A multiplicity read by
+the complement test carries `classification_basis` and, where its pair sum is formed,
+`pair_sum_deviation` with its uncertainty, the yields it was weighted with, and `scale_consistent`;
+see [`ComplementReading`](@ref). A mean neutron energy carries `ordinate_frame` with its evidence,
 and a flag among its `qualifiers` where the frame is unstated; a ratio to a Maxwellian carries
 `maxwellian_temperature_mev` and its source, and a ratio of two spectra `ratio_orientation` with
 the two reaction codes. The record of a joint yield Y(A, TKE) lists the slices of the
@@ -403,11 +405,13 @@ function write_metadata(
     ]
     if !isempty(preliminary)
         record["datasets"]["preliminary_warning"] =
-            "the publication of these datasets calls its results preliminary; they are \
-             written and flagged among their `qualifiers`: " * join(preliminary, ", ")
+            "the archive marks these datasets preliminary, with PRELM under STATUS in their \
+             subentry or in the common subentry of their entry; they are written and flagged \
+             among their `qualifiers`, which add the words of the publication where it has \
+             been read: " * join(preliminary, ", ")
     end
     superseded = [
-        "$(entry.dataset.identifier) by $(SUPERSEDED_DATASETS[entry.dataset.identifier])"
+        "$(entry.dataset.identifier) by $(SUPERSEDED_DATASETS[entry.dataset.identifier].by)"
         for entry in accepted if haskey(SUPERSEDED_DATASETS, entry.dataset.identifier)
     ]
     if !isempty(superseded)
@@ -444,8 +448,12 @@ function write_metadata(
     ]
     if !isempty(correlated)
         record["datasets"]["correlated_warning"] =
-            "these datasets are repeated runs of one experiment, each naming the others as \
-             `correlated_with`; any combination of them is one measurement, not one per run: " *
+            "these datasets stand in groups that are one experiment, each naming the others \
+             as `correlated_with` and how its group is related as `correlation_relation`: of \
+             a republication take one, by default the one not flagged `superseded:`; of an \
+             alternative_analysis, one set of events reduced twice, take one; of a \
+             repeated_run combine the members as one; of a complementary_range join the \
+             members under one normalisation. No group counts once per member: " *
             join(correlated, ", ")
     end
     relative = [

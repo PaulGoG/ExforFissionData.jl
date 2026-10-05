@@ -240,6 +240,8 @@ For each of the three thermal systems Starostov 1985 (entry 40930) gives the rat
 datasets, the first measurement cycle with an anthracene crystal, a stilbene crystal and a plastic
 scintillator, and the second cycle. Their subentries name each other under `STATUS` with `COREL`;
 they are written separately and marked `correlated_with`, one measurement for any combination.
+Their relation is `complementary_range`, the second cycle repeating the lower range and extending
+it downwards.
 
 `spectrum_cf252_ratio` is the ratio of the prompt fission neutron spectrum of the system and that
 of 252-Cf(sf), both at the same outgoing neutron energy, tabulated against `["neutron_energy"]`
@@ -303,10 +305,13 @@ standard deviations where an uncertainty is stated.
 | `U233_nth_P_vs_nu` | `12833006` (2.494), `30046007` (2.483), `30772009` (2.480) | `12337008`, at 80 keV; `V0045011` |
 
 `30046011` and the three datasets of `30772015` are one measurement and name each other as
-`correlated_with`. The Boldeman 1967 dataset of each neutron-induced system is marked superseded
-by the 1985 one in its subentry; both are written, and marked `correlated_with`. The 1967
-dataset says so among its `qualifiers`, in an entry beginning `superseded:` that names the 1985
-one, and `superseded_warning` lists them.
+`correlated_with`, of relation `repeated_run`: Table III of the publication
+([doi:10.13182/NSE85-A17133](https://doi.org/10.13182/NSE85-A17133)) gives four runs, 20 × 10⁶
+fissions at a bias of 480 keV in `30046011` and 8.7, 8.4 and 6.8 × 10⁶ at 620, 720 and 1950 keV
+in `30772015`. The Boldeman 1967 dataset of each neutron-induced system is marked superseded by
+the 1985 one in its subentry; both are written, and marked `correlated_with`. The 1967 dataset
+says so among its `qualifiers`, in an entry beginning `superseded:` that names the 1985 one, and
+`superseded_warning` lists them.
 
 The archive holds more on the distribution than this, and none of it is retrieved: no P(ν) of the
 light or the heavy fragment as a dataset, but one distribution per fragment charge, `23598004`,

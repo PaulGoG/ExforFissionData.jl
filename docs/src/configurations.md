@@ -81,12 +81,24 @@ so these configurations omit `energy_min` and `energy_max`.
   (Hambsch 1997); the width column of 12709004 (Weber 1981) is refused as no width.
 - `Cf252_sf_Y_vs_A_TKE` — the joint pre-neutron yield Y(A, TKE): 23268002 (Göök 2014), 30 000
   cells of counts, written under `relative/`.
-- `Cf252_sf_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass.
+- `Cf252_sf_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41720002
+  (Basova 1979) and 41694002 (Zamyatnin 1979), which differ by 0.34 neutrons rms over 80 shared
+  masses, are two reductions of one measurement, relation `alternative_analysis`, each naming
+  the other as `correlated_with`: one of the two is taken.
 - `Cf252_sf_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
 - `Cf252_sf_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
+  The subentry of 40644003 (Starostov 1979, arbitrary units, under `relative/`) marks it
+  superseded by 40644002, normalised to the number of neutrons, and preliminary; that of 40875002
+  (Dyachenko 1989, absolute) marks it superseded by 41158002 (Lajtai 1990, arbitrary units, under
+  `relative/`). Each pair is written, each naming the other as `correlated_with`; the superseded
+  one carries a qualifier beginning `superseded:`, and 40644003 one beginning `preliminary:` too.
 - `Cf252_sf_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, against
-  secondary neutron energy.
+  secondary neutron energy. The subentry of 40418006 (Blinov 1973) marks it superseded by
+  40418008, a table of the same measurement where it was read off a figure; that of 40875003
+  (Dyachenko 1989), with uncertainties, marks it superseded by 41158003 (Lajtai 1990), which
+  states none. Each pair is written, each naming the other as `correlated_with`, and the
+  superseded one carries a qualifier beginning `superseded:`.
 - `Cf252_sf_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 14065003
   (Bowman 1963), 23175012 (Budtz-Jørgensen 1988), 23268011 (Göök 2014) and 41689005 (Piksaykin
   1977), the second and fourth headed `DATA` and in the centre of mass by their publications.
@@ -108,13 +120,15 @@ so these configurations omit `energy_min` and `energy_max`.
 
 ### 235-U(nth,f)
 
-- `U235_nth_Y_vs_A` — pre-neutron mass yields.
+- `U235_nth_Y_vs_A` — pre-neutron mass yields. 417380041 and 417380042 (Zeynalov 2019) carry a
+  qualifier beginning `preliminary:`.
 - `U235_nth_TKE_vs_A` — pre-neutron total kinetic energy against pre-neutron fragment mass.
 - `U235_nth_sigma_TKE_vs_A` — the standard deviation of the pre-neutron TKE against mass, from
   23014003 (Baba 1997), 40235017 (D'yachenko 1968, a variance) and 40200003 (Zakharova 1973).
 - `U235_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system, and the
   record lists the slices it holds instead.
-- `U235_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass.
+- `U235_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41516012
+  (Vorobyev 2010) carries a qualifier beginning `preliminary:`.
 - `U235_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
 - `U235_nth_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
@@ -126,7 +140,7 @@ so these configurations omit `energy_min` and `energy_max`.
   and 40871012 (Nefedov 1983), 40872007 (Starostov 1983) and 41516017 (Vorobyev 2010), 252-Cf
   over 235-U, and 41597002 (Vorobyev 2013), 235-U over 252-Cf. The subentry of 41516017 marks
   it superseded by 41597002; both are written, each naming the other as `correlated_with`, and
-  41516017 carries a qualifier beginning `superseded:`.
+  41516017 carries a qualifier beginning `superseded:` and one beginning `preliminary:`.
 - `U235_nth_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 22464003
   (Nishio 1998), interpolated from a half-integer 2-u grid, and 41502008 (Batenkov 2004);
   23164022 (Al-Adili 2016), fragment kinetic energies, is refused on its magnitude.
@@ -188,7 +202,10 @@ be written under a directory of its own.
   23012005 and 23012006 (Nishio 1995), the second a width of one fragment's energy.
 - `Pu239_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system, and the
   record lists the slices it holds instead.
-- `Pu239_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass.
+- `Pu239_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41720004
+  (Basova 1979) and 41694003 (Zamyatnin 1979), which differ by 0.36 neutrons rms over 73 shared
+  masses, are two reductions of one measurement, relation `alternative_analysis`, each naming
+  the other as `correlated_with`: one of the two is taken.
 - `Pu239_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
   total kinetic energy jointly.
 - `Pu239_nth_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.

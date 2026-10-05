@@ -166,11 +166,36 @@ except that a spectrum no measurement of the channel can have been made in rejec
 see [Entrance channels](channels.md).
 
 A dataset its subentry marks superseded (`STATUS`, code `SPSDD`) is written beside the dataset
-that supersedes it, and neither is refused. The two are one measurement and name each other as
-`correlated_with`, which does not say which of them the authors withdrew; the superseded one
-carries among its `qualifiers` an entry beginning `superseded: by` followed by the accession of
-the other, and `superseded_warning` under `[datasets]` lists the pairs. A consumer wanting one of
-the two takes the superseding dataset on that entry.
+that supersedes it, and neither is refused. The two are one measurement, a group of relation
+`republication`, and name each other as `correlated_with`, which does not say which of them the
+authors withdrew; the superseded one carries among its `qualifiers` an entry beginning
+`superseded: by` followed by the accession of the other, and `superseded_warning` under
+`[datasets]` lists the pairs. A consumer wanting one of the two takes the superseding dataset on
+that entry.
+
+Datasets of one experiment are written separately and grouped ([`CORRELATION_GROUPS`](@ref)):
+each names the others as `correlated_with`, with the reason as `correlation` and the relation as
+`correlation_relation`, and no weighting should count a group once per member. The relation is one
+of [`CORRELATION_RELATIONS`](@ref), and says what a consumer does with the group:
+
+- `republication`: one result published twice, the earlier marked superseded by the later; take
+  one, by default the later, the one not flagged `superseded:`.
+- `alternative_analysis`: one set of events reduced twice; take one.
+- `repeated_run`: the quantity measured again in the same experiment, in another run or cycle or
+  at another flight path; combine the members as one.
+- `complementary_range`: parts of one spectrum, each over its own range; join them under one
+  normalisation.
+
+A group is formed from the text of the subentries, and of the publication where they do not
+decide, case by case; the archive's `COREL` alone does not make one.
+
+A dataset the archive marks preliminary is flagged by the code alone. `PRELM` under `STATUS` in the
+common subentry of an entry flags every accepted dataset of the entry
+([`PRELIMINARY_ENTRIES`](@ref)), and in a subentry that subentry
+([`PRELIMINARY_SUBENTRIES`](@ref)). The qualifier begins `preliminary:` and gives the code and
+what stands beside it, with the words of the publication where it has been read; a publication
+never gates the flag. `preliminary_warning` under `[datasets]` lists the datasets, and none is
+refused.
 
 ## Known miscoded entries
 
