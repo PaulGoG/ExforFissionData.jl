@@ -119,7 +119,9 @@ so these configurations omit `energy_min` and `energy_max`.
   total kinetic energy jointly.
 - `U235_nth_spectrum_vs_E` — prompt fission neutron spectrum against secondary neutron energy.
 - `U235_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, against
-  secondary neutron energy.
+  secondary neutron energy. 40930006, 40930013, 40930014 and 40930015 (Starostov 1985) are one
+  measurement in four parts, the first cycle with each of three detectors and the second
+  cycle, each naming the others as `correlated_with`.
 - `U235_nth_spectrum_cf252_ratio_vs_E` — the spectrum as a ratio to that of 252-Cf(sf): 40871011
   and 40871012 (Nefedov 1983), 40872007 (Starostov 1983) and 41516017 (Vorobyev 2010), 252-Cf
   over 235-U, and 41597002 (Vorobyev 2013), 235-U over 252-Cf. The subentry of 41516017 marks
@@ -161,6 +163,8 @@ be written under a directory of its own.
 - `U233_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system.
 - `U233_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, from
   40873002, 40930004, 40930010, 40930011, 40930012 and 41611010, all formed with T = 1.34 MeV.
+  The four of 40930 (Starostov 1985) are one measurement in four parts, the first cycle with
+  each of three detectors and the second cycle, each naming the others as `correlated_with`.
 - `U233_nth_spectrum_cf252_ratio_vs_E` — the spectrum as a ratio to that of 252-Cf(sf): 40871013
   (Nefedov 1983) and 40872008 (Starostov 1983), 252-Cf over 233-U, and 416110021 (Vorobyev 2016),
   233-U over 252-Cf in arbitrary units, under `relative/`.
@@ -189,7 +193,9 @@ be written under a directory of its own.
 - `Pu239_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, from
   40873006 (Boytsov 1983), 40930008, 40930016, 40930017 and 40930018 (Starostov 1985) and
   41611011 (Vorobyev 2016), all formed with T = 1.382 MeV; 14684003, from 0.95 MeV, lies outside
-  the thermal window.
+  the thermal window. The four of Starostov 1985 are one measurement in four parts, the first
+  cycle with each of three detectors and the second cycle, each naming the others as
+  `correlated_with`.
 - `Pu239_nth_spectrum_cf252_ratio_vs_E` — the spectrum as a ratio to that of 252-Cf(sf): 40871009
   and 40871010 (Nefedov 1983) and 40872006 (Starostov 1983), 252-Cf over 239-Pu, and 416110041
   (Vorobyev 2016), 239-Pu over 252-Cf in arbitrary units, under `relative/`.

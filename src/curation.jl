@@ -708,7 +708,7 @@ struct CorrelationGroup
 end
 
 """
-Groups of datasets that repeat one experiment, or publish one twice; see
+Groups of datasets that repeat one experiment, give it in parts, or publish it twice; see
 [`CorrelationGroup`](@ref). Each accepted
 member carries the others as `correlated_with` in the run record, so that no weighting downstream
 counts one experiment once per run.
@@ -753,6 +753,30 @@ const CORRELATION_GROUPS = [
         "one measurement of the 233-U(nth,f) neutron number distribution, published twice: \
          30046007 (Boldeman 1967, AAEC/E-172) is marked superseded by 30772009 (Boldeman \
          1985, the reanalysis) in its STATUS (SPSDD)",
+    ),
+    CorrelationGroup(
+        ["40930004", "40930010", "40930011", "40930012"],
+        "four parts of one measurement of the 233-U(nth,f) spectrum (Starostov 1985, Fig. 4 \
+         bottom of INDC(CCP)-252, p. 16): the first cycle with the anthracene crystal \
+         (40930004), the stilbene crystal (40930010) and the plastic scintillator (40930011), \
+         and the second cycle (40930012); each subentry names the other three in its STATUS \
+         (COREL), and they are one measurement for any combination, not four",
+    ),
+    CorrelationGroup(
+        ["40930006", "40930013", "40930014", "40930015"],
+        "four parts of one measurement of the 235-U(nth,f) spectrum (Starostov 1985, Fig. 4 \
+         top of INDC(CCP)-252, p. 16): the first cycle with the anthracene crystal \
+         (40930006), the stilbene crystal (40930013) and the plastic scintillator (40930014), \
+         and the second cycle (40930015); each subentry names the other three in its STATUS \
+         (COREL), and they are one measurement for any combination, not four",
+    ),
+    CorrelationGroup(
+        ["40930008", "40930016", "40930017", "40930018"],
+        "four parts of one measurement of the 239-Pu(nth,f) spectrum (Starostov 1985, Fig. 3 \
+         bottom of INDC(CCP)-252, p. 16): the first cycle with the anthracene crystal \
+         (40930008), the stilbene crystal (40930016) and the plastic scintillator (40930017), \
+         and the second cycle (40930018); each subentry names the other three in its STATUS \
+         (COREL), and they are one measurement for any combination, not four",
     ),
 ]
 

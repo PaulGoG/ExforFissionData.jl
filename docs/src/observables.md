@@ -236,6 +236,10 @@ of its DATA table, in an energy unit. It is recorded as `maxwellian_temperature_
 is refused. `14278003` (Poenitz 1982, 252-Cf) holds in `KT-NRM` the mean energy of the
 Maxwellian, 2.159 MeV, as its `ANALYSIS` text says, and the record gives T = 1.439 MeV, two
 thirds of it. The ratio form is retrieved for 252-Cf(sf) and for thermal 235-U, 239-Pu and 233-U.
+For each of the three thermal systems Starostov 1985 (entry 40930) gives the ratio in four
+datasets, the first measurement cycle with an anthracene crystal, a stilbene crystal and a plastic
+scintillator, and the second cycle. Their subentries name each other under `STATUS` with `COREL`;
+they are written separately and marked `correlated_with`, one measurement for any combination.
 
 `spectrum_cf252_ratio` is the ratio of the prompt fission neutron spectrum of the system and that
 of 252-Cf(sf), both at the same outgoing neutron energy, tabulated against `["neutron_energy"]`

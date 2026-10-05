@@ -6,6 +6,17 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The Maxwellian ratios of Starostov 1985 (entry 40930) are one measurement per nuclide in four
+  datasets, the first cycle with an anthracene crystal, a stilbene crystal and a plastic
+  scintillator, and the second cycle, and their subentries name each other under `STATUS` with
+  `COREL`. Each now carries the other three as `correlated_with`, with `correlation` saying why,
+  and `correlated_warning` under `[datasets]` names them: `40930004`, `40930010`, `40930011` and
+  `40930012` in `U233_nth/spectrum_maxwellian_ratio_vs_E`, `40930006`, `40930013`, `40930014`
+  and `40930015` in `U235_nth/spectrum_maxwellian_ratio_vs_E`, and `40930008`, `40930016`,
+  `40930017` and `40930018` in `Pu239_nth/spectrum_maxwellian_ratio_vs_E`.
+
 ## [0.2.6] - 2026-10-02
 
 The mean neutron energies of Batenkov 2004 read from their publication, and its datasets flagged

@@ -4530,6 +4530,18 @@ of = "$(of)"
         @test group("30772011").members == ["30046009", "30772011"]
         @test group("30046007").members == ["30046007", "30772009"]
         @test group("12833005") === nothing
+        # The spectra of Starostov 1985, each in four parts: three detectors in the first
+        # cycle, and the second cycle.
+        @test group("40930011").members == ["40930004", "40930010", "40930011", "40930012"]
+        @test group("40930006").members == ["40930006", "40930013", "40930014", "40930015"]
+        @test group("40930018").members == ["40930008", "40930016", "40930017", "40930018"]
+        @test occursin("COREL", group("40930018").reason)
+        # The derived 252-Cf(sf) spectrum of the same entry is no part of them.
+        @test group("40930002") === nothing
+        # No dataset stands in two groups.
+        @test allunique(
+            reduce(vcat, [g.members for g in ExforFissionData.CORRELATION_GROUPS]),
+        )
     end
 
     @testset "results a publication calls preliminary" begin
