@@ -10,8 +10,8 @@ type: software
 authors:
   - family-names: Gogîță
     given-names: Paul-Adrian
-version: 0.2.6
-date-released: "2026-10-02"
+version: 0.2.7
+date-released: "2026-10-05"
 license: MIT
 repository-code: https://github.com/PaulGoG/ExforFissionData.jl
 keywords:

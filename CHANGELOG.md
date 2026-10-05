@@ -6,23 +6,74 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-10-05
+
+How the datasets of one experiment are related, and the archive's marks of superseded and
+preliminary data carried into the record. Every table and stored subentry that 0.2.6 writes is
+written unchanged: run against the archive on 2026-10-05, its 52 configurations give the same 638
+files byte for byte, and no dataset changes status. The record entries of 45 datasets change, in
+the keys named below, with three warnings under `[datasets]`.
+
+### Added
+
+- `correlation_relation`, beside `correlated_with` and `correlation` on every dataset of a
+  correlation group: how the members are related, which is what to do with them.
+  `republication` is one result published twice, the earlier marked superseded: take one, by
+  default the later. `alternative_analysis` is one set of events reduced twice: take one.
+  `repeated_run` is the quantity measured again in the same experiment: combine the members as
+  one. `complementary_range` is parts of one spectrum: join them under one normalisation. The 18
+  datasets grouped before gain the key: the runs `400170091` to `400170096` and `30046011` with
+  `307720151`, `307720152` and `307720153` (`repeated_run`), and the pairs `41516017` and
+  `41597002`, `30046007` and `30772009`, `30046008` and `30772010`, `30046009` and `30772011`
+  (`republication`).
+- A qualifier beginning `superseded: by`, with the accession that supersedes the dataset and the
+  `STATUS` code that says so, on the eight accepted datasets whose subentry carries `SPSDD`, and
+  `superseded_warning` under `[datasets]` listing the pairs: `30046007` (by `30772009`) in
+  `U233_nth/P_vs_nu`, `30046008` (by `30772010`) in `U235_nth/P_vs_nu`, `30046009` (by
+  `30772011`) in `Pu239_nth/P_vs_nu`, `41516017` (by `41597002`) in
+  `U235_nth/spectrum_cf252_ratio_vs_E`, `40418006` (by `40418008`) and `40875003` (by
+  `41158003`) in `Cf252_sf/spectrum_maxwellian_ratio_vs_E`, and `40644003` (by `40644002`) and
+  `40875002` (by `41158002`) in `Cf252_sf/spectrum_vs_E`. None is refused. `correlated_with`
+  reads alike on both datasets of a pair; the qualifier says which one was withdrawn.
+- Correlation groups for the four superseded pairs of 252-Cf(sf) above, `republication`, so that
+  both datasets of each gain `correlated_with`, `correlation` and `correlation_relation`. Where
+  the superseded dataset holds what its successor does not, `correlation` says so: `40875002` is
+  absolute where `41158002` is in arbitrary units, `40875003` states an uncertainty on every row
+  where `41158003` states none and revises 68 of the 70 values, and `40644003` holds 99 points
+  against 79.
+- Correlation groups for the Maxwellian ratios of Starostov 1985 (entry 40930),
+  `complementary_range`: per nuclide, the first cycle with an anthracene crystal, a stilbene
+  crystal and a plastic scintillator and the second cycle, whose subentries name each other
+  under `STATUS` with `COREL`. `40930004`, `40930010`, `40930011` and `40930012` in
+  `U233_nth/spectrum_maxwellian_ratio_vs_E`, `40930006`, `40930013`, `40930014` and `40930015`
+  in `U235_nth/spectrum_maxwellian_ratio_vs_E`, and `40930008`, `40930016`, `40930017` and
+  `40930018` in `Pu239_nth/spectrum_maxwellian_ratio_vs_E`.
+- Correlation groups for the multiplicities of Basova 1979 and Zamyatnin 1979,
+  `alternative_analysis`: `41720002` and `41694002` in `Cf252_sf/nu_vs_A`, `41720004` and
+  `41694003` in `Pu239_nth/nu_vs_A`. The archive calls each an "Alternative result" of the
+  other, and for 252-Cf both quote 7.84 × 10⁶ fissions and 2.83 × 10⁵ neutrons at 0°; the tables
+  differ by 0.34 and 0.36 neutrons rms. One of the two is taken, never both.
+- A check, run with the tests where a retrieval tree is present, that holds the `superseded:`
+  and `preliminary:` flags to the `STATUS` codes of the stored subentries, so that neither list
+  falls behind the archive.
+
 ### Changed
 
-- The Maxwellian ratios of Starostov 1985 (entry 40930) are one measurement per nuclide in four
-  datasets, the first cycle with an anthracene crystal, a stilbene crystal and a plastic
-  scintillator, and the second cycle, and their subentries name each other under `STATUS` with
-  `COREL`. Each now carries the other three as `correlated_with`, with `correlation` saying why,
-  and `correlated_warning` under `[datasets]` names them: `40930004`, `40930010`, `40930011` and
-  `40930012` in `U233_nth/spectrum_maxwellian_ratio_vs_E`, `40930006`, `40930013`, `40930014`
-  and `40930015` in `U235_nth/spectrum_maxwellian_ratio_vs_E`, and `40930008`, `40930016`,
-  `40930017` and `40930018` in `Pu239_nth/spectrum_maxwellian_ratio_vs_E`.
-- A dataset its subentry marks superseded (`STATUS`, `SPSDD`) now says so among its `qualifiers`,
-  in an entry beginning `superseded: by` that names the superseding accession, with
-  `superseded_warning` under `[datasets]`: `30046007` (by `30772009`) in `U233_nth/P_vs_nu`,
-  `30046008` (by `30772010`) in `U235_nth/P_vs_nu`, `30046009` (by `30772011`) in
-  `Pu239_nth/P_vs_nu`, and `41516017` (by `41597002`) in `U235_nth/spectrum_cf252_ratio_vs_E`.
-  Their `correlated_with` already paired each with its successor without saying which was
-  superseded. The superseding datasets are unchanged, and none is refused.
+- The `preliminary:` qualifier follows the archive's code. `PRELM` under `STATUS`, in the common
+  subentry of an entry or in the subentry itself, flags the dataset; a publication, where it has
+  been read, adds its words and never gates. The four datasets of entry 41502 keep their
+  qualifier. It is new on `41516012` in `U235_nth/nu_vs_A`, `41516017` in
+  `U235_nth/spectrum_cf252_ratio_vs_E`, `417380041` and `417380042` in `U235_nth/Y_vs_A`, and
+  `40644003` in `Cf252_sf/spectrum_vs_E`. `preliminary_warning` is reworded to say so, also in
+  the three records where it names the same datasets as before: `U235_nth/eps_vs_A`,
+  `Pu239_nth/eps_vs_A` and `Pu239_nth/nu_vs_A`.
+- `correlated_warning` states the relations and what each asks of a consumer. Its wording
+  changes in the six records that carried it: `U235_nth/TKE_vs_A`,
+  `U235_nth/spectrum_cf252_ratio_vs_E` and the four `P_vs_nu`.
+- `correlation` of `30046011`, `307720151`, `307720152` and `307720153` rests on the publication
+  ([doi:10.13182/NSE85-A17133](https://doi.org/10.13182/NSE85-A17133)): four runs in one
+  scintillator tank, 20 × 10⁶ fissions at a discriminator bias of 480 keV and 8.7, 8.4 and
+  6.8 × 10⁶ at 620, 720 and 1950 keV.
 
 ## [0.2.6] - 2026-10-02
 
@@ -542,7 +593,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.3...v0.2.4
