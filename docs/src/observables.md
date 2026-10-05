@@ -304,7 +304,9 @@ standard deviations where an uncertainty is stated.
 
 `30046011` and the three datasets of `30772015` are one measurement and name each other as
 `correlated_with`. The Boldeman 1967 dataset of each neutron-induced system is marked superseded
-by the 1985 one in its subentry; both are written, and marked `correlated_with`.
+by the 1985 one in its subentry; both are written, and marked `correlated_with`. The 1967
+dataset says so among its `qualifiers`, in an entry beginning `superseded:` that names the 1985
+one, and `superseded_warning` lists them.
 
 The archive holds more on the distribution than this, and none of it is retrieved: no P(ν) of the
 light or the heavy fragment as a dataset, but one distribution per fragment charge, `23598004`,

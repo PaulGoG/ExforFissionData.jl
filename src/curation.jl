@@ -1412,6 +1412,34 @@ function preliminary_qualifier(identifier::AbstractString)
 end
 
 """
+Datasets whose subentry marks them superseded, under `STATUS` with the code `SPSDD`, keyed by
+the dataset identifier, with the accession the code names as superseding them. Each is written,
+carries [`superseded_qualifier`](@ref) among its `qualifiers`, and is named in
+`superseded_warning`; none is refused for it. A superseded dataset and the one that supersedes
+it are one measurement and share one of the [`CORRELATION_GROUPS`](@ref), whose
+`correlated_with` reads alike on both; the qualifier says which of the two the authors withdrew.
+"""
+const SUPERSEDED_DATASETS = Dict{String, String}(
+    "30046007" => "30772009",
+    "30046008" => "30772010",
+    "30046009" => "30772011",
+    "41516017" => "41597002",
+)
+
+"""
+    superseded_qualifier(identifier) -> Union{String,Nothing}
+
+The qualifier of a dataset among [`SUPERSEDED_DATASETS`](@ref), `superseded: by` followed by the
+accession that supersedes it and the `STATUS` code of its subentry that says so, or `nothing`.
+"""
+function superseded_qualifier(identifier::AbstractString)
+    successor = get(SUPERSEDED_DATASETS, identifier, nothing)
+    successor === nothing && return nothing
+    return "superseded: by $(successor), as the STATUS of its subentry states \
+            (SPSDD,$(successor))"
+end
+
+"""
 The qualifier written among the `qualifiers` of a dataset whose [`ordinate_frame`](@ref) is
 unstated, so that a reader of the reaction-code flags meets it there.
 """

@@ -4518,6 +4518,46 @@ of = "$(of)"
         written = only(record["accepted"])
         @test written["distribution_normalised"] == true
         @test haskey(written, "mean_multiplicity")
+
+        # 30046009 beside 30772011, which supersedes it: both are written, each names the
+        # other, and the qualifier and the warning say which of the two was superseded.
+        pair = [
+            select_dataset(
+                identifier,
+                distribution(
+                    identifier,
+                    "94-PU-239(N,F),NUM,NU,,MXW",
+                    0:6,
+                    boldeman_P,
+                    boldeman_σ;
+                    incident_ev = 0.0253,
+                )...,
+                pu239,
+            ) for identifier in ("30046009", "30772011")
+        ]
+        @test all(dataset -> dataset isa Dataset, pair)
+        record = run_record(
+            """
+            [query]
+            target_Z = 94
+            target_A = 239
+            channel = "nth"
+            abscissa = ["neutron_number"]
+            ordinate = "multiplicity_distribution"
+            energy_min = 0.0
+            energy_max = 1.0e-7
+            """,
+            pair,
+            pu239,
+        )
+        entries = Dict(entry["identifier"] => entry for entry in record["accepted"])
+        @test ExforFissionData.superseded_qualifier("30046009") in
+              entries["30046009"]["qualifiers"]
+        @test !any(startswith("superseded:"), entries["30772011"]["qualifiers"])
+        @test entries["30046009"]["correlated_with"] == ["30772011"]
+        @test entries["30772011"]["correlated_with"] == ["30046009"]
+        @test record["datasets"]["accepted"] == 2
+        @test endswith(record["datasets"]["superseded_warning"], "30046009 by 30772011")
     end
 
     @testset "one measurement in several datasets" begin
@@ -4584,6 +4624,21 @@ of = "$(of)"
         @test accepted.record["mean_formed_from"] == "unstated"
         @test accepted.record["mean_threshold_mev"] == 0.2
         @test occursin("Mannhart", accepted.record["mean_evidence"])
+    end
+
+    @testset "datasets a subentry marks superseded" begin
+        superseded_qualifier = ExforFissionData.superseded_qualifier
+        qualifier = superseded_qualifier("41516017")
+        @test startswith(qualifier, "superseded: by 41597002")
+        @test occursin("(SPSDD,41597002)", qualifier)
+        # `correlated_with` reads alike on both of a pair; the qualifier is on one alone.
+        @test superseded_qualifier("41597002") === nothing
+        @test superseded_qualifier("30046011") === nothing
+        # Each shares a correlation group with the dataset that supersedes it, and no other.
+        for (identifier, successor) in ExforFissionData.SUPERSEDED_DATASETS
+            @test ExforFissionData.correlation_group(identifier).members ==
+                  [identifier, successor]
+        end
     end
 
     @testset "quality" begin

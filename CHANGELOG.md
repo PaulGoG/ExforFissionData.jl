@@ -16,6 +16,13 @@ Notable changes to ExforFissionData.jl. The format follows
   `40930012` in `U233_nth/spectrum_maxwellian_ratio_vs_E`, `40930006`, `40930013`, `40930014`
   and `40930015` in `U235_nth/spectrum_maxwellian_ratio_vs_E`, and `40930008`, `40930016`,
   `40930017` and `40930018` in `Pu239_nth/spectrum_maxwellian_ratio_vs_E`.
+- A dataset its subentry marks superseded (`STATUS`, `SPSDD`) now says so among its `qualifiers`,
+  in an entry beginning `superseded: by` that names the superseding accession, with
+  `superseded_warning` under `[datasets]`: `30046007` (by `30772009`) in `U233_nth/P_vs_nu`,
+  `30046008` (by `30772010`) in `U235_nth/P_vs_nu`, `30046009` (by `30772011`) in
+  `Pu239_nth/P_vs_nu`, and `41516017` (by `41597002`) in `U235_nth/spectrum_cf252_ratio_vs_E`.
+  Their `correlated_with` already paired each with its successor without saying which was
+  superseded. The superseding datasets are unchanged, and none is refused.
 
 ## [0.2.6] - 2026-10-02
 

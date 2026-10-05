@@ -162,8 +162,8 @@ end
 
 # The qualifiers of one accepted dataset for the run record: those of its reaction code, of
 # both reactions where it is a ratio, the flag of a mean neutron energy whose frame the
-# subentry leaves unstated, and that of an entry whose publication calls its results
-# preliminary.
+# subentry leaves unstated, that of an entry whose publication calls its results preliminary,
+# and that of a dataset its subentry marks superseded.
 function _qualifiers(dataset::Dataset)
     qualifiers = code_qualifiers(dataset.reaction_code)
     # A ratio carries the qualifiers of its two reactions.
@@ -175,6 +175,8 @@ function _qualifiers(dataset::Dataset)
         push!(qualifiers, FRAME_UNSTATED_QUALIFIER)
     preliminary = preliminary_qualifier(dataset.identifier)
     preliminary === nothing || push!(qualifiers, preliminary)
+    superseded = superseded_qualifier(dataset.identifier)
+    superseded === nothing || push!(qualifiers, superseded)
     return qualifiers
 end
 
@@ -207,15 +209,16 @@ excluded, with the reason.
 The rejection list is the point of this file. A dataset missing from the output is otherwise
 indistinguishable from one the archive does not hold. An accepted dataset carries the evidence
 for a curated reading as `curation`, the compilation defects left out of it as `archive_defects`,
-and the other runs of its experiment as `correlated_with`; see src/curation.jl. A multiplicity
-read by the complement test carries `classification_basis` and, where its pair sum is formed,
-`pair_sum_deviation` with its uncertainty, the yields it was weighted with, and
-`scale_consistent`; see [`ComplementReading`](@ref). A mean neutron energy carries
-`ordinate_frame` with its evidence, and a flag among its `qualifiers` where the frame is
-unstated; a ratio to a Maxwellian carries `maxwellian_temperature_mev` and its source, and a
-ratio of two spectra `ratio_orientation` with the two reaction codes. The record of a
-joint yield Y(A, TKE) lists the slices of the distribution the archive holds for the system,
-[`SLICE_DATASETS`](@ref), as `slices`.
+and the other runs of its experiment as `correlated_with`; see src/curation.jl. A dataset its
+subentry marks superseded names the superseding one among its `qualifiers`; see
+[`SUPERSEDED_DATASETS`](@ref). A multiplicity read by the complement test carries
+`classification_basis` and, where its pair sum is formed, `pair_sum_deviation` with its
+uncertainty, the yields it was weighted with, and `scale_consistent`; see
+[`ComplementReading`](@ref). A mean neutron energy carries `ordinate_frame` with its evidence,
+and a flag among its `qualifiers` where the frame is unstated; a ratio to a Maxwellian carries
+`maxwellian_temperature_mev` and its source, and a ratio of two spectra `ratio_orientation` with
+the two reaction codes. The record of a joint yield Y(A, TKE) lists the slices of the
+distribution the archive holds for the system, [`SLICE_DATASETS`](@ref), as `slices`.
 
 The record also carries when the `listing` of datasets and each accepted dataset were obtained
 from the archive, and whether each came from the cache. Those dates are the state of the archive
@@ -402,6 +405,17 @@ function write_metadata(
         record["datasets"]["preliminary_warning"] =
             "the publication of these datasets calls its results preliminary; they are \
              written and flagged among their `qualifiers`: " * join(preliminary, ", ")
+    end
+    superseded = [
+        "$(entry.dataset.identifier) by $(SUPERSEDED_DATASETS[entry.dataset.identifier])"
+        for entry in accepted if haskey(SUPERSEDED_DATASETS, entry.dataset.identifier)
+    ]
+    if !isempty(superseded)
+        record["datasets"]["superseded_warning"] =
+            "the subentries of these datasets mark them superseded (STATUS, SPSDD), each by \
+             the dataset named after it; they are written and flagged among their \
+             `qualifiers`, and where one of the two is wanted the superseding dataset is \
+             the authors' own choice: " * join(superseded, ", ")
     end
     if !isempty(flagged)
         record["datasets"]["scale_warning"] =

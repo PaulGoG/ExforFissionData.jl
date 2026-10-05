@@ -165,6 +165,13 @@ recorded per dataset without rejecting it where the observable admits them, and 
 except that a spectrum no measurement of the channel can have been made in rejects the dataset;
 see [Entrance channels](channels.md).
 
+A dataset its subentry marks superseded (`STATUS`, code `SPSDD`) is written beside the dataset
+that supersedes it, and neither is refused. The two are one measurement and name each other as
+`correlated_with`, which does not say which of them the authors withdrew; the superseded one
+carries among its `qualifiers` an entry beginning `superseded: by` followed by the accession of
+the other, and `superseded_warning` under `[datasets]` lists the pairs. A consumer wanting one of
+the two takes the superseding dataset on that entry.
+
 ## Known miscoded entries
 
 Selection follows the reaction code, so a dataset whose code disagrees with its own contents is

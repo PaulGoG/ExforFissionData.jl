@@ -125,15 +125,16 @@ so these configurations omit `energy_min` and `energy_max`.
 - `U235_nth_spectrum_cf252_ratio_vs_E` — the spectrum as a ratio to that of 252-Cf(sf): 40871011
   and 40871012 (Nefedov 1983), 40872007 (Starostov 1983) and 41516017 (Vorobyev 2010), 252-Cf
   over 235-U, and 41597002 (Vorobyev 2013), 235-U over 252-Cf. The subentry of 41516017 marks
-  it superseded by 41597002; both are written, each naming the other as `correlated_with`.
+  it superseded by 41597002; both are written, each naming the other as `correlated_with`, and
+  41516017 carries a qualifier beginning `superseded:`.
 - `U235_nth_eps_vs_A` — mean centre-of-mass neutron energy against fragment mass, from 22464003
   (Nishio 1998), interpolated from a half-integer 2-u grid, and 41502008 (Batenkov 2004);
   23164022 (Al-Adili 2016), fragment kinetic energies, is refused on its magnitude.
 - `U235_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833007 (Gwin 1984), 30046008
   (Boldeman 1967), 30772010 (Boldeman 1985) and 32820002 (Huang 1961). The subentry of 30046008
-  marks it superseded by 30772010; both are written, each naming the other as `correlated_with`.
-  Refused: 12337009 (Diven 1956), at 80 keV, 30544002, derived from a model, and V0045012, an
-  evaluation.
+  marks it superseded by 30772010; both are written, each naming the other as
+  `correlated_with`, and 30046008 carries a qualifier beginning `superseded:`. Refused: 12337009
+  (Diven 1956), at 80 keV, 30544002, derived from a model, and V0045012, an evaluation.
 
 ### 235-U resonance region
 
@@ -175,8 +176,9 @@ be written under a directory of its own.
   `DATA` and in the centre of mass by its publication.
 - `U233_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833006 (Gwin 1984), 30046007
   (Boldeman 1967) and 30772009 (Boldeman 1985). The subentry of 30046007 marks it superseded by
-  30772009; both are written, each naming the other as `correlated_with`. Refused: 12337008
-  (Diven 1956), at 80 keV, and V0045011, an evaluation.
+  30772009; both are written, each naming the other as `correlated_with`, and 30046007 carries a
+  qualifier beginning `superseded:`. Refused: 12337008 (Diven 1956), at 80 keV, and V0045011, an
+  evaluation.
 
 ### 239-Pu(nth,f)
 
@@ -204,8 +206,9 @@ be written under a directory of its own.
   mass by its `REACTION` text.
 - `Pu239_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833008 (Gwin 1984), 30046009
   (Boldeman 1967) and 30772011 (Boldeman 1985). The subentry of 30046009 marks it superseded by
-  30772011; both are written, each naming the other as `correlated_with`. Refused: 12337010
-  (Diven 1956), at 80 keV, and V0045013, an evaluation.
+  30772011; both are written, each naming the other as `correlated_with`, and 30046009 carries a
+  qualifier beginning `superseded:`. Refused: 12337010 (Diven 1956), at 80 keV, and V0045013, an
+  evaluation.
 
 ### 240-Pu(sf)
 
