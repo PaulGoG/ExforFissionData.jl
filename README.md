@@ -86,7 +86,7 @@ length(result.accepted), length(result.rejected)
 
 | Component | State |
 | :--- | :--- |
-| Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f). Reaction codes are compared code by code in their subfields |
+| Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f), and two observables for 240-Pu(sf). Reaction codes are compared code by code in their subfields |
 | Curated readings, compilation defects, width columns | tested; every dataset read from its subentry text, every defect and every width conversion carries a test built from that subentry |
 | Reduction: isomers, energy windows, other independent variables | tested on fixtures; the rejections checked against the live datasets that prompted them. The abscissa and the other variables are read from the subentry DATA table, aligned with the rendering row by row |
 | Retrieval: cache, backoff, bounded concurrency | in use; result order independent of completion order, and the concurrency bound verified at limits 1, 3 and 4 |
@@ -122,9 +122,9 @@ in exactly that way, and where the documentation says "consumers" it means those
 Prompt neutron multiplicity against fragment mass, one panel per fissioning system, as the
 `*_nu_vs_A` configurations return it. Each frame advances through the datasets the archive offers
 for that query in the order the pipeline processes them; a dataset enters the axes only where its
-reaction code answers the query, and otherwise advances the tally alone. Thirty-two datasets kept of
-824 considered — the remainder are other quantities filed under the same target and reaction, and
-the run record names every one of them with the reason it was left out.
+reaction code answers the query, and otherwise advances the tally alone. Thirty-seven datasets
+kept of 824 considered — the remainder are other quantities filed under the same target and
+reaction, and the run record names every one of them with the reason it was left out.
 
 ## Configurations
 
@@ -246,6 +246,7 @@ One directory per fissioning system, one subdirectory per observable, one file p
 data/Cf252_sf/nu_vs_A/
 ├── retrieval.toml                        # the run record
 ├── 41425014_A.S.Vorobiev_2001.dat        # identifier, first author, year
+├── relative/                             # arbitrary units; spectra and the joint yield only
 └── subentries/
     └── 41425014_A.S.Vorobiev_2001.txt    # the original EXFOR subentry
 ```

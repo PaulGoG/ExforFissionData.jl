@@ -5,7 +5,10 @@ CurrentModule = ExforFissionData
 # Retrieval and the run record
 
 Requests run under a bounded concurrency limit with a per-request timeout and exponential
-backoff, and responses are cached on disk in a `Scratch.jl` space.
+backoff, and responses are cached on disk: in the package's `Scratch.jl` space, under
+`~/.julia/scratchspaces/<uuid>/exfor-responses/` by default, or wherever `cache_directory` under
+`[retrieval]` points. The cache is a convenience, not a record: `Pkg.gc()` may remove a scratch
+space, and a run against an empty cache fetches every response again.
 
 EXFOR revises entries — the `HISTORY` of a subentry records each alteration, and many of those
 retrieved here carry one — and adds new ones. The listing of datasets is therefore requested on
@@ -13,7 +16,10 @@ every run, since a cached listing never discovers an added entry, while dataset 
 served from the cache. `max_age_days` under `[retrieval]` expires cached dataset responses older
 than that many days, and `refresh = true` refetches everything a run touches and replaces the
 cached copies. A request the archive cannot serve falls back to the cached copy, with a warning
-naming its date. `offline = true` never contacts the archive and serves the cache alone.
+naming its date. `offline = true` never contacts the archive and serves the cache alone. An
+empty csv rendering, a header with no row, is never served from the cache: the archive has
+answered so for datasets it holds, so such a dataset is asked for again on every later run until
+the archive answers with data, and a run that meets an empty answer rejects it as empty.
 
 The run record carries the date of the listing, `listing_retrieved_utc`, and of every dataset,
 `retrieved_utc`, with whether each came from the cache. Those dates are what a consumer cites as
@@ -104,6 +110,7 @@ One directory per fissioning system, one subdirectory per observable, one file p
 data/Cf252_sf/nu_vs_A/
 ├── retrieval.toml                        # the run record
 ├── 41425014_A.S.Vorobiev_2001.dat        # identifier, first author, year
+├── relative/                             # arbitrary units; spectra and the joint yield only
 └── subentries/
     └── 41425014_A.S.Vorobiev_2001.txt    # the original EXFOR subentry
 ```

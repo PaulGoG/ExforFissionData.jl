@@ -125,8 +125,9 @@ so these configurations omit `energy_min` and `energy_max`.
   about 5 u apart and bracket no integer mass within the 3-u interpolation span, and 23175013,
   one mass, 110, held in COMMON, a slice against TKE rather than the joint observable.
 - `Cf252_sf_T_eff_vs_A` — the effective temperature T_eff of the form fitted to the
-  centre-of-mass neutron spectrum against fragment mass: `MISC1` of 23175012 (Budtz-Jørgensen 1988), 79 masses, 0.77 to
-  1.39 MeV, and `MISC` of 23268011 (Göök 2014), 82 masses of its 109, 0.72 to 1.40 MeV.
+  centre-of-mass neutron spectrum against fragment mass: `MISC1` of 23175012 (Budtz-Jørgensen
+  1988), 79 masses, 0.77 to 1.39 MeV, and `MISC` of 23268011 (Göök 2014), 82 masses of its 109,
+  0.72 to 1.40 MeV.
 - `Cf252_sf_lambda_vs_A` — the exponent λ of the same form against fragment mass: `MISC2` of
   23175012 (Budtz-Jørgensen 1988), 79 masses, 0.11 to 0.94.
 - `Cf252_sf_P_vs_nu` — the multiplicity distribution P(ν): 10605005 (Stoughton 1973), 10901006

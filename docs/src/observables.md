@@ -220,7 +220,8 @@ the publication as `fit_form` and `fit_evidence` ([`SPECTRUM_FITS`](@ref)).
 from 0.77 to 1.39 MeV, and `MISC` of `23268011` (Göök 2014), 82 masses of its 109, from 0.72 to
 1.40 MeV; `Cf252_sf_lambda_vs_A` reads `MISC2` of `23175012`, 79 masses with λ from 0.11 to 0.94.
 Budtz-Jørgensen fits Eq. (8) of the article, the cascade evaporation spectrum of Le Couteur and
-Lang, with λ and the temperature free; the subentry calls the same form a Weisskopf spectrum. Göök 2014 fits Eq. (14) of
+Lang, with λ and the temperature free; the subentry calls the same form a Weisskopf spectrum.
+Göök 2014 fits Eq. (14) of
 [doi:10.1103/PhysRevC.90.064611](https://doi.org/10.1103/PhysRevC.90.064611),
 φ(η) ∝ η^λ exp(−η/T_eff), and its λ, Fig. 18c, is not in the archive. The archive holds no such
 column for the other systems.

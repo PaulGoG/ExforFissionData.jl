@@ -28,10 +28,11 @@ dataset carry an uncertainty and others leave it blank — `41397004` (Apalin 19
 its 52 lines — a row without one is written `NaN`, and so is a row interpolated next to such a
 row, or combined only from such rows; a zero is written only where EXFOR states one, as the empty
 cells of `23268002` do. The run record counts, per dataset, the lines stating a zero uncertainty
-as `uncertainty_zero_rows` and those stating none as `uncertainty_absent_rows`. Where the csv rendering carries no uncertainty at all but the subentry does,
-in `DATA-ERR`, `ERR-T` or `ERR-S` in that order, it is read from the subentry and put on the scale
-of the csv ordinate; `uncertainty_source` in the run record says which (`23268002` gives `ERR-S`
-on each of its 30 000 cells, and the rendering on none).
+as `uncertainty_zero_rows` and those stating none as `uncertainty_absent_rows`. Where the csv
+rendering carries no uncertainty at all but the subentry does, in `DATA-ERR`, `ERR-T` or `ERR-S`
+in that order, it is read from the subentry and put on the scale of the csv ordinate;
+`uncertainty_source` in the run record says which (`23268002` gives `ERR-S` on each of its
+30 000 cells, and the rendering on none).
 
 **One row per abscissa value.** Several things put more than one row on an abscissa value, and
 they are not handled alike:
@@ -59,10 +60,10 @@ record says which of three cases applied.
   every mass of its bin and is written at each with its own uncertainty, which the repetition
   does not reduce; the widths are recorded as `mass_bin_widths_u`. Only bins of at most 2 u are
   placed: a wider bin averages over a part of the sawtooth where ν(A) changes by more than a
-  neutron, and repeated at each mass it would put flat steps into the curve. A yield over several masses is
-  their sum and holds for none of them, so it is not written (`10865003` gives the yield of
-  masses 135 and 136 together). Bins that share or split an edge mass leave open which bin it
-  belongs to and are not placed.
+  neutron, and repeated at each mass it would put flat steps into the curve. A yield over
+  several masses is their sum and holds for none of them, so it is not written (`10865003` gives
+  the yield of masses 135 and 136 together). Bins that share or split an edge mass leave open
+  which bin it belongs to and are not placed.
 - **Non-integer masses** — a digitised curve, a half-integer grid — are interpolated linearly onto
   the integer masses within their range, separately at each value of any other abscissa quantity.
   The uncertainty is interpolated like the value, as for fully correlated neighbours, so an
@@ -93,10 +94,10 @@ probable value, or inside `TKE`. `AKE`, the older coding of the mean kinetic ene
 wherever `KE` is. A combination of several reactions — a ratio, sum or difference — is never the
 quantity itself and is rejected, with one exception: under `spectrum_cf252_ratio`, the ratio of
 the spectrum of the system and that of 252-Cf(sf) is the quantity, and is admitted where each of
-its two reactions satisfies the rule of `spectrum` ([`spectrum_ratio`](@ref)). Which codes each observable requires and forbids is still
-empirical, since the archive applies its own vocabulary inconsistently: the tables in
-`src/reaction_codes.jl` encode observed failures of the upstream labelling. A rule that looks
-redundant usually guards a real entry.
+its two reactions satisfies the rule of `spectrum` ([`spectrum_ratio`](@ref)). Which codes each
+observable requires and forbids is still empirical, since the archive applies its own vocabulary
+inconsistently: the tables in `src/reaction_codes.jl` encode observed failures of the upstream
+labelling. A rule that looks redundant usually guards a real entry.
 
 Where no code can tell two datasets apart, a dataset is read from its subentry text one at a time
 (`src/curation.jl`), and the run record carries the evidence as `curation`. An observable against
@@ -161,9 +162,9 @@ The checks easiest to get wrong:
   multiplicity against mass, `MASS,PR/FRG,NU`, carries no branch and is not affected.
 
 Reaction-code qualifiers that bear on a value's scale — `MSC`, `REL`, `CHN`, `DERIV`, `FCT` — are
-recorded per dataset without rejecting it where the observable admits them, and so are those naming the inducing neutron spectrum,
-except that a spectrum no measurement of the channel can have been made in rejects the dataset;
-see [Entrance channels](channels.md).
+recorded per dataset without rejecting it where the observable admits them, and so are those
+naming the inducing neutron spectrum, except that a spectrum no measurement of the channel can
+have been made in rejects the dataset; see [Entrance channels](channels.md).
 
 Two statements of the reaction code on what a dataset is are written among its `qualifiers` under
 a prefix of their own and named in a warning, the dataset being written as the archive holds it:
@@ -332,20 +333,14 @@ subentries place the yields on Fig. 11a "(NUt=0)" of Dushin et al.
 what that denotes. A selection of events without neutrons does not explain the shift: such events
 favour heavy masses near A_H = 132 and would lower the mean heavy mass.
 
-One more is known for `ordinate = "spectrum"`, and it is a mislabelled unit rather than a
-mislabelled quantity. `40064031` (Kroshkin, 1970), `98-CF-252(0,F),PR,NU/DE,,REL`, heads its
-energy column `MEV` over values running from 5.128 to 2132.8. The subentry contradicts itself:
-its own `REACTION` text gives the range as "5 keV - 2 MeV", and its comment places the structure
-it reports at 85 keV to 0.75 MeV. The column is keV. The dataset is retrieved and written as the
-archive states it, since a unit token is not something this package overrules, but its abscissa is
-a factor of 1000 too large and it is the one dataset in `Cf252_sf/spectrum_vs_E` reaching past
-40 MeV — a sanity check on the abscissa range finds it immediately.
-
 ### An energy column headed with the wrong unit
 
-`40064031` (Kroshkin 1970) heads its outgoing energies `MEV` where they run from 5.128 to 2132.8,
-and its own text gives "the 5 keV - 2 MeV energy range". The values are keV, and the table is
-written from keV, a factor 1000 below what the subentry and the rendering state; the record
-carries `energy_unit_reported` and `energy_unit_miscoded`. The reading stands only while the
-column as headed holds a value beyond 100 MeV, so that an entry the archive corrects is read as
-headed.
+One is known for `ordinate = "spectrum"`, and it is a mislabelled unit rather than a mislabelled
+quantity. `40064031` (Kroshkin 1970), `98-CF-252(0,F),PR,NU/DE,,REL`, heads its outgoing energies
+`MEV` where they run from 5.128 to 2132.8. The subentry contradicts itself: its own `REACTION`
+text gives the range as "5 keV - 2 MeV", and its comment places the structure it reports at
+85 keV to 0.75 MeV. The values are keV, and the table is written from keV, a factor 1000 below
+what the subentry and the rendering state; the record carries `energy_unit_reported` and
+`energy_unit_miscoded`, the evidence ([`MISCODED_ENERGY_UNITS`](@ref)). The reading stands only
+while the column as headed holds a value beyond 100 MeV, which no fission neutron reaches, so
+that an entry the archive corrects is read as headed.

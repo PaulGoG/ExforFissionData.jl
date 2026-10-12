@@ -6,6 +6,14 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation only. The coverage figure of the README and the documentation home page is
+  redrawn from the 0.3.0 retrievals, 37 datasets kept of 824 considered. The statement that
+  `40064031` is written with its energies a factor 1000 too large, true before 0.2.8, is
+  removed. The retrieval page says where the response cache lives and that an empty csv
+  rendering is never served from it; the output layout shows `relative/`.
+
 ## [0.3.0] - 2026-10-12
 
 The temperature of the fitted neutron spectrum renamed from `T` to `T_eff`, which moves one
