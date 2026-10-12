@@ -26,7 +26,7 @@ the identifier and configuration rules, is on the [Naming](naming.md) page.
 | `total_kinetic_energy`, `post_neutron_total_kinetic_energy` | `TKE`, `TKE_p` | pre- and post-neutron total kinetic energy |
 | `total_kinetic_energy_dispersion` | `sigma_TKE` | standard deviation of the pre-neutron total kinetic energy at fixed mass |
 | `neutron_kinetic_energy` | `eps` | mean centre-of-mass energy of the prompt neutrons of a fragment |
-| `neutron_spectrum_temperature`, `neutron_spectrum_exponent` | `T`, `lambda` | temperature and exponent of the form fitted to the centre-of-mass neutron spectrum |
+| `neutron_spectrum_temperature`, `neutron_spectrum_exponent` | `T_eff`, `lambda` | effective temperature and exponent of the form fitted to the centre-of-mass neutron spectrum |
 | `spectrum`, `spectrum_maxwellian_ratio`, `spectrum_cf252_ratio` | — | prompt fission neutron spectrum: absolute, as a ratio to a Maxwellian, and as a ratio to that of 252-Cf(sf) |
 
 An abscissa is a **list**, because it is a joint index: `["mass"]`, or
@@ -203,11 +203,11 @@ joint ⟨ε⟩(A, TKE) is retrieved for 252-Cf and 233-U; 235-U, in either chann
 
 ## The parameters of the fitted spectrum
 
-`neutron_spectrum_temperature` and `neutron_spectrum_exponent` are the temperature T and the
-exponent λ of the form const η^λ exp(−η/T) fitted to the centre-of-mass spectrum of the neutrons
-of a fragment of given mass. Against `["mass"]`, T is written under `T_vs_A/` as
-`A T T_uncertainty` in MeV, and λ, a pure number, under `lambda_vs_A/` as
-`A lambda lambda_uncertainty`. EXFOR has no code for either; they sit in `MISC` columns of the
+`neutron_spectrum_temperature` and `neutron_spectrum_exponent` are the effective temperature
+T_eff and the exponent λ of the form const η^λ exp(−η/T_eff) fitted to the centre-of-mass spectrum
+of the neutrons of a fragment of given mass. Against `["mass"]`, T_eff is written under
+`T_eff_vs_A/` as `A T_eff T_eff_uncertainty` in MeV, and λ, a pure number, under `lambda_vs_A/`
+as `A lambda lambda_uncertainty`. EXFOR has no code for either; they sit in `MISC` columns of the
 mean neutron energy. Like the width of the TKE distribution they are therefore read only from the
 columns a configuration names, one `[[fit_parameter]]` table per dataset with the keys `subentry`
 and `column` (see [Configurations](configurations.md)), and the uncertainty is the column
@@ -216,12 +216,11 @@ energy is, by the same tag rule, the 5 MeV bound and the frame. The record gives
 `parameter_column`, `parameter_unit` and `parameter_is`, and the form fitted with the equation of
 the publication as `fit_form` and `fit_evidence` ([`SPECTRUM_FITS`](@ref)).
 
-`Cf252_sf_T_vs_A` reads `MISC1` of `23175012` (Budtz-Jørgensen 1988), 79 masses with T from 0.77
-to 1.39 MeV, and `MISC` of `23268011` (Göök 2014), 82 masses of its 109, from 0.72 to 1.40 MeV;
-`Cf252_sf_lambda_vs_A` reads `MISC2` of `23175012`, 79 masses with λ from 0.11 to 0.94.
-Budtz-Jørgensen fits Eq. (8) of the article, the cascade
-evaporation spectrum of Le Couteur and Lang, with λ and T free; the subentry calls the same form
-a Weisskopf spectrum. Göök 2014 fits Eq. (14) of
+`Cf252_sf_T_eff_vs_A` reads `MISC1` of `23175012` (Budtz-Jørgensen 1988), 79 masses with T_eff
+from 0.77 to 1.39 MeV, and `MISC` of `23268011` (Göök 2014), 82 masses of its 109, from 0.72 to
+1.40 MeV; `Cf252_sf_lambda_vs_A` reads `MISC2` of `23175012`, 79 masses with λ from 0.11 to 0.94.
+Budtz-Jørgensen fits Eq. (8) of the article, the cascade evaporation spectrum of Le Couteur and
+Lang, with λ and the temperature free; the subentry calls the same form a Weisskopf spectrum. Göök 2014 fits Eq. (14) of
 [doi:10.1103/PhysRevC.90.064611](https://doi.org/10.1103/PhysRevC.90.064611),
 φ(η) ∝ η^λ exp(−η/T_eff), and its λ, Fig. 18c, is not in the archive. The archive holds no such
 column for the other systems.

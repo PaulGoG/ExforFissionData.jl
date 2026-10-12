@@ -141,7 +141,7 @@ that name the directories its data is written to.
 | ν(A, TKE), `nu_vs_A_TKE` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
 | ⟨ε⟩(A), `eps_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
 | ⟨ε⟩(A, TKE), `eps_vs_A_TKE` | `Cf252_sf` | | `U233_nth` | | |
-| T(A), `T_vs_A` | `Cf252_sf` | | | | |
+| T_eff(A), `T_eff_vs_A` | `Cf252_sf` | | | | |
 | λ(A), `lambda_vs_A` | `Cf252_sf` | | | | |
 | P(ν), `P_vs_nu` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | spectrum, `spectrum_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
@@ -181,9 +181,9 @@ record also says how the mean was formed. A dataset holding more than 5 MeV on a
 refused: no mean neutron energy reaches that, and a fragment kinetic energy coded the same way
 exceeds it by far.
 
-`T_vs_A` and `lambda_vs_A` hold the temperature and the exponent of the form fitted to the
-centre-of-mass neutron spectrum of a fragment, which EXFOR keeps in `MISC` columns of the mean
-neutron energy, so their configurations name the column dataset by dataset.
+`T_eff_vs_A` and `lambda_vs_A` hold the effective temperature and the exponent of the form
+fitted to the centre-of-mass neutron spectrum of a fragment, which EXFOR keeps in `MISC` columns
+of the mean neutron energy, so their configurations name the column dataset by dataset.
 
 The multiplicity distribution P(ν) is coded with the branch `NUM` and tabulated in its subentry
 against `PART-OUT`, the number of outgoing particles, which the csv rendering does not carry; the

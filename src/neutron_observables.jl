@@ -32,7 +32,7 @@ const PARAMETER_SOURCE_ORDINATE = "neutron_kinetic_energy"
 
 """What a column of each ordinate of [`PARAMETER_ORDINATES`](@ref) is, for the run record."""
 const PARAMETER_MEANINGS = Dict(
-    "neutron_spectrum_temperature" => "the temperature T of the form fitted to the \
+    "neutron_spectrum_temperature" => "the effective temperature T_eff of the form fitted to the \
         centre-of-mass spectrum of the neutrons of a fragment of the tabulated mass, in MeV",
     "neutron_spectrum_exponent" => "the exponent lambda of the form fitted to the \
         centre-of-mass spectrum of the neutrons of a fragment of the tabulated mass",

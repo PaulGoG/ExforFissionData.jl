@@ -6,6 +6,33 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+The temperature of the fitted neutron spectrum renamed from `T` to `T_eff`, which moves one
+directory and one configuration file. Every table and stored subentry that 0.2.9 writes is
+written unchanged in content: run against the archive on 2026-10-12, its 52 configurations give
+the 640 files of the other 51 directories byte for byte, and in the renamed directory the two
+subentries byte for byte and the two tables with the header line alone changed; no dataset
+changes status.
+
+### Breaking
+
+- The ordinate `neutron_spectrum_temperature` carries the symbol `T_eff`, not `T`. The
+  temperature of the form η^λ exp(−η/T_eff) fitted to the centre-of-mass spectrum of the
+  neutrons of a fragment is an effective temperature of a form, not the temperature of a
+  nucleus, and `T` names the residual nuclear temperature elsewhere in this toolchain. A
+  subscript is written with an underscore, as in `A_p`, `E_K`, `TKE_p` and `sigma_TKE`; never
+  `Teff`. Everything the one token names changes with it:
+  - the directory `Cf252_sf/T_vs_A/` is `Cf252_sf/T_eff_vs_A/`, with its `subentries/`;
+  - the configuration `config/Cf252_sf_T_vs_A.toml` is `config/Cf252_sf_T_eff_vs_A.toml`, its
+    `ordinate = "neutron_spectrum_temperature"` as before;
+  - the header of its two tables, `23175012_C.Budtz-jorgensen_1988.dat` and
+    `23268011_A.Goeoek_2014.dat`, is `A T_eff T_eff_uncertainty`, not `A T T_uncertainty`; the
+    rows are unchanged, and a reader that takes columns by position reads the same numbers;
+  - the run record's `observable` and the figure label are `T_eff_vs_A`, and the figure's axis
+    reads T_eff;
+  - `parameter_is` of the two datasets and `conventions.fit_parameter` of the record say "the
+    effective temperature T_eff of the form fitted …".
+  `lambda_vs_A` is unchanged: `A lambda lambda_uncertainty` under `Cf252_sf/lambda_vs_A/`.
+
 ## [0.2.9] - 2026-10-12
 
 The P(ν) rule brought in line with the spectrum rule: an evaluation is written and flagged, not

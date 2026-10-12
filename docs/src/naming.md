@@ -50,7 +50,7 @@ an equation and none is spelled as one.
 | `fragment_kinetic_energy` | `E_K` | fragment kinetic energy, pre-neutron |
 | `product_kinetic_energy` | `E_K_p` | fragment kinetic energy, post-neutron |
 | `neutron_kinetic_energy` | `eps` | mean centre-of-mass neutron energy ⟨ε⟩ |
-| `neutron_spectrum_temperature` | `T` | temperature of the form fitted to the centre-of-mass neutron spectrum |
+| `neutron_spectrum_temperature` | `T_eff` | effective temperature of the form fitted to the centre-of-mass neutron spectrum |
 | `neutron_spectrum_exponent` | `lambda` | exponent of that form |
 | `yield` | `Y` | fission yield |
 | `multiplicity` | `nu` | prompt multiplicity per fragment, ν(A) |
@@ -59,6 +59,10 @@ an equation and none is spelled as one.
 | `spectrum` | `spectrum` | prompt fission neutron spectrum |
 | `spectrum_maxwellian_ratio` | `spectrum_maxwellian_ratio` | the spectrum as a ratio to a Maxwellian |
 | `spectrum_cf252_ratio` | `spectrum_cf252_ratio` | the spectrum as a ratio to that of 252-Cf(sf) |
+
+A subscript is written with an underscore — `A_p`, `E_K`, `TKE_p`, `sigma_TKE`, `T_eff` — and
+never run together: `T_eff`, not `Teff`. The temperature of the fitted spectrum is `T_eff`
+because it is an effective temperature of a form, not the temperature of a nucleus.
 
 A quantity that is an abscissa in one query and an ordinate in another — the total kinetic energy
 is both — keeps one word and one symbol. [`ABSCISSA_TOKEN`](@ref) and [`ORDINATE_TOKEN`](@ref)

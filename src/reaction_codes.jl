@@ -333,7 +333,8 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      forbid N. A fragment energy miscoded KE,N (23164022, 44 to
 #                                      102 MeV) is told by its magnitude instead; see
 #                                      MAXIMUM_NEUTRON_KINETIC_ENERGY
-#   neutron_spectrum_temperature,      the temperature T and the exponent lambda of the form
+#   neutron_spectrum_temperature,      the temperature T_eff and the exponent lambda of the
+#                                      form
 #   neutron_spectrum_exponent          fitted to the centre-of-mass spectrum of the neutrons of
 #                                      a fragment: the datasets of the mean neutron energy,
 #                                      whose MISC column the configuration names
@@ -425,7 +426,7 @@ const ORDINATE_TOKEN = Dict(
     "total_kinetic_energy_dispersion" => "sigma_TKE",
     "post_neutron_total_kinetic_energy" => "TKE_p",
     "neutron_kinetic_energy" => "eps",
-    "neutron_spectrum_temperature" => "T",
+    "neutron_spectrum_temperature" => "T_eff",
     "neutron_spectrum_exponent" => "lambda",
     "multiplicity_distribution" => "P",
     "spectrum" => "spectrum",

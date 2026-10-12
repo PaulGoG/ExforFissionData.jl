@@ -1,4 +1,4 @@
-# Temperature of the form fitted to the centre-of-mass neutron spectrum against pre-neutron fragment mass, spontaneous fission of 252-Cf.
+# Effective temperature of the form fitted to the centre-of-mass neutron spectrum against pre-neutron fragment mass, spontaneous fission of 252-Cf.
 
 [query]
 target_Z = 98           # atomic number of the target, 1 to 118

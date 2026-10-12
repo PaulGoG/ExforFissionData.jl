@@ -4065,11 +4065,11 @@ of = "$(of)"
         accepted = selected(temperature, parameters)
         @test accepted isa Dataset
         reduced = reduce_dataset(accepted, temperature; parameters)
-        @test String.(names(reduced.table)) == ["A", "T", "T_uncertainty"]
+        @test String.(names(reduced.table)) == ["A", "T_eff", "T_eff_uncertainty"]
         # The line without a fit is not written.
         @test reduced.table.A == [89, 90]
-        @test isapprox(reduced.table.T, [0.7704, 0.7919]; rtol = 1.0e-9)
-        @test isapprox(reduced.table.T_uncertainty, [0.0812, 0.058]; rtol = 1.0e-9)
+        @test isapprox(reduced.table.T_eff, [0.7704, 0.7919]; rtol = 1.0e-9)
+        @test isapprox(reduced.table.T_eff_uncertainty, [0.0812, 0.058]; rtol = 1.0e-9)
         @test reduced.diagnostics["unit_written"] == "MEV"
         @test reduced.diagnostics["parameter_column"] == "MISC1"
         @test reduced.diagnostics["parameter_unit"] == "MEV"
@@ -4103,7 +4103,7 @@ of = "$(of)"
             temperature;
             parameters,
         )
-        @test isapprox(reduced.table.T, [0.7704, 0.7919]; rtol = 1.0e-9)
+        @test isapprox(reduced.table.T_eff, [0.7704, 0.7919]; rtol = 1.0e-9)
 
         # A column unnamed, absent, or headed in a unit foreign to the parameter is refused.
         refused = selected(temperature, ParameterColumn[])
@@ -4165,7 +4165,7 @@ of = "$(of)"
             parameter = only(configuration.parameters)
             @test parameter.subentry == "23175012"
             @test parameter.column == "MISC1"
-            @test observable_label(configuration.query) == "T_vs_A"
+            @test observable_label(configuration.query) == "T_eff_vs_A"
             exponent_base = replace(base, "temperature" => "exponent")
             @test observable_label(load(exponent_base * fit_table()).query) == "lambda_vs_A"
             kinetic =
