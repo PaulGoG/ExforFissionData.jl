@@ -6,6 +6,8 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-12
+
 The temperature of the fitted neutron spectrum renamed from `T` to `T_eff`, which moves one
 directory and one configuration file. Every table and stored subentry that 0.2.9 writes is
 written unchanged in content: run against the archive on 2026-10-12, its 52 configurations give
@@ -739,7 +741,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.9...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.9...v0.3.0
 [0.2.9]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.6...v0.2.7
