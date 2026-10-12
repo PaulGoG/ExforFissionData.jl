@@ -190,7 +190,8 @@ against `PART-OUT`, the number of outgoing particles, which the csv rendering do
 rows of the two are aligned by order and the probabilities compared line by line. The mean of
 each distribution is recorded against the ν̄ of the IAEA neutron data standards 2017, and a
 distribution whose mean lies further than a quarter of ν̄ from it is refused as that of the
-neutrons detected rather than emitted.
+neutrons detected rather than emitted. An evaluation the archive holds under the same code is
+written and flagged, not refused.
 
 The `spectrum_maxwellian_ratio_vs_E` configurations retrieve the spectrum as a ratio to a
 Maxwellian for 252-Cf(sf) and for thermal 235-U, 233-U and 239-Pu, coded with `MXD`, which the

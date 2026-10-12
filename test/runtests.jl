@@ -4236,14 +4236,15 @@ of = "$(of)"
             "98-CF-252(0,F),NUM,NU",
             "98-CF-252(0,F)NPART,NUM,NU",
             "92-U-235(N,F),NUM,NU,,SPA",
+            # An evaluation is written and flagged, like every other statement of the archive.
+            "92-U-235(N,F),PR/NUM,NU,,,EVAL",
         )
             @test matches(rule, code)
         end
-        # No distribution, one per element or fragment, an evaluation, a simulation.
+        # No distribution, one per element or fragment, a simulation.
         for (code, reason) in (
             ("98-CF-252(0,F),PR,NU", "missing required code \"NUM\" in SF5"),
             ("98-CF-252(0,F)ELEM,NUM,NU,,REL", "forbidden code \"ELEM\" in SF4"),
-            ("92-U-235(N,F),PR/NUM,NU,,,EVAL", "forbidden code \"EVAL\" in SF9"),
             ("92-U-235(N,F),PR/NUM,NU,,,DERIV", "forbidden code \"DERIV\" in SF9"),
             ("98-CF-252(0,F)MASS,PR/FRG,NU", "forbidden code \"MASS\" in SF4"),
         )
@@ -4379,6 +4380,15 @@ of = "$(of)"
             product_za = 0,
         )
         @test select_dataset("10000002", npart..., cf) isa Dataset
+
+        # V0045011 to V0045013 (Holden 1988): an evaluation is selected like a measurement,
+        # and carries the evaluation qualifier; a measurement carries none.
+        evaluated = distribution("10000002", "98-CF-252(0,F),PR/NUM,NU,,,EVAL", 0:9, P, σ)
+        evaluation = select_dataset("10000002", evaluated..., cf)
+        @test evaluation isa Dataset
+        @test ExforFissionData.EVALUATION_QUALIFIER in
+              ExforFissionData._qualifiers(evaluation)
+        @test ExforFissionData.EVALUATION_QUALIFIER ∉ ExforFissionData._qualifiers(accepted)
 
         # Without uncertainties the mean has none, and its consistency is not judged.
         bare = select_dataset("10000002", gwin(; uncertainties = nothing)..., cf)

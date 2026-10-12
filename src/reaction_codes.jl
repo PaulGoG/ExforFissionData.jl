@@ -340,9 +340,10 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      ([[fit_parameter]])
 #   multiplicity_distribution          the probability P(nu) of emitting nu neutrons in a
 #                                      fission (NU beside the branch NUM of the abscissa),
-#                                      measured: not an evaluation (EVAL: V0045011 to
-#                                      V0045013, Holden 1988) nor derived from a model (DERIV:
-#                                      30544002, a simulated binomial distribution)
+#                                      measured or evaluated (EVAL: V0045011 to V0045013,
+#                                      Holden 1988, written and flagged evaluation:), not
+#                                      derived from a model (DERIV: 30544002, a simulated
+#                                      binomial distribution)
 #   spectrum                           prompt fission neutron spectrum (DE, energy-differential)
 #   spectrum_maxwellian_ratio          the same, as a ratio to a Maxwellian (MXD)
 #   spectrum_cf252_ratio               the ratio of the spectrum of the system and that of
@@ -373,7 +374,7 @@ const ORDINATE_RULES = Dict{String, TagRule}(
     "neutron_spectrum_exponent" =>
         TagRule(["SF6:KE", "SF5:PR", "SF7:N"], String[], String[]),
     "multiplicity_distribution" =>
-        TagRule(["SF6:NU"], String[], ["SF9:EVAL", "SF9:DERIV", "SF5:FRG"]),
+        TagRule(["SF6:NU"], String[], ["SF9:DERIV", "SF5:FRG"]),
     "spectrum" => TagRule(
         ["SF5:PR", "SF6:DE"],
         String[],

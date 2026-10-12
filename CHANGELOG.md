@@ -6,6 +6,29 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+The P(ν) rule brought in line with the spectrum rule: an evaluation is written and flagged, not
+refused. Every table and stored subentry that 0.2.8 writes is written unchanged: run against the
+archive on 2026-10-12, its 52 configurations give the same 638 files byte for byte, and no
+dataset accepted before is refused. Three datasets are added, each with its subentry, and the
+three records that hold them gain `evaluation_warning` under `[datasets]` and count one accepted
+more and one rejected fewer; no other record entry changes.
+
+### Changed
+
+- `multiplicity_distribution` no longer refuses `EVAL`. An evaluation of P(ν) is selected as a
+  measurement is, passes the same checks of alignment and mean, and is written and flagged with
+  the qualifier beginning `evaluation:` that `V0101002` carries since 0.2.8, with
+  `evaluation_warning` under `[datasets]` naming it, so that an evaluated P(ν) is written and
+  flagged like every other statement of the archive. `DERIV` is refused as before. The three
+  evaluations of Holden 1988 (entry `V0045`), refused until now as `forbidden code "EVAL" in
+  SF9`, are written: each at thermal energy, over the multiplicities 0 to 7, summing to one, and
+  with a mean within one standard deviation of ν̄:
+  - `U233_nth/P_vs_nu/V0045011_N.E.Holden_1988.dat`, mean 2.477 ± 0.013 against 2.487;
+  - `U235_nth/P_vs_nu/V0045012_N.E.Holden_1988.dat`, mean 2.413 ± 0.010 against 2.425;
+  - `Pu239_nth/P_vs_nu/V0045013_N.E.Holden_1988.dat`, mean 2.875 ± 0.032 against 2.878.
+  The subentry of each is stored under `subentries/` beside it. The archive holds no evaluation
+  of P(ν) for 252-Cf(sf); `Cf252_sf/P_vs_nu` is unchanged.
+
 ## [0.2.8] - 2026-10-05
 
 The spectrum datasets of one experiment grouped, three multiplicity and mean-energy readings
@@ -82,9 +105,10 @@ change, in the keys named below, with four warnings under `[datasets]` and one r
   written in the same directory.
 - `alternative_analysis` means one measurement: take one member, or combine the members as one,
   and never count them as several. It said to take one. `correlated_warning` carries the new
-  wording, and the relation `dependent`, in the thirteen records that held it, and the `correlation` of `41720002` and
-  `41694002` in `Cf252_sf/nu_vs_A` and of `41720004` and `41694003` in `Pu239_nth/nu_vs_A` says
-  that the two reductions may be combined as one, their difference entering as an uncertainty.
+  wording, and the relation `dependent`, in the thirteen records that held it, and the
+  `correlation` of `41720002` and `41694002` in `Cf252_sf/nu_vs_A` and of `41720004` and
+  `41694003` in `Pu239_nth/nu_vs_A` says that the two reductions may be combined as one, their
+  difference entering as an uncertainty.
 - `22650004` (Tsuchiya 2000,
   [doi:10.1080/18811248.2000.9714976](https://doi.org/10.1080/18811248.2000.9714976)) in
   `Pu239_nth/nu_vs_A` is read with its article: the multiplicity is normalised to 2.88 neutrons

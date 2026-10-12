@@ -282,10 +282,12 @@ versions called it unwritable for that reason. The rows of the subentry and of t
 aligned by order and the probabilities compared line by line.
 
 The rule asks for `NUM` in SF5 and `NU` in SF6, and refuses a distribution for a fragment mass
-or charge (`MASS`, `ELEM`), an evaluation (`EVAL`: `V0045011` to `V0045013`, Holden 1988) and one
-derived from a model (`DERIV`: `30544002`, a simulated binomial distribution). Arbitrary units
-are refused: `14064003` holds counts, and `23598004` distributions for the fragment charges 42
-and 56.
+or charge (`MASS`, `ELEM`) and one derived from a model (`DERIV`: `30544002`, a simulated
+binomial distribution). An evaluation (`EVAL`: `V0045011` to `V0045013`, Holden 1988) is written
+and flagged with a qualifier beginning `evaluation:`, with `evaluation_warning` under
+`[datasets]`, like every other statement of the archive on the standing of a dataset. Arbitrary
+units are refused: `14064003` holds counts, and `23598004` distributions for the fragment
+charges 42 and 56.
 
 The data decide what a distribution is. The archive codes the distribution of the neutrons
 *detected* alike, and its mean is ν̄ times the detection efficiency, so a distribution whose mean
@@ -308,9 +310,9 @@ standard deviations where an uncertainty is stated.
 | Configuration | Accepted, with the mean | Refused |
 | :--- | :--- | :--- |
 | `Cf252_sf_P_vs_nu` | `10605005` Stoughton 1973 (3.70; sum 0.99, not normalised), `10901006` Hoffman 1980 (3.73), `12337013` Diven 1956 (3.88), `12833005` Gwin 1984 (3.773), `13715014` Hicks 1956 (3.82), `21495003` Baron 1966 (3.78), `30046011` Boldeman 1967 (3.757), `307720151`, `307720152`, `307720153` Boldeman 1985 at three discriminator biases (3.757), `41425002` Vorobiev 2001 (3.756) | `10300005`, `10930004`, `14064002` by their mean |
-| `U235_nth_P_vs_nu` | `12833007` Gwin 1984 (2.437), `30046008` Boldeman 1967 (2.416), `30772010` Boldeman 1985 (2.406), `32820002` Huang 1961 (2.44) | `12337009` Diven 1956, at 80 keV; `30544002`; `V0045012` |
-| `Pu239_nth_P_vs_nu` | `12833008` (2.888), `30046009` (2.924; sum 1.010, not normalised), `30772011` (2.879) | `12337010`, at 80 keV; `V0045013` |
-| `U233_nth_P_vs_nu` | `12833006` (2.494), `30046007` (2.483), `30772009` (2.480) | `12337008`, at 80 keV; `V0045011` |
+| `U235_nth_P_vs_nu` | `12833007` Gwin 1984 (2.437), `30046008` Boldeman 1967 (2.416), `30772010` Boldeman 1985 (2.406), `32820002` Huang 1961 (2.44), `V0045012` Holden 1988 (2.413), an evaluation | `12337009` Diven 1956, at 80 keV; `30544002` |
+| `Pu239_nth_P_vs_nu` | `12833008` (2.888), `30046009` (2.924; sum 1.010, not normalised), `30772011` (2.879), `V0045013` (2.875), an evaluation | `12337010`, at 80 keV |
+| `U233_nth_P_vs_nu` | `12833006` (2.494), `30046007` (2.483), `30772009` (2.480), `V0045011` (2.477), an evaluation | `12337008`, at 80 keV |
 
 `30046011` and the three datasets of `30772015` are one measurement and name each other as
 `correlated_with`, of relation `repeated_run`: Table III of the publication

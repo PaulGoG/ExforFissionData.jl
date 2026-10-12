@@ -166,10 +166,11 @@ so these configurations omit `energy_min` and `energy_max`.
   (Nishio 1998), interpolated from a half-integer 2-u grid, and 41502008 (Batenkov 2004);
   23164022 (Al-Adili 2016), fragment kinetic energies, is refused on its magnitude.
 - `U235_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833007 (Gwin 1984), 30046008
-  (Boldeman 1967), 30772010 (Boldeman 1985) and 32820002 (Huang 1961). The subentry of 30046008
-  marks it superseded by 30772010; both are written, each naming the other as
+  (Boldeman 1967), 30772010 (Boldeman 1985), 32820002 (Huang 1961) and V0045012 (Holden 1988),
+  an evaluation, written and carrying a qualifier beginning `evaluation:`. The subentry of
+  30046008 marks it superseded by 30772010; both are written, each naming the other as
   `correlated_with`, and 30046008 carries a qualifier beginning `superseded:`. Refused: 12337009
-  (Diven 1956), at 80 keV, 30544002, derived from a model, and V0045012, an evaluation.
+  (Diven 1956), at 80 keV, and 30544002, derived from a model.
 
 ### 235-U resonance region
 
@@ -210,10 +211,10 @@ be written under a directory of its own.
 - `U233_nth_eps_vs_A_TKE` — the same against mass and TKE jointly: 22660004 (Nishio 1998), headed
   `DATA` and in the centre of mass by its publication.
 - `U233_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833006 (Gwin 1984), 30046007
-  (Boldeman 1967) and 30772009 (Boldeman 1985). The subentry of 30046007 marks it superseded by
-  30772009; both are written, each naming the other as `correlated_with`, and 30046007 carries a
-  qualifier beginning `superseded:`. Refused: 12337008 (Diven 1956), at 80 keV, and V0045011, an
-  evaluation.
+  (Boldeman 1967), 30772009 (Boldeman 1985) and V0045011 (Holden 1988), an evaluation, written
+  and carrying a qualifier beginning `evaluation:`. The subentry of 30046007 marks it superseded
+  by 30772009; both are written, each naming the other as `correlated_with`, and 30046007 carries
+  a qualifier beginning `superseded:`. Refused: 12337008 (Diven 1956), at 80 keV.
 
 ### 239-Pu(nth,f)
 
@@ -252,10 +253,10 @@ be written under a directory of its own.
   (Tsuchiya 2000) and 41502009 (Batenkov 2004), the second headed `DATA` and in the centre of
   mass by its `REACTION` text. 22650008 carries a qualifier beginning `mean_threshold_unsettled:`.
 - `Pu239_nth_P_vs_nu` — the multiplicity distribution P(ν): 12833008 (Gwin 1984), 30046009
-  (Boldeman 1967) and 30772011 (Boldeman 1985). The subentry of 30046009 marks it superseded by
-  30772011; both are written, each naming the other as `correlated_with`, and 30046009 carries a
-  qualifier beginning `superseded:`. Refused: 12337010 (Diven 1956), at 80 keV, and V0045013, an
-  evaluation.
+  (Boldeman 1967), 30772011 (Boldeman 1985) and V0045013 (Holden 1988), an evaluation, written
+  and carrying a qualifier beginning `evaluation:`. The subentry of 30046009 marks it superseded
+  by 30772011; both are written, each naming the other as `correlated_with`, and 30046009 carries
+  a qualifier beginning `superseded:`. Refused: 12337010 (Diven 1956), at 80 keV.
 
 ### 240-Pu(sf)
 
