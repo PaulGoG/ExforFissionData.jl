@@ -11,9 +11,10 @@ Notable changes to ExforFissionData.jl. The format follows
 The P(ν) rule brought in line with the spectrum rule: an evaluation is written and flagged, not
 refused. Every table and stored subentry that 0.2.8 writes is written unchanged: run against the
 archive on 2026-10-12, its 52 configurations give the same 638 files byte for byte, and no
-dataset accepted before is refused. Three datasets are added, each with its subentry, and the
-three records that hold them gain `evaluation_warning` under `[datasets]` and count one accepted
-more and one rejected fewer; no other record entry changes.
+dataset accepted before is refused. Three datasets are added, each with its subentry; the three
+records that hold them gain `evaluation_warning` under `[datasets]` and count one accepted more
+and one rejected fewer; and the reason the four records give for refusing the evaluations of ν̄
+changes (see Changed). No other record entry changes.
 
 ### Changed
 
@@ -29,7 +30,11 @@ more and one rejected fewer; no other record entry changes.
   - `U235_nth/P_vs_nu/V0045012_N.E.Holden_1988.dat`, mean 2.413 ± 0.010 against 2.425;
   - `Pu239_nth/P_vs_nu/V0045013_N.E.Holden_1988.dat`, mean 2.875 ± 0.032 against 2.878.
   The subentry of each is stored under `subentries/` beside it. The archive holds no evaluation
-  of P(ν) for 252-Cf(sf); `Cf252_sf/P_vs_nu` is unchanged.
+  of P(ν) for 252-Cf(sf); `Cf252_sf/P_vs_nu` writes the same eleven tables. The 22 evaluations
+  of ν̄ that the listings of the four configurations return, coded `EVAL` without `NUM` (3 of
+  252-Cf, 7 of 239-Pu, 5 of 233-U, 7 of 235-U), are refused as before, now with the reason
+  `missing required code "NUM" in SF5` where the records read `forbidden code "EVAL" in SF9`:
+  the rule tests the forbidden codes first, and `EVAL` is no longer one of them.
 
 ## [0.2.8] - 2026-10-05
 
