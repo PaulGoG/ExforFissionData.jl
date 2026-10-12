@@ -6,6 +6,8 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.2.9] - 2026-10-12
+
 The P(ν) rule brought in line with the spectrum rule: an evaluation is written and flagged, not
 refused. Every table and stored subentry that 0.2.8 writes is written unchanged: run against the
 archive on 2026-10-12, its 52 configurations give the same 638 files byte for byte, and no
@@ -705,7 +707,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.8...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.9...HEAD
+[0.2.9]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.5...v0.2.6
