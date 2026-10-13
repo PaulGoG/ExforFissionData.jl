@@ -496,11 +496,20 @@ yields `CHN`, the provisional ones `PRV`. The requirement cannot sit on the mass
 since a multiplicity against mass is coded `MASS,PR/FRG,NU`, the fragment's own mass, and carries
 no branch. A yield whose entry establishes a pre-neutron mass by its method without the code
 saying so is read in [`CURATED_DATASETS`](@ref).
+
+A post-neutron yield, against the product mass or the nuclide, refuses the partial branch `PAR`
+(Dictionary 31): a Lohengrin setting selects one product kinetic energy, and the yields at that
+energy, coded `ELEM/MASS,PAR/IND,FY` with the energy a constant of the COMMON section
+(21689014 to 21689018, Lang 1980, 88.5 MeV in the first), are slices of the energy-resolved
+distribution and not the independent yield, which the same entry gives as `ELEM/MASS,IND,FY`
+(21689019).
 """
 const OBSERVABLE_RULES = Dict{Tuple{Vector{String}, String}, TagRule}(
     (["mass"], "yield") => TagRule(["SF5:PRE"], String[], String[]),
     (["mass", "total_kinetic_energy"], "yield") =>
         TagRule(["SF5:PRE"], String[], String[]),
+    (["product_mass"], "yield") => TagRule(String[], String[], ["SF5:PAR"]),
+    (["charge", "product_mass"], "yield") => TagRule(String[], String[], ["SF5:PAR"]),
 )
 
 """

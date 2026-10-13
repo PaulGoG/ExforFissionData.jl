@@ -158,6 +158,19 @@ include("fixtures.jl")
         @test rejection_reason(post_energy, "92-U-235(N,F)ELEM/MASS,SEC,KE,FF,MXW") ==
               "forbidden code \"ELEM\" in SF4"
 
+        # A partial yield, at one product kinetic energy, is a slice of the energy-resolved
+        # distribution and not the yield (21689014, Lang 1980); the pre-neutron yield against
+        # mass is not concerned, a gated yield there being refused by its varying energy.
+        @test rejection_reason(independent, "92-U-235(N,F)ELEM/MASS,PAR/IND,FY,,MXW") ==
+              "forbidden code \"PAR\" in SF5"
+        @test rejection_reason(post_yield, "92-U-235(N,F)MASS,PAR/SEC,FY,,MXW") ==
+              "forbidden code \"PAR\" in SF5"
+        @test matches(independent, "92-U-235(N,F)ELEM/MASS,IND,FY,,MXW")
+        @test rejection_reason(
+            tag_rule(["mass"], "yield"),
+            "92-U-235(N,F)MASS,PAR/PRE,FY,,SPA",
+        ) === nothing
+
         # PR is not PRE, and KE is neither TKE, KEP nor KEM; AKE is KE.
         @test !matches(
             tag_rule(["mass"], "multiplicity_per_fission"),
