@@ -12,8 +12,9 @@ Three post-neutron product observables for 252-Cf(sf) and thermal 235-U, 239-Pu 
 mass yield Y(A_p), the independent yield Y(Z, A_p) and the product kinetic energy E_K_p(A_p),
 twelve configurations in all. The charge-resolved path reads the archive's `ELEMENT` heading,
 so independent yields are selected for the first time. Every table and stored subentry that
-0.3.0 writes is written unchanged; the records of the yields change in `normalisation` and every
-record gains keys.
+0.3.0 writes is written unchanged, 644 files byte for byte. Every record gains keys, the
+conventions `abscissa_resolution` and `duplicate_abscissa` are reworded in all of them, and the
+`normalisation` of every yield follows the unit the file is written in.
 
 ### Added
 
