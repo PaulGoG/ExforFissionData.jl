@@ -5077,11 +5077,13 @@ of = "$(of)"
         for (identifier, superseded) in ExforFissionData.SUPERSEDED_DATASETS
             shared = ExforFissionData.correlation_group(identifier)
             @test superseded.by in shared.members
-            # A pair is a republication; with a third member formed from the same data the
-            # group is dependent.
+            # A pair is a republication, or dependent where the STATUS says the later is
+            # formed from the earlier (41198002, DEP on 41179002); with a third member formed
+            # from the same data the group is dependent.
             if length(shared.members) == 2
                 @test shared.members == [identifier, superseded.by]
-                @test shared.relation == "republication"
+                @test shared.relation in ("republication", "dependent")
+                shared.relation == "dependent" && @test occursin("DEP", shared.reason)
             else
                 @test shared.relation == "dependent"
             end

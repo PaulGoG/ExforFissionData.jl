@@ -83,11 +83,11 @@ so these configurations omit `energy_min` and `energy_max`.
   (Hambsch 1997); the width column of 12709004 (Weber 1981) is refused as no width.
 - `Cf252_sf_Y_vs_A_TKE` — the joint pre-neutron yield Y(A, TKE): 23268002 (Göök 2014), 30 000
   cells of counts, written under `relative/`.
-- `Cf252_sf_Y_vs_A_p` — post-neutron mass yields, 13 datasets, 6 coded `SEC` and 7 `CHN`: 13081002
-  (Schmitt 1965), 14259009 (Romano 2010), 14420002 (Meierbachtol 2015), 14652002 and 14652003
-  (Britt 1964) and 14790002 (Gastis 2022); the chain yields of note are 33158006 (Naik 2021),
-  30691002 (Li Ze 1983), 21531003 (Thierens 1976) and 13283008 (Harbour 1971), flagged as chain
-  yields in the record.
+- `Cf252_sf_Y_vs_A_p` — post-neutron mass yields, 18 datasets, 6 coded `SEC` and 12 `CHN`:
+  13081002 (Schmitt 1965), 14259009 (Romano 2010), 14420002 (Meierbachtol 2015), 14652002 and
+  14652003 (Britt 1964) and 14790002 (Gastis 2022); the chain yields of note are 14020002 (Kiker
+  1964), 33158006 (Naik 2021), 30691002 (Li Ze 1983), 21531003 (Thierens 1976), 21592002
+  (Blachot 1975) and 13283008 (Harbour 1971), flagged as chain yields in the record.
 - `Cf252_sf_Y_vs_Z_A_p` — independent yields of nuclides: eight tables of one to 15 nuclides,
   23560003 (Erten 1978) read from the constants `ELEMENT` and `MASS` of its COMMON section.
   Refused: the 15 yields of correlated fragment pairs coded `CRN`, 13648002 to 13648006, 13749002
@@ -160,7 +160,7 @@ so these configurations omit `energy_min` and `energy_max`.
   23014003 (Baba 1997), 40235017 (D'yachenko 1968, a variance) and 40200003 (Zakharova 1973).
 - `U235_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system, and the
   record lists the slices it holds instead.
-- `U235_nth_Y_vs_A_p` — post-neutron mass yields, 35 datasets, 7 coded `SEC` and 28 `CHN`:
+- `U235_nth_Y_vs_A_p` — post-neutron mass yields, 36 datasets, 7 coded `SEC` and 29 `CHN`:
   14208003 (Derengowski 1970), 14259005 (Romano 2010), 21752016 (Wagemans 1981), 21981012
   (Geltenbort 1985), 23594002 (Shiraishi 1968), 31738002 (Koblik 2014) and 32888002 (Liu 2022);
   the chain yields of note are 316850021 and 316850022 (Ajitanand 1978), 13359002 (Diiorio

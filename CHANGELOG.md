@@ -53,8 +53,8 @@ conventions `abscissa_resolution` and `duplicate_abscissa` are reworded in all o
   decay conserves A, so the yield of a mass chain differs from the post-neutron mass yield by the
   delayed-neutron transfer between neighbouring chains, below a per cent. A chain yield carries
   the qualifier `CHN` among its `qualifiers`, is named in `scale_warning`, and the record states
-  the reading under `[conventions]` as `chain_yield`. `Y_vs_A_p` holds 13 datasets for 252-Cf
-  (6 `SEC`, 7 `CHN`), 35 for 235-U (7 `SEC`, 28 `CHN`), 26 for 239-Pu (10 `SEC`, 16 `CHN`) and
+  the reading under `[conventions]` as `chain_yield`. `Y_vs_A_p` holds 18 datasets for 252-Cf
+  (6 `SEC`, 12 `CHN`), 36 for 235-U (7 `SEC`, 29 `CHN`), 26 for 239-Pu (10 `SEC`, 16 `CHN`) and
   14 for 233-U (3 `SEC`, 11 `CHN`). The pre-neutron yield against mass and the independent yield
   of a nuclide refuse `CHN` as before.
 - `yield` refuses `FRC` (Dictionary 34), the independent yield as a fraction of its chain yield,

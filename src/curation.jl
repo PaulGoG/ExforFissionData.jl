@@ -999,6 +999,42 @@ const CORRELATION_GROUPS = [
          flight path: 51 cm (40871007, 0.11 to 1.91 MeV) and 2.313 m (40871015, 1.04 to 7.49 \
          MeV); each names the other in its STATUS (COREL)",
     ),
+    CorrelationGroup(
+        ["22985005", "23342002", "23342003", "23342004", "23342005"],
+        "dependent",
+        "five tables of one Lohengrin programme on the post-neutron mass yields of \
+         239-Pu(nth,f): 23342002, 23342003 and 23342004 are Experiments 1, 2 and 3 of Gupta \
+         2017 (PR/C 96, 014608), and 23342005, Table II, is formed from the three, as its \
+         STATUS states (DEP); 22985005 (Bail 2009, Table 6.5 of the thesis) is marked \
+         superseded by 23342002 (SPSDD, 'Superseded by newer publication'). The combined \
+         table or the three experiments are used, never both, and never the superseded one \
+         beside them",
+    ),
+    CorrelationGroup(
+        ["22985008", "22985018"],
+        "dependent",
+        "two tables of one Lohengrin measurement of the independent yields of 239-Pu(nth,f) \
+         (Bail 2009; Table V of PR/C 84, 034605, 2011): 22985018 gives the individual yields \
+         of the ground and isomeric states of nuclides of 22985008, as its STATUS states \
+         (DEP,22985008). One of the two is used, never both",
+    ),
+    CorrelationGroup(
+        ["41179002", "41198002"],
+        "dependent",
+        "two tables of the independent yields of 239-Pu(nth,f) measured by the same group: \
+         41198002 (Gundorin 1994, Conf.Proc.94GATLIN, p. 139) is 'new measurement average \
+         with few previous results (including this one)', 41179002 (Bogdzel 1991, \
+         Conf.Proc.91JUELIC, p. 150), as the STATUS of both states (DEP,41179002 and \
+         SPSDD,41198002). One of the two is used, never both; 41179002 is marked superseded",
+    ),
+    CorrelationGroup(
+        ["23709002", "237090031"],
+        "dependent",
+        "two tables of the independent yields of Sb-124 and Sb-126 of 235-U(nth,f) (Strom \
+         1965): 237090031, coded DERIV, is formed from 23709002, the values of four samples \
+         and their average, as its STATUS states (DEP,23709002). One of the two is used, \
+         never both",
+    ),
 ]
 
 """
@@ -1622,6 +1658,8 @@ them in `preliminary_warning`; none is refused for it. See [`PRELIMINARY_SUBENTR
 the code in a subentry of its own.
 """
 const PRELIMINARY_ENTRIES = Dict{String, String}(
+    "41198" => "the entry carries STATUS (PRELM); Gundorin 1994, Table 1 of \
+                Conf.Proc.94GATLIN, p. 139",
     "41502" => "Batenkov 2004 (doi:10.1063/1.1945175) presents 'some preliminary results of \
                 the average number and kinetic energies of prompt neutrons as a function \
                 fragment mass' (abstract, p. 1003), and the entry carries STATUS PRELM",
@@ -1634,8 +1672,11 @@ number, with the code and what stands beside it. Every dataset of such a subentr
 as those of [`PRELIMINARY_ENTRIES`](@ref) are.
 """
 const PRELIMINARY_SUBENTRIES = Dict{String, String}(
+    "30949003" => "its subentry carries STATUS (PRELM); Lee 1968, text of IA-1168, p. 67",
     "40644003" => "its subentry carries STATUS (PRELM), beside (OUTDT,40644002) and \
                    (SPSDD,40644002)",
+    "41179002" => "its subentry carries STATUS (PRELM), beside (TABLE) Table 1 of \
+                   Conf.Proc.91JUELIC, p. 150, 1991 and (SPSDD,41198002)",
     "41516012" => "its subentry carries STATUS (PRELM), 'Data are presented on Fig.7 left of \
                    S,ISINN-17,60,2010, Fig.5 left of J,EPJ/CS,8,03004,2010.'",
     "41738004" => "its subentry carries STATUS (PRELM), beside (TABLE), 'Data from author \
@@ -1670,6 +1711,9 @@ it are one measurement and share one of the [`CORRELATION_GROUPS`](@ref), whose
 `correlated_with` reads alike on both; the qualifier says which of the two the authors withdrew.
 """
 const SUPERSEDED_DATASETS = Dict{String, @NamedTuple{by::String, beside::String}}(
+    "22985005" =>
+        (by = "23342002", beside = "(TABLE) Table 6.5 of T,BAIL; 'Superseded by \
+                                             newer publication.'"),
     "30046007" => (by = "30772009", beside = ""),
     "30046008" => (by = "30772010", beside = ""),
     "30046009" => (by = "30772011", beside = ""),
@@ -1677,6 +1721,12 @@ const SUPERSEDED_DATASETS = Dict{String, @NamedTuple{by::String, beside::String}
     "40644003" => (by = "40644002", beside = "(PRELM) and (OUTDT,40644002)"),
     "40875002" => (by = "41158002", beside = ""),
     "40875003" => (by = "41158003", beside = ""),
+    "41179002" => (
+        by = "41198002",
+        beside = "(PRELM); 'In 41198.002 - new measurement \
+                                             average with few previous results (including \
+                                             this one).'",
+    ),
     "41516017" => (by = "41597002", beside = ""),
 )
 

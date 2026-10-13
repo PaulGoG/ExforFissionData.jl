@@ -366,9 +366,9 @@ states it for every yield retrieval. A sum its coverage does not explain is to b
 publication: `31738002` (Koblik 2014, `MASS,SEC,FY,,SPA`) sums to 1.82 over the heavy group
 alone, A_p 125 to 155, and is written as the archive gives it.
 
-For 252-Cf the archive holds 13, 6 coded `SEC` and 7 `CHN`. The six are `13081002` (Schmitt
+For 252-Cf the archive holds 18, 6 coded `SEC` and 12 `CHN`. The six are `13081002` (Schmitt
 1965), `14259009` (Romano 2010), `14420002` (Meierbachtol 2015), `14652002` and `14652003` (Britt
-1964) and `14790002` (Gastis 2022). For 235-U it holds 35, 7 `SEC` and 28 `CHN`; the seven are
+1964) and `14790002` (Gastis 2022). For 235-U it holds 36, 7 `SEC` and 29 `CHN`; the seven are
 `14208003` (Derengowski 1970), `14259005` (Romano 2010), `21752016` (Wagemans 1981), `21981012`
 (Geltenbort 1985), `23594002` (Shiraishi 1968), `31738002` (Koblik 2014) and `32888002` (Liu
 2022). For 239-Pu 26, 10 `SEC` and 16 `CHN`; the ten are `21981013` (Geltenbort 1985);
@@ -378,8 +378,9 @@ For 252-Cf the archive holds 13, 6 coded `SEC` and 7 `CHN`. The six are `1308100
 `21981011` (Geltenbort 1985), `23784002` (Chebboubi 2021) and `41496006` (Aleksandrov 1994). The
 masses of `14420002`, `14652002`, `14652003` and `23594002` are interpolated onto the integers.
 
-The chain-yield tables of note are, for 252-Cf, `33158006` (Naik 2021, 62 masses), `30691002`
-(Li Ze 1983, 44), `21531003` (Thierens 1976, 43) and `13283008` (Harbour 1971, 20); for 235-U,
+The chain-yield tables of note are, for 252-Cf, `14020002` (Kiker 1964, 68 masses), `33158006`
+(Naik 2021, 62), `30691002` (Li Ze 1983, 44), `21531003` (Thierens 1976, 43), `21592002`
+(Blachot 1975, 27) and `13283008` (Harbour 1971, 20); for 235-U,
 `316850021` and `316850022` (Ajitanand 1978, 87 and 78 masses, A_p 70 to 170), `13359002`
 (Diiorio 1977, 64), `33186006` (Naik 2023, 48), `21543013` (Asghar 1977, 44, heavy group),
 `10865002` (Maeck 1978, 39), `21531002` (Thierens 1976, 37), `21054087` (Wohlfarth 1976, 32,

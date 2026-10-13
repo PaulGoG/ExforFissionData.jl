@@ -193,7 +193,8 @@ a prefix of their own and named in a warning, the dataset being written as the a
 A dataset its subentry marks superseded (`STATUS`, code `SPSDD`) is written beside the dataset
 that supersedes it, and neither is refused. The two are one measurement, a group of relation
 `republication`, or `dependent` where a third dataset formed from the same data joins them, as for
-`40418006`, `40418007` and `40418008`, and name each other as `correlated_with`, which does not
+`40418006`, `40418007` and `40418008`, or where the later is formed from the earlier, as `41198002`
+from `41179002`, and name each other as `correlated_with`, which does not
 say which of them the authors withdrew; the superseded one carries among its `qualifiers` an
 entry beginning `superseded: by` followed by the accession of the other, and `superseded_warning`
 under `[datasets]` lists the pairs. A consumer wanting one of the two takes the superseding
