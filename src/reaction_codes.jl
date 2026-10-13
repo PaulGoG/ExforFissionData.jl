@@ -248,6 +248,11 @@ const BASE_FORBID = [
 #   product_mass          post-neutron fragment mass: as mass, but requiring the
 #                         independent or secondary marking and forbidding the pre-neutron one
 #   charge                fragment charge: charge-resolved, not mass-resolved
+#   charge, product_mass  a nuclide, post-neutron: charge- and mass-resolved, independent or
+#                         secondary, not pre-neutron, and not the yield of correlated fragment
+#                         pairs (CRN, "more than two fragments are specified", Dictionary 31),
+#                         which is tabulated against ELEM1/MASS1 and ELEM2/MASS2: 13648002 to
+#                         13648006, 13749002 and 14634002 for instance
 #   neutron_energy        energy abscissa of a spectrum
 #   total_kinetic_energy  total kinetic energy, as TKE or as DE of both fragments; beside
 #                         mass, the mass is pre-neutron as for mass alone
@@ -286,7 +291,7 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
     ["charge", "product_mass"] => TagRule(
         ["SF4:MASS", "SF4:ELEM"],
         ["SF5:SEC", "SF5:IND"],
-        ["SF6:KE", "SF6:DE", "SF5:PRE"],
+        ["SF6:KE", "SF6:DE", "SF5:PRE", "SF5:CRN"],
     ),
     ["mass", "total_kinetic_energy"] => TagRule(
         ["SF4:MASS"],
@@ -306,7 +311,10 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      fragment)
 #   yield                              fission yield (FY). The quantity code `FY` also files the
 #                                      most probable charge (ZP) against mass, which the
-#                                      abscissa rule alone admits
+#                                      abscissa rule alone admits. Not a fractional yield (FRC,
+#                                      Dictionary 34), the independent yield as a fraction of
+#                                      its chain yield, which is a ratio and not the yield:
+#                                      23558005, 14088003 to 14088006 and 13293003 for instance
 #   fragment_kinetic_energy            pre-neutron fragment kinetic energy
 #   product_kinetic_energy             post-neutron fragment kinetic energy
 #   total_kinetic_energy               pre-neutron total kinetic energy (LF+HF, both fragments):
@@ -357,7 +365,7 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 const ORDINATE_RULES = Dict{String, TagRule}(
     "multiplicity" => TagRule(["SF5:PR", "SF5:FRG"], String[], ["SF8:MSC"]),
     "multiplicity_per_fission" => TagRule(["SF5:PR"], String[], ["SF8:MSC", "SF5:FRG"]),
-    "yield" => TagRule(["SF6:FY"], String[], String[]),
+    "yield" => TagRule(["SF6:FY"], String[], ["SF8:FRC"]),
     "fragment_kinetic_energy" =>
         TagRule(["SF6:KE", "SF5:PRE"], String[], ["SF7:LF+HF", "SF7:N"]),
     "product_kinetic_energy" =>

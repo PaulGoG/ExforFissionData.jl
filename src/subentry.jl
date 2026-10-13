@@ -449,11 +449,15 @@ under that abscissa is the total kinetic energy and not a fragment-energy gate. 
 headings are present `TKE` is taken and `E` counts as a variable of its own. The number of
 neutrons a distribution P(ν) runs over is headed `PART-OUT`, the number of outgoing particles,
 which the csv rendering does not carry.
+
+The atomic number of a nuclide is headed `ELEMENT` (EXFOR Dictionary 24); `ELEM` is the code of
+the product subfield of the reaction code and never a data heading. `MASS` and `ISOMER` complete
+the identification of a nuclide.
 """
 const ABSCISSA_HEADINGS = Dict(
     "mass" => (["MASS"], ["MASS-MIN", "MASS-MAX"]),
     "product_mass" => (["MASS"], ["MASS-MIN", "MASS-MAX"]),
-    "charge" => (["ELEM"], String[]),
+    "charge" => (["ELEMENT"], String[]),
     "neutron_energy" => (["E"], ["E-MIN", "E-MAX"]),
     "total_kinetic_energy" => (["TKE", "E"], ["TKE-MIN", "TKE-MAX"]),
     "neutron_number" => (["PART-OUT"], String[]),

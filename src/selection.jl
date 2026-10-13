@@ -330,11 +330,11 @@ end
 
 # The first row on which the csv rendering and the DATA table disagree, described, or `nothing`
 # when they agree. The rendering truncates a mass, so the product is compared with the floor of
-# the subentry mass; an energy is compared in MeV.
+# the subentry mass, and the charge with `ELEMENT`; an energy is compared in MeV.
 function _misalignment(table::DataFrame, data::SubentryColumns)
     product = table[!, COL_PRODUCT_ZA]
     m = column(data, "MASS")
-    z = column(data, "ELEM")
+    z = column(data, "ELEMENT")
     for i in 1:nrow(table)
         ismissing(product[i]) && continue
         za = round(Int, product[i])
@@ -348,13 +348,13 @@ function _misalignment(table::DataFrame, data::SubentryColumns)
             charge = data.values[z][i]
             (ismissing(mass) || ismissing(charge)) && continue
             za == ZA_CHARGE_FACTOR * round(Int, charge) + floor(Int, mass) ||
-                return "row $(i): csv ProdZA $(product[i]) against subentry ELEM, MASS \
+                return "row $(i): csv ProdZA $(product[i]) against subentry ELEMENT, MASS \
                         $(charge), $(mass)"
         elseif z !== nothing
             charge = data.values[z][i]
             ismissing(charge) && continue
             za ÷ ZA_CHARGE_FACTOR == round(Int, charge) ||
-                return "row $(i): csv ProdZA $(product[i]) against subentry ELEM $(charge)"
+                return "row $(i): csv ProdZA $(product[i]) against subentry ELEMENT $(charge)"
         end
     end
 
@@ -474,7 +474,7 @@ settles what the dataset is tabulated against. The first failure is reported.
 7. the DATA table, restricted to the lines that carry a datum in this dataset's datum column —
    `DATA`, or `DATA-CM` for an ordinate of [`CENTRE_OF_MASS_ORDINATES`](@ref); see
    [`datum_heading`](@ref) — has one line per row of the rendering and agrees with it row by
-   row: the truncated product against `MASS` and `ELEM`, the secondary energy against `E` or
+   row: the truncated product against `MASS` and `ELEMENT`, the secondary energy against `E` or
    `TKE`, and for those ordinates the value itself against the datum column. Only then are the
    rows of step 5 retained, less the lines a compilation defect of [`ARCHIVE_DEFECTS`](@ref)
    marks — and a defect record the archive no longer matches rejects the dataset;

@@ -138,6 +138,25 @@ include("fixtures.jl")
             tag_rule(["mass"], "yield"),
             "94-PU-239(N,F)MASS,PRE,FY/DE,FF,MXW/MSC",
         ) == "forbidden code \"DE\" in SF6"
+        # A fractional yield is the independent yield as a fraction of its chain yield, and the
+        # yield of correlated fragment pairs is tabulated against two nuclides; a chain yield is
+        # neither independent nor secondary; the post-neutron energy of a product takes SEC and
+        # the older AKE, and refuses PRE and a charge-resolved product.
+        @test rejection_reason(independent, "92-U-235(N,F)ELEM/MASS,IND,FY,,FRC") ==
+              "forbidden code \"FRC\" in SF8"
+        @test rejection_reason(independent, "98-CF-252(0,F)ELEM/MASS,IND/CRN,FY") ==
+              "forbidden code \"CRN\" in SF5"
+        post_yield = tag_rule(["product_mass"], "yield")
+        @test matches(post_yield, "92-U-235(N,F)MASS,SEC,FY,,MXW")
+        @test rejection_reason(post_yield, "92-U-233(N,F)MASS,CHN,FY,,MXW") ==
+              "none of the alternatives \"SEC\" in SF5, \"IND\" in SF5 present"
+        post_energy = tag_rule(["product_mass"], "product_kinetic_energy")
+        @test matches(post_energy, "92-U-235(N,F)MASS,SEC,KE,FF,MXW")
+        @test matches(post_energy, "94-PU-239(N,F)MASS,SEC,AKE,FF")
+        @test rejection_reason(post_energy, "92-U-235(N,F)MASS,PRE,KE,FF") ==
+              "forbidden code \"PRE\" in SF5"
+        @test rejection_reason(post_energy, "92-U-235(N,F)ELEM/MASS,SEC,KE,FF,MXW") ==
+              "forbidden code \"ELEM\" in SF4"
 
         # PR is not PRE, and KE is neither TKE, KEP nor KEM; AKE is KE.
         @test !matches(
@@ -2433,6 +2452,58 @@ of = "$(of)"
         @test occursin("MXW", rejected.reason)
     end
 
+    @testset "independent yields: ELEMENT, MASS and ISOMER resolved per nuclide" begin
+        code = "92-U-235(N,F)ELEM/MASS,IND,FY,,MXW"
+        row(za, isomer, y, dy) = exfor_row(;
+            product_za = za,
+            isomer = isomer,
+            y = y,
+            dy = dy,
+            incident_ev = 0.0253,
+            reaction_code = code,
+        )
+        # Sb-130 in its ground and first isomeric state, Xe-133 as the archive's total, and
+        # Xe-135 in its isomeric state alone.
+        rows = [
+            row(51130, 0, 0.5, 0.05),
+            row(51130, 1, 0.3, 0.04),
+            row(54133, missing, 2.0, 0.1),
+            row(54135, 1, 0.8, 0.08),
+        ]
+        query = test_query(;
+            target_Z = 92,
+            target_A = 235,
+            abscissa = ["charge", "product_mass"],
+            ordinate = "yield",
+        )
+        dataset = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; unit = "PC/FIS"),
+            query,
+        )
+        @test dataset isa Dataset
+        @test "ELEMENT" in names(dataset.columns)
+        @test "ISOMER" in names(dataset.columns)
+        reduced = reduce_dataset(dataset, query)
+        @test names(reduced.table) == ["Z", "A_p", "Y", "Y_uncertainty"]
+        @test reduced.table.Z == [51, 54, 54]
+        @test reduced.table.A_p == [130, 133, 135]
+        @test reduced.table.Y ≈ [0.8, 2.0, 0.8]
+        @test reduced.table.Y_uncertainty[1] ≈ hypot(0.05, 0.04)
+        @test reduced.diagnostics["isomer_states_summed"] == 1
+        @test reduced.diagnostics["isomer_totals_used"] == 0
+        @test reduced.diagnostics["isomer_summed_nuclides"] == ["Sb-130"]
+        @test reduced.diagnostics["isomer_single_state_nuclides"] == ["Xe-135"]
+        @test reduced.diagnostics["isomer_ambiguous_nuclides"] == String[]
+        # The file is written in the rendering's unit; the subentry's is recorded beside it.
+        @test reduced.diagnostics["unit_subentry"] == "PC/FIS"
+        @test reduced.diagnostics["normalisation"] ==
+              ExforFissionData.YIELD_NORMALISATIONS["PART/FIS"]
+        @test ExforFissionData.nuclide_label(51, 130.0) == "Sb-130"
+        @test ExforFissionData.nuclide_label(51, nothing) == "Sb"
+    end
+
     @testset "a projection needs every other variable held fixed" begin
         query = test_query()
         gated(energy) = exfor_row(;
@@ -2801,7 +2872,7 @@ of = "$(of)"
         for heading in ("EN", "EN-DUMMY", "EN-MIN")
             @test heading_class(heading) == :incident
         end
-        for heading in ("E", "MASS", "ELEM", "TKE", "KE", "ANG", "ISOMER")
+        for heading in ("E", "MASS", "ELEMENT", "TKE", "KE", "ANG", "ISOMER")
             @test heading_class(heading) == :independent
         end
     end

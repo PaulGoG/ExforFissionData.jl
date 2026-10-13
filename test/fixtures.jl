@@ -184,7 +184,7 @@ end
 The subentry text that the csv rows of `exfor_row` correspond to, built through
 `exfor_subentry`, so that a test states its data once.
 
-The DATA columns are, in this order where present: `ELEM` and `MASS` when any `ProdZA` is
+The DATA columns are, in this order where present: `ELEMENT` and `MASS` when any `ProdZA` is
 charge-coded (at least 10 000), else `MASS` alone when any `ProdZA` is given; `ISOMER` when any
 `ProdM` is given; the heading `secondary`, in `EV`, when any `x3` is given; `EN` in `EV` when the
 incident energy takes more than one value, which is a COMMON constant instead when it takes
@@ -229,7 +229,7 @@ function exfor_subentry_for(
     if any(≥(10_000), products)
         charge = [ismissing(p) ? missing : Float64(round(Int, p) ÷ 1000) for p in product]
         mass = [ismissing(p) ? missing : Float64(round(Int, p) % 1000) for p in product]
-        add!("ELEM", "NO-DIM", charge)
+        add!("ELEMENT", "NO-DIM", charge)
         add!("MASS", "NO-DIM", mass)
     elseif !isempty(products)
         add!("MASS", "NO-DIM", product)

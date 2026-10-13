@@ -238,7 +238,10 @@ see [`ComplementReading`](@ref). A mean neutron energy carries `ordinate_frame` 
 and a flag among its `qualifiers` where the frame is unstated; a ratio to a Maxwellian carries
 `maxwellian_temperature_mev` and its source, and a ratio of two spectra `ratio_orientation` with
 the two reaction codes. The record of a joint yield Y(A, TKE) lists the slices of the
-distribution the archive holds for the system, [`SLICE_DATASETS`](@ref), as `slices`.
+distribution the archive holds for the system, [`SLICE_DATASETS`](@ref), as `slices`. A dataset
+resolved over isomeric states names the nuclides concerned in `isomer_summed_nuclides`,
+`isomer_single_state_nuclides` and `isomer_ambiguous_nuclides`, and `isomer_warning` under
+`[datasets]` lists such datasets.
 
 The record also carries when the `listing` of datasets and each accepted dataset were obtained
 from the archive, and whether each came from the cache. Those dates are the state of the archive
@@ -299,7 +302,7 @@ function write_metadata(
                  a sum; non-integer masses are interpolated linearly onto the integer masses \
                  within their range, value and uncertainty alike, at each value of any other \
                  abscissa quantity and never across more than mass_interpolation_span_u. \
-                 Charges are ELEM; energies are the subentry columns in MeV, a bin pair \
+                 Charges are ELEMENT; energies are the subentry columns in MeV, a bin pair \
                  contributing its midpoint. mass_treatment and the mass_ keys record what was \
                  done per dataset",
             "archive_state" => "EXFOR as of the retrieval date recorded per dataset \
@@ -326,6 +329,16 @@ function write_metadata(
              `mean_threshold_frame` give the low-energy limit of the neutrons that enter \
              the mean, where a publication read states one, and the frame it is stated in, \
              and `mean_evidence` the sentence or equation read"
+    end
+    if "charge" in query.abscissa
+        record["conventions"]["isomers"] = "a nuclide the archive reports in several isomeric rows is written once: the \
+             archive's own total, the row without an isomer mark, where it gives one, else the \
+             sum of the marked states with their uncertainties in quadrature; \
+             `isomer_summed_nuclides` names the nuclides summed. A nuclide given in one marked \
+             state alone is written as it stands and is the yield of that state, not of the \
+             nuclide; `isomer_single_state_nuclides` names them. Several rows without a mark are \
+             totals that cannot be told apart and are combined as repeats; \
+             `isomer_ambiguous_nuclides` names them"
     end
     if haskey(PARAMETER_ORDINATES, query.ordinate)
         record["conventions"]["fit_parameter"] = "each table is a column of the dataset of the mean neutron energy, named in the \
@@ -482,6 +495,20 @@ function write_metadata(
              inverse-variance weighted mean; `combined_over` names the \
              auxiliary columns that varied among them, and the subentry stored beside the \
              data is the reference: " * join(combined, ", ")
+    end
+    isomeric = [
+        entry.dataset.identifier for entry in accepted if
+        !isempty(entry.reduced.diagnostics["isomer_summed_nuclides"]) ||
+            !isempty(entry.reduced.diagnostics["isomer_single_state_nuclides"]) ||
+            !isempty(entry.reduced.diagnostics["isomer_ambiguous_nuclides"])
+    ]
+    if !isempty(isomeric)
+        record["datasets"]["isomer_warning"] =
+            "these datasets report isomeric states: the nuclides summed over their states, \
+             those written from one marked state alone, which carry that state's yield and \
+             not the nuclide's, and those whose unmarked rows were combined are named per \
+             dataset in `isomer_summed_nuclides`, `isomer_single_state_nuclides` and \
+             `isomer_ambiguous_nuclides`: " * join(isomeric, ", ")
     end
     correlated = [
         entry.dataset.identifier for

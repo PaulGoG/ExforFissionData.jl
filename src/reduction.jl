@@ -34,7 +34,8 @@ An observable tabulated against its abscissa, reduced from one dataset.
   column is omitted on export. Where it is written, a row without an uncertainty holds `NaN`,
   never zero; a zero is one the archive states.
 - `diagnostics::Dict{String,Any}`: what the reduction had to do — isomer totals used, isomer
-  sums taken, ambiguous groups, duplicates combined, distinct incident energies retained.
+  sums taken and the nuclides summed, nuclides written from one marked isomeric state alone,
+  ambiguous groups, duplicates combined, distinct incident energies retained.
 """
 struct ReducedDataset
     abscissa_columns::Vector{Symbol}
@@ -351,10 +352,12 @@ function _parameter_values(dataset::Dataset, parameter::ParameterColumn)
 end
 
 """
-What a yield's unit token says of its normalisation, as the subentry states the unit. Written to
-the run record as `normalisation` for every yield, so that no consumer has to know that a mass
-yield in `PC/FIS` sums to 200 % over both fragments, or that `ARB-UNITS` over a joint grid is a
-count of events.
+What a yield's unit token says of its normalisation, for the unit the file is written in.
+Written to the run record as `normalisation` for every yield, so that no consumer has to know
+that a mass yield in `PART/FIS` sums to 2 over both fragments, or that `ARB-UNITS` over a joint
+grid is a count of events. The csv rendering restates the subentry's unit — `PC/FIS` as
+`PART/FIS`, the values divided by 100 — and the written values are the rendering's; the unit
+the subentry heads the datum with is recorded beside it as `unit_subentry`.
 """
 const YIELD_NORMALISATIONS = Dict(
     "PC/FIS" => "percent per fission; a mass yield over both fragments sums to 200 %",
@@ -489,6 +492,19 @@ function _interpolate_masses(points::AbstractVector)
 end
 
 """
+    nuclide_label(charge, mass) -> String
+
+The nuclide of a charge and a mass number as a label, `"Sb-130"`; the element alone,
+`"Sb"`, when `mass` is `nothing`. A whole-number mass is written as an integer.
+"""
+function nuclide_label(charge::Integer, mass)
+    symbol = element_symbol(Int(charge))
+    mass === nothing && return String(symbol)
+    written = isinteger(mass) ? string(round(Int, mass)) : string(mass)
+    return string(symbol, '-', written)
+end
+
+"""
     reduce_dataset(dataset, query) -> ReducedDataset
 
 Project one accepted dataset onto its abscissa and resolve every source of duplication.
@@ -619,6 +635,14 @@ function reduce_dataset(
     outcomes = Dict(:total => 0, :summed => 0, :single => 0, :ambiguous => 0)
     imputed = 0
     points = NamedTuple[]
+    charge_position = findfirst(==("charge"), query.abscissa)
+    summed_nuclides = String[]
+    single_state_nuclides = String[]
+    ambiguous_nuclides = String[]
+    label(at) = nuclide_label(
+        at[charge_position],
+        mass_position === nothing ? nothing : at[mass_position],
+    )
     for key in order
         indices = per_nuclide[key]
         values = [Float64(raw_values[i]) for i in indices]
@@ -629,6 +653,16 @@ function reduce_dataset(
         value, uncertainty, outcome, weights =
             resolve_isomers(values, uncertainties, [isomers[i] for i in indices])
         outcomes[outcome] += 1
+        if resolves_isomers
+            at = coordinate(first(indices))
+            if outcome == :summed
+                push!(summed_nuclides, label(at))
+            elseif outcome == :ambiguous
+                push!(ambiguous_nuclides, label(at))
+            elseif outcome == :single && !ismissing(isomers[only(indices)])
+                push!(single_state_nuclides, label(at))
+            end
+        end
         imputed += weights
         push!(
             points,
@@ -796,6 +830,9 @@ function reduce_dataset(
         "isomer_totals_used" => outcomes[:total],
         "isomer_states_summed" => outcomes[:summed],
         "isomer_groups_ambiguous" => outcomes[:ambiguous],
+        "isomer_summed_nuclides" => summed_nuclides,
+        "isomer_single_state_nuclides" => single_state_nuclides,
+        "isomer_ambiguous_nuclides" => ambiguous_nuclides,
         "abscissae_combined" => combined,
         "combined_over" => sort!(collect(combined_over)),
         "mass_values_non_integer" =>
@@ -848,13 +885,12 @@ function reduce_dataset(
         merge!(diagnostics, _tke_grid(dataset, [key[tke] for key in final_keys]))
     end
     if query.ordinate == "yield"
-        # An arbitrary scale the dataset is read in, from its subentry or a curated reading,
-        # decides over the heading of its DATA column.
-        stated =
-            is_relative_unit(dataset.unit) ? dataset.unit :
-            get(dataset.units, "DATA", dataset.unit)
+        # The statement follows the unit the file is written in: the csv rendering restates
+        # the subentry's unit, PC/FIS as PART/FIS with the values divided by 100, and the
+        # written values are the rendering's. The subentry's own unit is recorded beside it.
+        diagnostics["unit_subentry"] = get(dataset.units, "DATA", dataset.unit)
         diagnostics["normalisation"] =
-            get(YIELD_NORMALISATIONS, stated, "as the unit $(stated) states")
+            get(YIELD_NORMALISATIONS, unit_written, "as the unit $(unit_written) states")
     end
 
     return ReducedDataset(
