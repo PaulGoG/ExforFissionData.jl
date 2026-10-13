@@ -1,6 +1,7 @@
 # ExforFissionData.jl
 
 [![CI](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml)
+[![Coverage](https://codecov.io/gh/PaulGoG/ExforFissionData.jl/branch/main/graph/badge.svg)](https://app.codecov.io/gh/PaulGoG/ExforFissionData.jl)
 [![Documentation (stable)](https://img.shields.io/badge/docs-stable-blue.svg)](https://PaulGoG.github.io/ExforFissionData.jl/stable/)
 [![Documentation (dev)](https://img.shields.io/badge/docs-dev-blue.svg)](https://PaulGoG.github.io/ExforFissionData.jl/dev/)
 [![Julia](https://img.shields.io/badge/Julia-1.12%2B-9558B2?logo=julia&logoColor=white)](https://julialang.org)
@@ -92,7 +93,7 @@ length(result.accepted), length(result.rejected)
 | Retrieval: cache, backoff, bounded concurrency | in use; result order independent of completion order, and the concurrency bound verified at limits 1, 3 and 4 |
 | Export and run record | in use; the pair sums recorded for ν(A) are formed again from the written tables by `test/written_tables.jl` whenever a retrieval tree is present |
 | `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
-| Static QA | Aqua, JET and ExplicitImports in the suite; formatting gated against a JuliaFormatter pinned in `formatter/Project.toml` |
+| Static QA | Aqua, JET and ExplicitImports in the suite; formatting gated against a JuliaFormatter pinned in `formatter/Project.toml`; line coverage of `src/` from every test job, merged and reported by Codecov |
 
 Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against
 `["total_kinetic_energy"]` is reported as a pair quantity, so it needs
@@ -352,7 +353,7 @@ ExforFissionData.jl/
 └── .github/
     ├── dependabot.yml           # weekly updates for the julia and github-actions ecosystems
     └── workflows/
-        ├── CI.yml
+        ├── CI.yml               # tests, plotting suite, coverage to Codecov, documentation
         └── format.yml           # formatting check against the pinned JuliaFormatter
 ```
 

@@ -13,6 +13,9 @@ Notable changes to ExforFissionData.jl. The format follows
   `40064031` is written with its energies a factor 1000 too large, true before 0.2.8, is
   removed. The retrieval page says where the response cache lives and that an empty csv
   rendering is never served from it; the output layout shows `relative/`.
+- The README carries the Codecov coverage badge, and names the coverage upload in the status
+  table and the file tree. The upload itself is unchanged: the test jobs of the CI workflow
+  already reported the line coverage of `src/` to Codecov.
 
 ## [0.3.0] - 2026-10-12
 
