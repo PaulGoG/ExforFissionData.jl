@@ -113,14 +113,17 @@ Reduce the rows reporting one nuclide at one incident energy to a single value.
 
 EXFOR may give the ground state, its isomers, and their total. The total is the row whose `ProdM`
 field is absent; where it is present it is preferred, since it is the archive's own sum. Where it
-is absent the resolved states are summed with their uncertainties in quadrature.
+is absent the rows sharing one mark are repeat measurements of that state and are combined by
+[`combine_measurements`](@ref), and the states so resolved are summed with their uncertainties
+in quadrature. A mark is a state, not a measurement: five rows marked the ground state are five
+determinations of one yield (23709002, four samples and their average), never five states.
 
-`outcome` is `:total`, `:summed`, `:single`, or `:ambiguous` — the last when several rows carry no
-isomer marking and therefore cannot be told apart. Each of them is a total in its own right, so
-they are combined as repeats and the dataset is flagged; rows resolving a state are parts of
-those totals and are left out, since a mean of a part with the whole measures neither.
-`imputed` counts the rows whose weight was imputed by [`combine_measurements`](@ref), non-zero
-only for `:ambiguous`.
+`outcome` is `:total`, `:summed`, `:single`, or `:ambiguous` — `:single` for one row, or for
+several rows of one marked state; `:ambiguous` when several rows carry no isomer marking and
+therefore cannot be told apart. Each of them is a total in its own right, so they are combined as
+repeats and the dataset is flagged; rows resolving a state are parts of those totals and are left
+out, since a mean of a part with the whole measures neither. `imputed` counts the rows whose
+weight was imputed by [`combine_measurements`](@ref) in any of those combinations.
 """
 function resolve_isomers(values::AbstractVector, uncertainties::AbstractVector, isomers)
     length(values) == 1 &&
@@ -129,13 +132,27 @@ function resolve_isomers(values::AbstractVector, uncertainties::AbstractVector, 
     if length(unmarked) == 1
         index = only(unmarked)
         return (Float64(values[index]), Float64(uncertainties[index]), :total, 0)
-    elseif isempty(unmarked)
-        value, uncertainty = _sum_states(values, uncertainties)
-        return (Float64(value), Float64(uncertainty), :summed, 0)
+    elseif !isempty(unmarked)
+        value, uncertainty, imputed =
+            combine_measurements(values[unmarked], uncertainties[unmarked])
+        return (value, uncertainty, :ambiguous, imputed)
     end
-    value, uncertainty, imputed =
-        combine_measurements(values[unmarked], uncertainties[unmarked])
-    return (value, uncertainty, :ambiguous, imputed)
+    # Every row is marked: the rows of one state are repeats, and the states are summed.
+    marks = unique(isomers)
+    state_values = Float64[]
+    state_uncertainties = Float64[]
+    imputed = 0
+    for mark in marks
+        rows = findall(==(mark), isomers)
+        value, uncertainty, weights =
+            combine_measurements(values[rows], uncertainties[rows])
+        push!(state_values, value)
+        push!(state_uncertainties, uncertainty)
+        imputed += weights
+    end
+    length(marks) == 1 && return (state_values[1], state_uncertainties[1], :single, imputed)
+    value, uncertainty = _sum_states(state_values, state_uncertainties)
+    return (Float64(value), Float64(uncertainty), :summed, imputed)
 end
 
 """
@@ -643,6 +660,24 @@ function reduce_dataset(
         at[charge_position],
         mass_position === nothing ? nothing : at[mass_position],
     )
+    # The auxiliary subentry columns that vary among rows combined onto one value: what tells a
+    # genuine repeat from one measurement under different conditions. The datum and its
+    # uncertainties are what is being combined, so they are left out of the scan. Rows are
+    # combined here, as repeats of one isomeric state or of one unmarked total, and in stage
+    # three, as rows sharing an abscissa value; both are counted and scanned alike.
+    auxiliary = filter(names(dataset.columns)) do name
+        heading_class(name) == :auxiliary && !occursin("DATA", name) && !occursin("ERR", name)
+    end
+    combined_over = Set{String}()
+    combined = Ref(0)
+    function note_repeats!(rows)
+        combined[] += 1
+        for name in auxiliary
+            present = skipmissing(dataset.columns[rows, name])
+            length(unique(present)) > 1 && push!(combined_over, name)
+        end
+        return nothing
+    end
     for key in order
         indices = per_nuclide[key]
         values = [Float64(raw_values[i]) for i in indices]
@@ -650,8 +685,8 @@ function reduce_dataset(
             ismissing(raw_uncertainties[i]) ? NaN : abs(Float64(raw_uncertainties[i]))
             for i in indices
         ]
-        value, uncertainty, outcome, weights =
-            resolve_isomers(values, uncertainties, [isomers[i] for i in indices])
+        marks = [isomers[i] for i in indices]
+        value, uncertainty, outcome, weights = resolve_isomers(values, uncertainties, marks)
         outcomes[outcome] += 1
         if resolves_isomers
             at = coordinate(first(indices))
@@ -659,9 +694,19 @@ function reduce_dataset(
                 push!(summed_nuclides, label(at))
             elseif outcome == :ambiguous
                 push!(ambiguous_nuclides, label(at))
-            elseif outcome == :single && !ismissing(isomers[only(indices)])
+            elseif outcome == :single && !ismissing(marks[1])
                 push!(single_state_nuclides, label(at))
             end
+            # The rows combined as repeats: the unmarked totals, or those of each state given
+            # more than once.
+            repeated = if outcome == :ambiguous
+                indices[findall(ismissing, marks)]
+            elseif outcome in (:single, :summed)
+                [i for (i, mark) in zip(indices, marks) if count(isequal(mark), marks) > 1]
+            else
+                Int[]
+            end
+            length(repeated) > 1 && note_repeats!(repeated)
         end
         imputed += weights
         push!(
@@ -760,27 +805,13 @@ function reduce_dataset(
         push!(get!(grouped, point.key, Int[]), i)
     end
 
-    # The auxiliary subentry columns that vary among rows combined onto one abscissa value: what
-    # tells a genuine repeat from one measurement under different conditions. The datum and its
-    # uncertainties are what is being combined, so they are left out of the scan.
-    auxiliary = filter(names(dataset.columns)) do name
-        heading_class(name) == :auxiliary && !occursin("DATA", name) && !occursin("ERR", name)
-    end
-    combined_over = Set{String}()
-    combined = 0
     final_keys = Any[]
     final_values = Float64[]
     final_uncertainties = Float64[]
     for key in grouped_order
         indices = grouped[key]
-        if length(indices) > 1
-            combined += 1
-            rows = reduce(vcat, [placed[i].rows for i in indices])
-            for name in auxiliary
-                present = skipmissing(dataset.columns[rows, name])
-                length(unique(present)) > 1 && push!(combined_over, name)
-            end
-        end
+        length(indices) > 1 &&
+            note_repeats!(reduce(vcat, [placed[i].rows for i in indices]))
         value, uncertainty, weights = combine_measurements(
             [placed[i].value for i in indices],
             [placed[i].uncertainty for i in indices],
@@ -833,7 +864,7 @@ function reduce_dataset(
         "isomer_summed_nuclides" => summed_nuclides,
         "isomer_single_state_nuclides" => single_state_nuclides,
         "isomer_ambiguous_nuclides" => ambiguous_nuclides,
-        "abscissae_combined" => combined,
+        "abscissae_combined" => combined[],
         "combined_over" => sort!(collect(combined_over)),
         "mass_values_non_integer" =>
             treatment == "bins" ? 0 : count(!isinteger, masses),

@@ -250,6 +250,22 @@ include("fixtures.jl")
         @test isapprox(value, 3.51e-4; rtol = 1.0e-6)
         @test isapprox(uncertainty, sqrt(2) * 1.7e-5; rtol = 1.0e-6)
 
+        # Rows sharing one mark are repeat measurements of one state, not states: combined,
+        # never summed (23709002 gives the ground-state yield of Sb-124 five times).
+        value, uncertainty, outcome, imputed =
+            resolve_isomers([1.0, 1.2], [0.1, 0.1], [0, 0])
+        @test outcome == :single
+        @test isapprox(value, 1.1; rtol = 1.0e-6)
+        @test isapprox(uncertainty, 1 / sqrt(200); rtol = 1.0e-6)
+        @test imputed == 0
+
+        # Repeats within a state are combined before the states are summed.
+        value, uncertainty, outcome, _ =
+            resolve_isomers([1.0, 1.2, 0.5], [0.1, 0.1, 0.05], [0, 0, 1])
+        @test outcome == :summed
+        @test isapprox(value, 1.6; rtol = 1.0e-6)
+        @test isapprox(uncertainty, sqrt(1 / 200 + 0.05^2); rtol = 1.0e-6)
+
         value, uncertainty, outcome, _ = resolve_isomers([1.0], [0.1], [missing])
         @test outcome == :single
 
@@ -2462,11 +2478,13 @@ of = "$(of)"
             incident_ev = 0.0253,
             reaction_code = code,
         )
-        # Sb-130 in its ground and first isomeric state, Xe-133 as the archive's total, and
-        # Xe-135 in its isomeric state alone.
+        # Sb-130 in its ground and first isomeric state, Te-133 in its isomeric state measured
+        # twice, Xe-133 as the archive's total, and Xe-135 in its isomeric state alone.
         rows = [
             row(51130, 0, 0.5, 0.05),
             row(51130, 1, 0.3, 0.04),
+            row(52133, 1, 0.4, 0.04),
+            row(52133, 1, 0.6, 0.06),
             row(54133, missing, 2.0, 0.1),
             row(54135, 1, 0.8, 0.08),
         ]
@@ -2487,21 +2505,82 @@ of = "$(of)"
         @test "ISOMER" in names(dataset.columns)
         reduced = reduce_dataset(dataset, query)
         @test names(reduced.table) == ["Z", "A_p", "Y", "Y_uncertainty"]
-        @test reduced.table.Z == [51, 54, 54]
-        @test reduced.table.A_p == [130, 133, 135]
-        @test reduced.table.Y ≈ [0.8, 2.0, 0.8]
+        @test reduced.table.Z == [51, 52, 54, 54]
+        @test reduced.table.A_p == [130, 133, 133, 135]
+        @test reduced.table.Y ≈ [0.8, 6 / 13, 2.0, 0.8]
         @test reduced.table.Y_uncertainty[1] ≈ hypot(0.05, 0.04)
+        @test reduced.table.Y_uncertainty[2] ≈ 1 / sqrt(1 / 0.04^2 + 1 / 0.06^2)
         @test reduced.diagnostics["isomer_states_summed"] == 1
         @test reduced.diagnostics["isomer_totals_used"] == 0
         @test reduced.diagnostics["isomer_summed_nuclides"] == ["Sb-130"]
-        @test reduced.diagnostics["isomer_single_state_nuclides"] == ["Xe-135"]
+        @test reduced.diagnostics["isomer_single_state_nuclides"] == ["Te-133", "Xe-135"]
         @test reduced.diagnostics["isomer_ambiguous_nuclides"] == String[]
+        # The two rows of Te-133 are repeats of one state, combined as such and counted.
+        @test reduced.diagnostics["abscissae_combined"] == 1
+        @test reduced.diagnostics["combined_over"] == String[]
         # The file is written in the rendering's unit; the subentry's is recorded beside it.
         @test reduced.diagnostics["unit_subentry"] == "PC/FIS"
         @test reduced.diagnostics["normalisation"] ==
               ExforFissionData.YIELD_NORMALISATIONS["PART/FIS"]
         @test ExforFissionData.nuclide_label(51, 130.0) == "Sb-130"
         @test ExforFissionData.nuclide_label(51, nothing) == "Sb"
+    end
+
+    @testset "a charge held in a COMMON section identifies the nuclides" begin
+        code = "92-U-235(N,F)ELEM/MASS,IND,FY,,MXW"
+        # The isotopes of antimony by mass, the element a constant of the entry's COMMON
+        # section, and the rendering coding the products as bare masses.
+        rows = [
+            exfor_row(;
+                product_za = mass,
+                y = value,
+                dy = 0.1 * value,
+                incident_ev = 0.0253,
+                reaction_code = code,
+            ) for (mass, value) in ((130, 0.5), (132, 0.7))
+        ]
+        query = test_query(;
+            target_Z = 92,
+            target_A = 235,
+            abscissa = ["charge", "product_mass"],
+            ordinate = "yield",
+        )
+        antimony = (headings = ["ELEMENT"], units = ["NO-DIM"], values = [51.0])
+        dataset = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; unit = "PC/FIS", entry_common = antimony),
+            query,
+        )
+        @test dataset isa Dataset
+        @test dataset.record["common_constants"] == ["ELEMENT = 51.0 [NO-DIM]"]
+        @test all(==(51.0), dataset.columns[!, "ELEMENT"])
+        reduced = reduce_dataset(dataset, query)
+        @test reduced.table.Z == [51, 51]
+        @test reduced.table.A_p == [130, 132]
+        @test reduced.table.Y ≈ [0.5, 0.7]
+        @test reduced.diagnostics["isomer_single_state_nuclides"] == String[]
+
+        # Without the constant the same rows identify no charge and are refused as before.
+        refused = select_dataset(
+            "10000002",
+            exfor_csv(rows),
+            exfor_subentry_for(rows; unit = "PC/FIS"),
+            query,
+        )
+        @test refused isa Rejection
+        @test occursin("ELEMENT", refused.reason)
+
+        # The constant may sit in the subentry's own COMMON section as well, beside the
+        # incident energy the fixture places there.
+        subentry_text = exfor_subentry_for(rows; unit = "PC/FIS")
+        parsed = ExforFissionData.parse_subentry(subentry_text, "10000002")
+        @test ExforFissionData.common_constant(parsed, "ELEMENT") === nothing
+        widened = ExforFissionData.with_constant(parsed.data, "ELEMENT", "NO-DIM", 51.0)
+        @test widened.headings[end] == "ELEMENT"
+        @test widened.units[end] == "NO-DIM"
+        @test widened.values[end] == [51.0, 51.0]
+        @test ExforFissionData.line_count(widened) == 2
     end
 
     @testset "a projection needs every other variable held fixed" begin

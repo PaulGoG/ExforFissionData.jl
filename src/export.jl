@@ -293,9 +293,12 @@ function write_metadata(
                  rows; a 0 is written only where EXFOR states it. Per dataset, \
                  `uncertainty_zero_rows` counts the subentry lines stating a zero uncertainty \
                  and `uncertainty_absent_rows` those stating none",
-            "duplicate_abscissa" => "isomers resolved first (archive total preferred, else \
-                 summed in quadrature), then rows still sharing an abscissa value combined by \
-                 an inverse-variance weighted mean; `abscissae_combined` counts them per dataset",
+            "duplicate_abscissa" => "isomers resolved first (archive total preferred; else the \
+                 rows of each marked state combined as repeats and the states summed in \
+                 quadrature), then rows still sharing an abscissa value combined by an \
+                 inverse-variance weighted mean; `abscissae_combined` counts the combinations \
+                 per dataset and `combined_over` names the auxiliary columns that varied among \
+                 the rows combined",
             "abscissa_resolution" => "masses are never rounded: integer subentry masses are \
                  written as they are; a mass bin with integer edges is written at each of its \
                  masses with the bin's value and uncertainty, except for a yield, whose bin is \
@@ -333,7 +336,8 @@ function write_metadata(
     if "charge" in query.abscissa
         record["conventions"]["isomers"] = "a nuclide the archive reports in several isomeric rows is written once: the \
              archive's own total, the row without an isomer mark, where it gives one, else the \
-             sum of the marked states with their uncertainties in quadrature; \
+             sum of the marked states with their uncertainties in quadrature, the rows of one \
+             state being repeat measurements and combined as such first; \
              `isomer_summed_nuclides` names the nuclides summed. A nuclide given in one marked \
              state alone is written as it stands and is the yield of that state, not of the \
              nuclide; `isomer_single_state_nuclides` names them. Several rows without a mark are \

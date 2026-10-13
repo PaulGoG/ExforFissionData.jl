@@ -33,7 +33,8 @@ One EXFOR dataset, parsed and accepted for a query.
   `mean_` entries of a mean neutron energy, the `distribution_` and `mean_` entries of a
   distribution P(ν), `maxwellian_temperature_mev` and `maxwellian_temperature_source` of a ratio
   to a Maxwellian, `ratio_numerator`, `ratio_denominator` and `ratio_orientation` of a ratio
-  of two spectra. Empty for every other dataset, and for the eight-argument constructor.
+  of two spectra, `common_constants` of a nuclide identification taken from a COMMON section.
+  Empty for every other dataset, and for the eight-argument constructor.
 """
 struct Dataset
     identifier::String
@@ -330,8 +331,10 @@ end
 
 # The first row on which the csv rendering and the DATA table disagree, described, or `nothing`
 # when they agree. The rendering truncates a mass, so the product is compared with the floor of
-# the subentry mass, and the charge with `ELEMENT`; an energy is compared in MeV.
-function _misalignment(table::DataFrame, data::SubentryColumns)
+# the subentry mass, and the charge with `ELEMENT`; an energy is compared in MeV. With
+# `bare_charge`, the charge being a constant of a COMMON section that the rendering did not code
+# into the product, a bare mass number is accepted as the product.
+function _misalignment(table::DataFrame, data::SubentryColumns; bare_charge::Bool = false)
     product = table[!, COL_PRODUCT_ZA]
     m = column(data, "MASS")
     z = column(data, "ELEMENT")
@@ -347,7 +350,8 @@ function _misalignment(table::DataFrame, data::SubentryColumns)
             mass = data.values[m][i]
             charge = data.values[z][i]
             (ismissing(mass) || ismissing(charge)) && continue
-            za == ZA_CHARGE_FACTOR * round(Int, charge) + floor(Int, mass) ||
+            coded = za == ZA_CHARGE_FACTOR * round(Int, charge) + floor(Int, mass)
+            (coded || (bare_charge && za == floor(Int, mass))) ||
                 return "row $(i): csv ProdZA $(product[i]) against subentry ELEMENT, MASS \
                         $(charge), $(mass)"
         elseif z !== nothing
@@ -473,10 +477,12 @@ settles what the dataset is tabulated against. The first failure is reported.
    no row of step 5; see [`neutron_energy_refusal`](@ref);
 7. the DATA table, restricted to the lines that carry a datum in this dataset's datum column —
    `DATA`, or `DATA-CM` for an ordinate of [`CENTRE_OF_MASS_ORDINATES`](@ref); see
-   [`datum_heading`](@ref) — has one line per row of the rendering and agrees with it row by
-   row: the truncated product against `MASS` and `ELEMENT`, the secondary energy against `E` or
-   `TKE`, and for those ordinates the value itself against the datum column. Only then are the
-   rows of step 5 retained, less the lines a compilation defect of [`ARCHIVE_DEFECTS`](@ref)
+   [`datum_heading`](@ref) — with `ELEMENT`, `MASS` or `ISOMER` taken from the COMMON section of
+   the subentry or of the entry where the table lacks it and the charge is in the abscissa
+   (`common_constants` in the record) — has one line per row of the rendering and agrees with it
+   row by row: the truncated product against `MASS` and `ELEMENT`, the secondary energy against
+   `E` or `TKE`, and for those ordinates the value itself against the datum column. Only then are
+   the rows of step 5 retained, less the lines a compilation defect of [`ARCHIVE_DEFECTS`](@ref)
    marks — and a defect record the archive no longer matches rejects the dataset;
 8. a mean neutron energy is not stated to be in the laboratory frame; see
    [`ordinate_frame`](@ref). No independent variable of the DATA table other than the abscissa's
@@ -568,6 +574,21 @@ function select_dataset(
          quantities the rendering does not present as measurements",
     )
     data = restrict(subentry.data, BitVector(map(!ismissing, subentry.data.values[datum])))
+    # A nuclide identification the subentry holds as a constant of its COMMON section, or of
+    # the entry's — one element, its isotopes tabulated by mass; one isomeric state throughout —
+    # is a column of the DATA table in all but layout, and is placed beside the lines before the
+    # two tables are compared. The rendering may or may not have coded the charge into ProdZA.
+    constants = String[]
+    if "charge" in query.abscissa
+        for heading in ("ELEMENT", "MASS", "ISOMER")
+            column(data, heading) === nothing || continue
+            constant = common_constant(subentry, heading)
+            constant === nothing && continue
+            data = with_constant(data, heading, constant[2], constant[1])
+            push!(constants, "$(heading) = $(constant[1]) [$(constant[2])]")
+        end
+    end
+    charge_constant = any(startswith("ELEMENT"), constants)
 
     # A fragment energy coded as a neutron energy is named for what it is before anything else
     # is asked of its table.
@@ -642,7 +663,7 @@ function select_dataset(
         "the csv rendering has $(rows) rows and the subentry DATA table $(lines) lines, so \
          they cannot be aligned",
     )
-    misalignment = _misalignment(screened.table, data)
+    misalignment = _misalignment(screened.table, data; bare_charge = charge_constant)
     misalignment === nothing || return Rejection(
         identifier,
         code,
@@ -682,6 +703,7 @@ function select_dataset(
 
     # What selection reads of the dataset beyond its columns, for the run record.
     record = Dict{String, Any}()
+    isempty(constants) || (record["common_constants"] = constants)
     if source in CENTRE_OF_MASS_ORDINATES
         frame = ordinate_frame(identifier, data.headings)
         frame.frame == "laboratory" && return Rejection(
@@ -779,7 +801,9 @@ function select_dataset(
                 "product mass numbers reach $(minimum(product)), too light to be a fission \
                  fragment",
             )
-        else
+        elseif !charge_constant
+            # With the charge a constant of a COMMON section, the subentry identifies the
+            # nuclide whether or not the rendering coded the charge into the product.
             minimum(product) < CHARGE_CODED_MINIMUM && return Rejection(
                 identifier,
                 code,

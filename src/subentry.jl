@@ -396,6 +396,48 @@ function line_count(columns::SubentryColumns)
     return isempty(columns.values) ? 0 : length(first(columns.values))
 end
 
+"""
+    common_constant(subentry, heading) -> Union{Nothing,Tuple{Float64,String}}
+
+The single value, and its unit, that a COMMON section of `subentry` gives under `heading`, the
+subentry's own section before the entry's; `nothing` when neither holds it or the field is
+blank. A constant of a COMMON section applies to every line of the DATA table (EXFOR Formats
+Manual, chapter 4).
+"""
+function common_constant(subentry::Subentry, heading::AbstractString)
+    for section in (subentry.common, subentry.entry_common)
+        index = column(section, heading)
+        index === nothing && continue
+        values = section.values[index]
+        isempty(values) && continue
+        value = values[1]
+        ismissing(value) && continue
+        return (Float64(value), section.units[index])
+    end
+    return nothing
+end
+
+"""
+    with_constant(data, heading, unit, value) -> SubentryColumns
+
+`data` with a column `heading` appended, in `unit`, holding `value` on every line: a constant
+of a COMMON section placed beside the lines it applies to.
+"""
+function with_constant(
+    data::SubentryColumns,
+    heading::AbstractString,
+    unit::AbstractString,
+    value::Float64,
+)
+    lines = line_count(data)
+    return SubentryColumns(
+        vcat(data.headings, String(heading)),
+        vcat(data.units, String(unit)),
+        vcat(data.pointers, ' '),
+        vcat(data.values, [Vector{Union{Missing, Float64}}(fill(value, lines))]),
+    )
+end
+
 # Heading prefixes of the columns auxiliary to a datum: monitors, assumed values, flags,
 # miscellaneous information, and the kT of a Maxwellian average.
 const _AUXILIARY_PREFIXES = ("MONIT", "ASSUM", "FLAG", "MISC", "KT")
