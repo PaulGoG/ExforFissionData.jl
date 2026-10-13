@@ -67,7 +67,9 @@ carries the retrieval date of the listing and of every dataset.
 The mass yield, the mean TKE and its width against mass, or the joint yield, are what a
 pre-neutron Y(A, TKE) is built from. Each is retrieved experiment by experiment, with the
 accession in every file name, so that a consumer can take the three marginals of one
-measurement, or its joint matrix, together.
+measurement, or its joint matrix, together. The post-neutron products — the mass yield Y(A_p),
+the independent yields Y(Z, A_p) and the product kinetic energy E_K_p(A_p) — are retrieved for
+the same four systems under `Y_vs_A_p`, `Y_vs_Z_A_p` and `E_K_p_vs_A_p`.
 
 ### 252-Cf(sf)
 
@@ -81,6 +83,16 @@ so these configurations omit `energy_min` and `energy_max`.
   (Hambsch 1997); the width column of 12709004 (Weber 1981) is refused as no width.
 - `Cf252_sf_Y_vs_A_TKE` — the joint pre-neutron yield Y(A, TKE): 23268002 (Göök 2014), 30 000
   cells of counts, written under `relative/`.
+- `Cf252_sf_Y_vs_A_p` — post-neutron mass yields: 13081002 (Schmitt 1965), 14259009 (Romano
+  2010), 14420002 (Meierbachtol 2015), 14652002 and 14652003 (Britt 1964) and 14790002 (Gastis
+  2022).
+- `Cf252_sf_Y_vs_Z_A_p` — independent yields of nuclides: eight tables of one to 15 nuclides,
+  23560003 (Erten 1978) read from the constants `ELEMENT` and `MASS` of its COMMON section.
+  Refused: the 15 yields of correlated fragment pairs coded `CRN`, 13648002 to 13648006, 13749002
+  and 14634002 among them, and 5 fractional yields coded `FRC`.
+- `Cf252_sf_E_K_p_vs_A_p` — post-neutron kinetic energy against product mass; the archive holds
+  none for this system. Its post-neutron kinetic energies, 32928002 and 32928003, are
+  `ELEM,SEC,AKE`, resolved in charge rather than mass, and the configuration writes nothing.
 - `Cf252_sf_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41720002
   (Basova 1979) and 41694002 (Zamyatnin 1979), which differ by 0.34 neutrons rms over 80 shared
   masses, are two reductions of one measurement, relation `alternative_analysis`, each naming
@@ -146,6 +158,20 @@ so these configurations omit `energy_min` and `energy_max`.
   23014003 (Baba 1997), 40235017 (D'yachenko 1968, a variance) and 40200003 (Zakharova 1973).
 - `U235_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system, and the
   record lists the slices it holds instead.
+- `U235_nth_Y_vs_A_p` — post-neutron mass yields: 14208003 (Derengowski 1970), 14259005 (Romano
+  2010), 21752016 (Wagemans 1981), 21981012 (Geltenbort 1985), 23594002 (Shiraishi 1968),
+  31738002 (Koblik 2014) and 32888002 (Liu 2022).
+- `U235_nth_Y_vs_Z_A_p` — independent yields of nuclides, 48 datasets. The large tables are
+  10722003 (Strittmatter 1977), 21689019 (Lang 1980), 221610021 (Rudstam 1990), 22151003 (Sida
+  1989), 23586004 (Armbruster 1987), 23558007 (Günther 1972) and 13600002 (Tipnis 1998); the rest
+  are radiochemical tables of a few nuclides each, and 20 datasets are read from constants of a
+  COMMON section. Refused: 21689014 to 21689018 (Lang 1980), partial yields each at one product
+  kinetic energy, and 39 fractional yields coded `FRC`.
+- `U235_nth_E_K_p_vs_A_p` — post-neutron kinetic energy against product mass, in MeV: 21543017
+  (Asghar 1977), 21313014 (Asghar 1978), 21752017 (Wagemans 1981), 21981015 (Geltenbort 1985),
+  23551003 and 23551004 (Konecny 1970), the second combined over its cooling times in `MISC1` to
+  `MISC3`, 235580032 (Günther 1972), 31797003 (Bakhromi 1982) and 41496005 (Aleksandrov 1994),
+  interpolated from non-integer masses.
 - `U235_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41516012
   (Vorobyev 2010) carries a qualifier beginning `preliminary:`.
 - `U235_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
@@ -199,6 +225,14 @@ be written under a directory of its own.
 - `U233_nth_sigma_TKE_vs_A` — the standard deviation of the pre-neutron TKE against mass, from
   23014002 (Baba 1997).
 - `U233_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system.
+- `U233_nth_Y_vs_A_p` — post-neutron mass yields: 21981011 (Geltenbort 1985), 23784002
+  (Chebboubi 2021) and 41496006 (Aleksandrov 1994).
+- `U233_nth_Y_vs_Z_A_p` — independent yields of nuclides, 17 datasets. The large tables are
+  10918003 (Wehring 1980) and 23794002 (Johansson 1997); the rest are radiochemical tables of a
+  few nuclides each, and 5 datasets are read from constants of a COMMON section. Refused: 11
+  fractional yields coded `FRC`.
+- `U233_nth_E_K_p_vs_A_p` — post-neutron kinetic energy against product mass, in MeV: 21981014
+  (Geltenbort 1985) and 23784003 (Chebboubi 2021).
 - `U233_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, from
   40873002, 40930004, 40930010, 40930011, 40930012 and 41611010, all formed with T = 1.34 MeV.
   The four of 40930 (Starostov 1985) are one measurement in four parts, the first cycle with
@@ -225,6 +259,17 @@ be written under a directory of its own.
   23012005 and 23012006 (Nishio 1995), the second a width of one fragment's energy.
 - `Pu239_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system, and the
   record lists the slices it holds instead.
+- `Pu239_nth_Y_vs_A_p` — post-neutron mass yields: 21981013 (Geltenbort 1985); 222730131,
+  222730132 and 22273014 (Schillebeeckx 1992), coded `DERIV` and flagged among their
+  `qualifiers`; 23342002 to 23342005 (Gupta 2017); 23583002 (Boucheneb 1991); and 32879002 (Liu
+  2022).
+- `Pu239_nth_Y_vs_Z_A_p` — independent yields of nuclides, 23 datasets. The large tables are
+  23558006 (Günther 1972) and 22985008 (Bail 2009); the rest are radiochemical tables of a few
+  nuclides each, and 8 datasets are read from constants of a COMMON section. Refused: 15
+  fractional yields coded `FRC`.
+- `Pu239_nth_E_K_p_vs_A_p` — post-neutron kinetic energy against product mass, in MeV: 21544009
+  (Asghar 1978), 21981016 (Geltenbort 1985), 235580022 (Günther 1972), 23583003 (Boucheneb 1991)
+  and 416930051 (Belyaev 1988).
 - `Pu239_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41720004
   (Basova 1979) and 41694003 (Zamyatnin 1979), which differ by 0.36 neutrons rms over 73 shared
   masses, are two reductions of one measurement, relation `alternative_analysis`, each naming

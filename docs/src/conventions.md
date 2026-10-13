@@ -41,14 +41,14 @@ they are not handled alike:
 | :--- | :--- |
 | several incident energies | the configured window selects rows; a dataset still holding more than one energy inside it is rejected, naming them, rather than averaged |
 | another independent variable of the subentry DATA table — a kinetic-energy gate, an angle | rejected where the variable varies: a mean over gates is not the observable asked for. One held at a single value is a condition of the measurement and passes |
-| isomeric states | the archive's own total where it gives one, otherwise the resolved states summed with uncertainties in quadrature |
+| isomeric states | the archive's own total where it gives one, otherwise the rows of each marked state combined as repeats and the states summed with uncertainties in quadrature; a nuclide given in one marked state alone is written as that state's yield and named in the record |
 | anything left | inverse-variance weighted mean, uncertainty `1/√(Σ1/σ²)`, counted per dataset as `abscissae_combined` and named in a warning |
 
 The abscissa and the test for other variables come from the **subentry DATA table**, not from the
 `op=csv` rendering. The rendering reports a mass as an integer by truncation, 63.51 and 64.91 as
 63 and 64, and drops the independent variables it does not recognise; it still supplies the
 ordinate, its uncertainty, the unit and the incident energy. The two are aligned row by row, the
-truncated product against the subentry's `MASS` and `ELEM` and the secondary energy against its
+truncated product against the subentry's `MASS` and `ELEMENT` and the secondary energy against its
 `E` or `TKE`, and a dataset on which they disagree is rejected.
 
 Masses are written as integers and are never rounded to become so; `mass_treatment` in the run
@@ -127,10 +127,12 @@ The checks easiest to get wrong:
   dataset frequently reports one product at several energies, and admitting all of them collapses
   an excitation function into a single number;
 - what a dataset is tabulated against is read from its **subentry DATA table**, which is
-  aligned with the csv rendering row by row — the truncated product against `MASS` and `ELEM`,
-  the secondary energy against `E` or `TKE` — and a dataset on which the two disagree is
-  rejected. For the mean neutron energy the value itself is compared with `DATA-CM`, to a
-  relative 10⁻⁵;
+  aligned with the csv rendering row by row — the truncated product against `MASS` and
+  `ELEMENT`, the secondary energy against `E` or `TKE` — and a dataset on which the two disagree
+  is rejected. With the charge in the abscissa, `ELEMENT`, `MASS` or `ISOMER` held as a constant
+  of the COMMON section of the subentry or of the entry is placed beside the lines first, and the
+  constants used are recorded as `common_constants`. For the mean neutron energy the value itself
+  is compared with `DATA-CM`, to a relative 10⁻⁵;
 - a heading of the subentry DATA table that the EXFOR format classes as an independent variable,
   other than the abscissa's own and the incident energy, **must not vary**. `23591005` (Straede,
   1987) is a mass yield at nine fragment kinetic energies, and projected onto mass it is nine
@@ -158,8 +160,21 @@ The checks easiest to get wrong:
   yield `CHN` and the provisional yield `PRV` are refused beside it. A chain yield is a
   post-neutron product mass, and a provisional mass is one derived from the two fragment energies
   without correcting them for neutron emission; before the rule the `Y_vs_A` retrievals of the
-  four systems carried 69 chain and 5 provisional yields beside 51 pre-neutron ones. A
-  multiplicity against mass, `MASS,PR/FRG,NU`, carries no branch and is not affected.
+  four systems carried 69 chain and 5 provisional yields beside 51 pre-neutron ones. The
+  post-neutron yields, against the product mass or the nuclide, require `SEC` or `IND` instead
+  and refuse `PRE`. A multiplicity against mass, `MASS,PR/FRG,NU`, carries no branch and is not
+  affected;
+- an independent yield is not every `FY` coded `ELEM/MASS`. `yield` refuses `FRC`
+  (Dictionary 34), the independent yield as a fraction of its chain yield, a ratio and not the
+  yield: `23558005` (Günther 1972) and `14088003` to `14088006`. The nuclide abscissa refuses
+  `CRN` (Dictionary 31), the yields of correlated fragment pairs tabulated against `ELEM1/MASS1`
+  and `ELEM2/MASS2`: `13648002` to `13648006`, `13749002` and `14634002`. The two post-neutron
+  yields refuse `PAR` (Dictionary 31), the partial yields at one product kinetic energy:
+  `21689014` to `21689018` (Lang 1980), whose entry gives the independent yield as `21689019`;
+- isomeric rows that share one mark are **repeats** of that state, not states, and are combined
+  before distinct states are summed: `23709002` (Strom 1965) gives the ground-state yield of
+  Sb-124 five times, four samples and their average, and `33158004` (Naik 2021) the isomeric
+  yield of I-136 through two decay lines. Summed, each would count one yield several times.
 
 Reaction-code qualifiers that bear on a value's scale — `MSC`, `REL`, `CHN`, `DERIV`, `FCT` — are
 recorded per dataset without rejecting it where the observable admits them, and so are those

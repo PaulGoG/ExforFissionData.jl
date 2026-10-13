@@ -6,6 +6,25 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The post-neutron mass yield, `yield` against `["product_mass"]`, coded `MASS,SEC,FY`, written
+  under `Y_vs_A_p/` as `A_p Y Y_uncertainty`.
+- The independent yield of a nuclide, `yield` against `["charge", "product_mass"]`, coded
+  `ELEM/MASS,IND,FY`, written under `Y_vs_Z_A_p/` as `Z A_p Y Y_uncertainty`.
+- The post-neutron kinetic energy of a product, `product_kinetic_energy` against
+  `["product_mass"]`, coded `MASS,SEC,KE` with `AKE` accepted as `KE`, written under
+  `E_K_p_vs_A_p/` as `A_p E_K_p E_K_p_uncertainty` in MeV, restated from the `EV` of the rendering.
+- Twelve configurations, `<system>_Y_vs_A_p`, `<system>_Y_vs_Z_A_p` and `<system>_E_K_p_vs_A_p`
+  for `Cf252_sf`, `U235_nth`, `Pu239_nth` and `U233_nth`, 64 in all. The archive holds no
+  `MASS,SEC,KE` for 252-Cf, and `Cf252_sf_E_K_p_vs_A_p` writes nothing.
+- `common_constants` in the record: the `ELEMENT`, `MASS` or `ISOMER` a subentry holds as a
+  constant of its COMMON section or of that of subentry 001, used where the charge is in the
+  abscissa. `unit_subentry`, for every yield: the unit the subentry heads the datum with.
+- For a charge abscissa, the convention `isomers` under `[conventions]`; per dataset
+  `isomer_summed_nuclides`, `isomer_single_state_nuclides` and `isomer_ambiguous_nuclides`,
+  naming the nuclides by labels such as `Sb-130`; and `isomer_warning` under `[datasets]`.
+
 ### Changed
 
 - Documentation only. The coverage figure of the README and the documentation home page is
@@ -16,6 +35,31 @@ Notable changes to ExforFissionData.jl. The format follows
 - The README carries the Codecov coverage badge, and names the coverage upload in the status
   table and the file tree. The upload itself is unchanged: the test jobs of the CI workflow
   already reported the line coverage of `src/` to Codecov.
+- `yield` refuses `FRC` (Dictionary 34), the independent yield as a fraction of its chain yield,
+  a ratio and not the yield: under the nuclide abscissa 39 datasets of 235-U, 15 of 239-Pu, 11 of
+  233-U and 5 of 252-Cf, `23558005` (Günther 1972) and `14088003` to `14088006` among them.
+- The nuclide abscissa, `["charge", "product_mass"]`, refuses `CRN` (Dictionary 31), the yields
+  of correlated fragment pairs tabulated against `ELEM1/MASS1` and `ELEM2/MASS2`: 15 datasets of
+  252-Cf, `13648002` to `13648006`, `13749002` and `14634002` among them.
+- The two post-neutron yields refuse `PAR` (Dictionary 31): `21689014` to `21689018` (Lang 1980)
+  each hold the yields at one product kinetic energy, slices of the energy-resolved distribution;
+  the independent yield of the entry, `21689019`, is written. The pre-neutron yield is unaffected.
+- The `normalisation` statement of every yield, the pre-neutron ones included, follows the unit
+  the file is written in, not the subentry's: it said "sums to 200 %" of files summing to 2. The
+  records of the shipped yield retrievals change in that one key, beside the new `unit_subentry`;
+  the files do not change at all.
+
+### Fixed
+
+- The charge of a nuclide is read from the DATA heading `ELEMENT` (Dictionary 24), not `ELEM`,
+  which is a code of the product subfield and never a heading. Every independent yield failed the
+  row alignment with the rendering before, so none was selected at all.
+- Constants of a COMMON section identify the nuclide: `ELEMENT`, `MASS` or `ISOMER` held there
+  are placed beside the lines of the DATA table, and a rendering that codes the product as a bare
+  mass is then accepted. 34 independent yields of the four systems are read so.
+- Rows sharing one isomer mark are repeat measurements of that state and are combined, not summed
+  as states: `23709002` (Strom 1965) gives the ground-state yield of Sb-124 five times, and
+  `33158004` (Naik 2021) the isomeric yield of I-136 through two decay lines.
 
 ## [0.3.0] - 2026-10-12
 

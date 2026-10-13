@@ -17,7 +17,7 @@ files with a record of everything the query considered.
 ExforFissionData.jl/
 ├── activate.jl        # silent activation of the package environment
 ├── check.jl           # pre-commit gate: format, then test
-├── config/            # 52 retrieval configurations, <system>_<observable>.toml
+├── config/            # 64 retrieval configurations, <system>_<observable>.toml
 ├── scripts/
 │   └── retrieve.jl    # entry point
 ├── src/               # the package: selection, reduction, export, run record
@@ -138,6 +138,9 @@ that name the directories its data is written to.
 | ⟨TKE⟩(A), `TKE_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | σ_TKE(A), `sigma_TKE_vs_A` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | `Pu240_sf` |
 | Y(A, TKE), `Y_vs_A_TKE` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | `Pu240_sf` |
+| Y(A_p), `Y_vs_A_p` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| Y(Z, A_p), `Y_vs_Z_A_p` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| E_K_p(A_p), `E_K_p_vs_A_p` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | ν(A), `nu_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
 | ν(A, TKE), `nu_vs_A_TKE` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
 | ⟨ε⟩(A), `eps_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
@@ -158,6 +161,14 @@ so that the marginals of one experiment can be taken together; the joint matrix 
 substitute for a 239-Pu(n_th,f) system that has no joint matrix in the archive and a width whose
 two columns disagree. The width has no EXFOR code, so its configurations name, dataset by
 dataset, the column that holds it, what it holds and whose energy it is.
+
+The three rows after Y(A, TKE) are the products after neutron emission: the post-neutron mass
+yield, the independent yields of nuclides, and the kinetic energy of a product against its mass.
+The independent yields are read from the `ELEMENT`, `MASS` and `ISOMER` headings of the subentry,
+or from constants of its COMMON section, and a nuclide reported in several isomeric states is
+written once, with what was done recorded per dataset. Fractional yields, yields of correlated
+fragment pairs and partial yields at one product kinetic energy are refused. The archive holds no
+mass-resolved post-neutron kinetic energy for 252-Cf, so `Cf252_sf_E_K_p_vs_A_p` writes nothing.
 
 A system is an element symbol, a mass number and an **entrance channel** — `sf` spontaneous, `nth`
 thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel decides the EXFOR
@@ -299,7 +310,7 @@ ExforFissionData.jl/
 ├── README.md
 ├── .JuliaFormatter.toml         # formatter settings shared by check.jl and CI
 ├── .gitignore
-├── config/                      # 52 configurations, <system>_<observable>.toml
+├── config/                      # 64 configurations, <system>_<observable>.toml
 ├── docs/                        # Documenter site
 │   ├── activate.jl
 │   ├── Project.toml

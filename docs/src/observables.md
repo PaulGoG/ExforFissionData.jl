@@ -330,6 +330,123 @@ for the Mo–Ba partition in arbitrary units; the variance of ν against mass as
 and second moments and covariance matrices of P(ν) only as free text, `ADD-RES` and
 `COVARIANCE`, in the Boldeman and Gwin entries.
 
+## Post-neutron products
+
+Three observables describe the fission products after prompt neutron emission, each against one
+abscissa, and each is retrieved for the four systems: `<system>_Y_vs_A_p`,
+`<system>_Y_vs_Z_A_p` and `<system>_E_K_p_vs_A_p`. As for every observable, the qualifiers `MXW`
+and `SPA` are recorded under `nth` and not refused, while `FIS`, `EPI` and `FST` reject the
+dataset.
+
+### The post-neutron mass yield
+
+`yield` against `["product_mass"]` is the mass yield of the products, `MASS,SEC,FY`, written
+under `Y_vs_A_p/` as `A_p Y Y_uncertainty`. The abscissa requires `MASS` in SF4 and `SEC` or `IND`
+in SF5, and refuses `PRE`, `ELEM`, `TKE` and `DE`. A blank branch establishes nothing and is
+refused; neither the chain yield `CHN`, which is neither independent nor secondary, nor the
+provisional yield `PRV` is among the alternatives. `CUM`, the cumulative yield, is refused for
+every observable, and the partial branch `PAR` as for the independent yield below.
+
+The csv rendering restates the unit of the subentry, `PC/FIS` as `PART/FIS` with the values
+divided by 100, and the values written are the rendering's: a mass yield in `PART/FIS` sums to 2
+over both fragments. The `normalisation` statement of the record follows the unit the file is
+written in, and `unit_subentry` records the unit the subentry heads the datum with. Both hold for
+every yield, the pre-neutron ones included.
+
+For 252-Cf the archive holds six: `13081002` (Schmitt 1965), `14259009` (Romano 2010), `14420002`
+(Meierbachtol 2015), `14652002` and `14652003` (Britt 1964) and `14790002` (Gastis 2022). For 235-U
+it holds seven: `14208003` (Derengowski 1970), `14259005` (Romano 2010), `21752016` (Wagemans
+1981), `21981012` (Geltenbort 1985), `23594002` (Shiraishi 1968), `31738002` (Koblik 2014) and
+`32888002` (Liu 2022). For 239-Pu ten: `21981013` (Geltenbort 1985); `222730131`, `222730132` and
+`22273014` (Schillebeeckx 1992), coded `DERIV`, recorded among their `qualifiers` and named in
+`scale_warning`; `23342002` to `23342005` (Gupta 2017); `23583002` (Boucheneb 1991); and
+`32879002` (Liu 2022). For 233-U three: `21981011` (Geltenbort 1985), `23784002` (Chebboubi 2021)
+and `41496006` (Aleksandrov 1994). The masses of `14420002`, `14652002`, `14652003` and `23594002`
+are interpolated onto the integers.
+
+### The independent yield
+
+`yield` against `["charge", "product_mass"]` is the independent yield of a nuclide,
+`ELEM/MASS,IND,FY`, written under `Y_vs_Z_A_p/` as `Z A_p Y Y_uncertainty`. The abscissa requires
+`MASS` and `ELEM` in SF4 and `SEC` or `IND` in SF5, and refuses `PRE`, `KE`, `DE` and `CRN`.
+
+`ELEM` is a code of the product subfield of the reaction code and never a heading of the DATA
+table, which heads the atomic number of a nuclide `ELEMENT` (EXFOR Dictionary 24), its mass
+number `MASS` and its isomeric state `ISOMER`. The csv rendering codes the product as 1000·Z + A,
+`ProdZA`, and the isomer as `ProdM`, and the two tables are aligned row by row. Earlier versions
+looked for an `ELEM` heading, and every independent yield failed that alignment.
+
+A subentry of one element may hold `ELEMENT`, and at times `MASS` or `ISOMER`, as a constant of
+its COMMON section or of the COMMON section of subentry 001 of the entry. With the charge in the
+abscissa such a constant is placed beside the lines of the DATA table before the tables are
+compared, and a rendering that then codes the product as a bare mass is accepted. The record lists
+the constants used as `common_constants`, `ELEMENT = 51.0 [NO-DIM]` for instance. Twenty datasets
+of 235-U, eight of 239-Pu, five of 233-U and one of 252-Cf are read so, among them `12740002`
+(Rengan 1982), `20848003` (Fujiwara 1982), `21218004` (Kaiser 1978), `21641002` (Balestrini 1979),
+`23709002` (Strom 1965), `30912002` (Engler 1983), `30953004` (Ehrenberg 1972), `30960002` (Shmid
+1981) and `21706004` (Zwicky 1980).
+
+A nuclide reported in several isomeric rows is written once. Where the archive gives its own
+total, the row without an isomer mark, that row is written; otherwise the rows sharing one mark
+are repeat measurements of that state and are combined as repeats, by the inverse-variance
+weighted mean, and the states so resolved are summed with their uncertainties in quadrature.
+`23709002` (Strom 1965) gives the ground-state yield of Sb-124 five times, four samples and their
+average under `FLAG`, and `33158004` (Naik 2021) the isomeric yield of I-136 through two decay
+lines; both are combined, not summed. Such combinations count in `abscissae_combined`, and
+`combined_over` names the auxiliary columns that varied, `FLAG` and `DECAY-FLAG` there.
+
+A nuclide given in one marked state alone is written as it stands and is the yield of that state,
+not of the nuclide. Several rows without a mark are totals that cannot be told apart, and are
+combined as repeats. The record names the nuclides of each dataset, by labels such as `Sb-130`, in
+`isomer_summed_nuclides`, `isomer_single_state_nuclides` and `isomer_ambiguous_nuclides`, beside
+the counts `isomer_totals_used`, `isomer_states_summed` and `isomer_groups_ambiguous`; it states
+the convention as `isomers` under `[conventions]`, and `isomer_warning` under `[datasets]` lists
+the datasets concerned.
+
+Independent yields coded with the nuclide in the reaction code, `55-CS-136,IND,FY` and the like,
+one nuclide per dataset and no `ELEMENT` or `MASS` table, are not retrieved: they carry neither
+`MASS` nor `ELEM` in SF4.
+
+Four codes file under `ELEM/MASS` what is not the independent yield. The ordinate `yield` refuses
+`FRC` (Dictionary 34, fractional), the independent yield as a fraction of its chain yield, which
+is a ratio and not the yield: under this abscissa 39 datasets of 235-U, 15 of 239-Pu, 11 of 233-U
+and 5 of 252-Cf, `23558005` (Günther 1972) and `14088003` to `14088006` for instance. The
+abscissa refuses `CRN` (Dictionary 31, "more than two fragments are specified"), the yields of
+correlated fragment pairs, tabulated against `ELEM1/MASS1` and `ELEM2/MASS2`: 15 such datasets for
+252-Cf, `13648002` to `13648006`, `13749002` and `14634002` among them. The two post-neutron yields
+refuse the partial branch `PAR` (Dictionary 31): `21689014` to `21689018` (Lang 1980, Lohengrin)
+each hold the yields at one product kinetic energy, a constant `E` of their COMMON section,
+88.5 MeV in the first, and are slices of the energy-resolved distribution; the same entry gives
+the independent yield as `21689019`, which is written. The pre-neutron yield against mass is not
+concerned. `CUM`, the cumulative yield, is refused for every observable.
+
+The archive holds 8 for 252-Cf, 48 for 235-U, 23 for 239-Pu and 17 for 233-U. The large tables
+are, for 235-U, `10722003` (Strittmatter 1977, 100 nuclides, A_p 82 to 106), `21689019` (Lang
+1980, 113 nuclides, 80 to 107), `221610021` (Rudstam 1990, 92 nuclides written, about a quarter
+of them summed over isomeric states), `22151003` (Sida 1989, 70 to 84), `23586004` (Armbruster
+1987, 70 to 80), `23558007` (Günther 1972, 130 to 140) and `13600002` (Tipnis 1998); for 239-Pu,
+`23558006` (Günther 1972, 130 to 139) and `22985008` (Bail 2009, 58 nuclides); and for 233-U,
+`10918003` (Wehring 1980, 100 nuclides) and `23794002` (Johansson 1997, 157 nuclides). The rest
+are radiochemical tables of a few nuclides each.
+
+### The post-neutron kinetic energy
+
+`product_kinetic_energy` against `["product_mass"]` is the kinetic energy of a product of given
+mass after neutron emission, `MASS,SEC,KE`, `AKE` accepted as `KE`. It is written under
+`E_K_p_vs_A_p/` as `A_p E_K_p E_K_p_uncertainty` in MeV, restated from the `EV` of the rendering.
+The ordinate composes with the product-mass abscissa: `KE` in SF6, `MASS` in SF4 and `SEC` or
+`IND` in SF5, and no `LF+HF`, no `N`, no `PRE` and no `ELEM`.
+
+For 252-Cf the archive holds no `MASS,SEC,KE`: its post-neutron kinetic energies, `32928002` and
+`32928003`, are `ELEM,SEC,AKE`, resolved in charge, and `Cf252_sf_E_K_p_vs_A_p` writes nothing.
+For 235-U it holds nine: `21543017` (Asghar 1977), `21313014` (Asghar 1978), `21752017` (Wagemans
+1981), `21981015` (Geltenbort 1985), `23551003` and `23551004` (Konecny 1970), the second combined
+over `MISC1` to `MISC3`, which hold cooling times, `235580032` (Günther 1972), `31797003`
+(Bakhromi 1982) and `41496005` (Aleksandrov 1994), interpolated from non-integer masses. For
+239-Pu five: `21544009` (Asghar 1978), `21981016` (Geltenbort 1985), `235580022` (Günther 1972),
+`23583003` (Boucheneb 1991) and `416930051` (Belyaev 1988). For 233-U two: `21981014`
+(Geltenbort 1985) and `23784003` (Chebboubi 2021).
+
 ## Not covered
 
 Fragment and prompt-neutron observables only. Prompt-γ quantities — ⟨Eγ⟩(A), ⟨Nγ⟩(A) and the
