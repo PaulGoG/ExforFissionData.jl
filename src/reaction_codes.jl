@@ -320,7 +320,9 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      its chain yield, which is a ratio and not the yield:
 #                                      23558005, 14088003 to 14088006 and 13293003 for instance
 #   fragment_kinetic_energy            pre-neutron fragment kinetic energy
-#   product_kinetic_energy             post-neutron fragment kinetic energy
+#   product_kinetic_energy             post-neutron fragment kinetic energy; the chain branch
+#                                      CHN, which the product-mass abscissa admits for a yield,
+#                                      names a yield and is refused here
 #   total_kinetic_energy               pre-neutron total kinetic energy (LF+HF, both fragments):
 #                                      KE, or AKE, the older coding of the same mean; not KEP,
 #                                      the most probable value. MSC marks a quantity outside the
@@ -373,7 +375,7 @@ const ORDINATE_RULES = Dict{String, TagRule}(
     "fragment_kinetic_energy" =>
         TagRule(["SF6:KE", "SF5:PRE"], String[], ["SF7:LF+HF", "SF7:N"]),
     "product_kinetic_energy" =>
-        TagRule(["SF6:KE"], String[], ["SF7:LF+HF", "SF7:N", "SF5:PRE"]),
+        TagRule(["SF6:KE"], String[], ["SF7:LF+HF", "SF7:N", "SF5:PRE", "SF5:CHN"]),
     "total_kinetic_energy" =>
         TagRule(["SF6:KE", "SF7:LF+HF", "SF5:PRE"], String[], ["SF7:N", "SF8:MSC"]),
     "total_kinetic_energy_dispersion" =>

@@ -169,6 +169,8 @@ include("fixtures.jl")
               "forbidden code \"PRE\" in SF5"
         @test rejection_reason(post_energy, "92-U-235(N,F)ELEM/MASS,SEC,KE,FF,MXW") ==
               "forbidden code \"ELEM\" in SF4"
+        @test rejection_reason(post_energy, "92-U-235(N,F)MASS,CHN,KE,FF,MXW") ==
+              "forbidden code \"CHN\" in SF5"
 
         # A partial yield, at one product kinetic energy, is a slice of the energy-resolved
         # distribution and not the yield (21689014, Lang 1980); the pre-neutron yield against
