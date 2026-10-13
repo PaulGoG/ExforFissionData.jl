@@ -241,7 +241,9 @@ the two reaction codes. The record of a joint yield Y(A, TKE) lists the slices o
 distribution the archive holds for the system, [`SLICE_DATASETS`](@ref), as `slices`. A dataset
 resolved over isomeric states names the nuclides concerned in `isomer_summed_nuclides`,
 `isomer_single_state_nuclides` and `isomer_ambiguous_nuclides`, and `isomer_warning` under
-`[datasets]` lists such datasets.
+`[datasets]` lists such datasets. A yield carries `yield_sum`, the sum of its written values, and
+the record of a yield against the product mass states under `[conventions]` how a chain yield is
+read.
 
 The record also carries when the `listing` of datasets and each accepted dataset were obtained
 from the archive, and whether each came from the cache. Those dates are the state of the archive
@@ -343,6 +345,19 @@ function write_metadata(
              nuclide; `isomer_single_state_nuclides` names them. Several rows without a mark are \
              totals that cannot be told apart and are combined as repeats; \
              `isomer_ambiguous_nuclides` names them"
+    end
+    if query.ordinate == "yield"
+        record["conventions"]["yield_sum"] = "`yield_sum` is the sum of the written yields of each dataset, in the unit the file \
+             is written in: a mass yield in PART/FIS sums to 2 over both fragments and to \
+             about 1 over one side. It is recorded, never a cut; a table whose sum its \
+             coverage does not explain is to be read with its publication"
+    end
+    if query.ordinate == "yield" && query.abscissa == ["product_mass"]
+        record["conventions"]["chain_yield"] = "a chain yield, CHN in its reaction code, is written as a post-neutron mass yield: \
+             beta decay conserves A, so the yield of a mass chain is the post-neutron mass \
+             yield up to the delayed-neutron transfer between neighbouring chains, below a \
+             per cent. Such a dataset carries the qualifier among its `qualifiers` and is \
+             named in `scale_warning`"
     end
     if haskey(PARAMETER_ORDINATES, query.ordinate)
         record["conventions"]["fit_parameter"] = "each table is a column of the dataset of the mean neutron energy, named in the \

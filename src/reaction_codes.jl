@@ -218,8 +218,8 @@ Codes rejected for every observable, besides any combination of reactions.
 
 `REL` (relative data) is deliberately absent, since excluding it removes datasets that are
 wanted, and is recorded per dataset through [`SCALE_QUALIFIERS`](@ref). `CHN`, a chain yield,
-is a post-neutron product mass and is refused beside a pre-neutron mass by the abscissa rules
-rather than here.
+is a post-neutron product mass: the abscissa rules refuse it beside a pre-neutron mass and admit
+it beside the product mass.
 """
 const BASE_FORBID = [
     "SF9:RECOM",
@@ -245,8 +245,12 @@ const BASE_FORBID = [
 #                         product mass, nor provisional (PRV): a mass from the two fragment
 #                         energies uncorrected for neutron emission. 23802002, 23815002,
 #                         23815003, 23815005 and 23588002 are provisional yields
-#   product_mass          post-neutron fragment mass: as mass, but requiring the
-#                         independent or secondary marking and forbidding the pre-neutron one
+#   product_mass          post-neutron product mass: as mass, but requiring the secondary,
+#                         independent or chain marking and forbidding the pre-neutron one. A
+#                         chain yield (CHN) is the yield of a mass chain after beta decay, which
+#                         conserves A, so it is the post-neutron mass yield up to the
+#                         delayed-neutron transfer between neighbouring chains, below a per
+#                         cent; it is admitted and carries its qualifier in the record
 #   charge                fragment charge: charge-resolved, not mass-resolved
 #   charge, product_mass  a nuclide, post-neutron: charge- and mass-resolved, independent or
 #                         secondary, not pre-neutron, and not the yield of correlated fragment
@@ -276,7 +280,7 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
     ),
     ["product_mass"] => TagRule(
         ["SF4:MASS"],
-        ["SF5:SEC", "SF5:IND"],
+        ["SF5:SEC", "SF5:IND", "SF5:CHN"],
         ["TKE", "SF4:ELEM", "SF5:PRE", "SF6:DE"],
     ),
     ["charge"] =>
@@ -581,7 +585,9 @@ codes to find out.
 const SCALE_QUALIFIERS = Dict(
     "MSC" => "miscellaneous: not a standard EXFOR quantity definition",
     "REL" => "relative: an arbitrary scale, not absolute",
-    "CHN" => "chain yield rather than an independent or mass yield",
+    "CHN" => "chain yield: the yield of the mass chain after beta decay, which conserves A, so \
+              the post-neutron mass yield up to the delayed-neutron transfer between \
+              neighbouring chains, below a per cent",
     "DERIV" => "derived from other data rather than measured",
     "FCT" => "a correction factor has been applied",
 )

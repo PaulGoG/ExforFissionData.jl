@@ -139,7 +139,7 @@ include("fixtures.jl")
             "94-PU-239(N,F)MASS,PRE,FY/DE,FF,MXW/MSC",
         ) == "forbidden code \"DE\" in SF6"
         # A fractional yield is the independent yield as a fraction of its chain yield, and the
-        # yield of correlated fragment pairs is tabulated against two nuclides; a chain yield is
+        # yield of correlated fragment pairs is tabulated against two nuclides; a blank branch is
         # neither independent nor secondary; the post-neutron energy of a product takes SEC and
         # the older AKE, and refuses PRE and a charge-resolved product.
         @test rejection_reason(independent, "92-U-235(N,F)ELEM/MASS,IND,FY,,FRC") ==
@@ -148,8 +148,20 @@ include("fixtures.jl")
               "forbidden code \"CRN\" in SF5"
         post_yield = tag_rule(["product_mass"], "yield")
         @test matches(post_yield, "92-U-235(N,F)MASS,SEC,FY,,MXW")
-        @test rejection_reason(post_yield, "92-U-233(N,F)MASS,CHN,FY,,MXW") ==
-              "none of the alternatives \"SEC\" in SF5, \"IND\" in SF5 present"
+        # A chain yield is a post-neutron mass yield and is admitted beside the product mass,
+        # refused beside the pre-neutron mass, and no independent yield of a nuclide.
+        @test matches(post_yield, "92-U-233(N,F)MASS,CHN,FY,,MXW")
+        @test rejection_reason(
+            tag_rule(["mass"], "yield"),
+            "92-U-233(N,F)MASS,CHN,FY,,MXW",
+        ) == "forbidden code \"CHN\" in SF5"
+        @test !matches(independent, "92-U-233(N,F)MASS,CHN,FY,,MXW")
+        @test any(
+            startswith("CHN: chain yield"),
+            ExforFissionData.code_qualifiers("92-U-233(N,F)MASS,CHN,FY,,MXW"),
+        )
+        @test rejection_reason(post_yield, "92-U-233(N,F)MASS,,FY,,MXW") ==
+              "none of the alternatives \"SEC\" in SF5, \"IND\" in SF5, \"CHN\" in SF5 present"
         post_energy = tag_rule(["product_mass"], "product_kinetic_energy")
         @test matches(post_energy, "92-U-235(N,F)MASS,SEC,KE,FF,MXW")
         @test matches(post_energy, "94-PU-239(N,F)MASS,SEC,AKE,FF")
@@ -2531,6 +2543,7 @@ of = "$(of)"
         # The two rows of Te-133 are repeats of one state, combined as such and counted.
         @test reduced.diagnostics["abscissae_combined"] == 1
         @test reduced.diagnostics["combined_over"] == String[]
+        @test reduced.diagnostics["yield_sum"] ≈ 0.8 + 6 / 13 + 2.0 + 0.8
         # The file is written in the rendering's unit; the subentry's is recorded beside it.
         @test reduced.diagnostics["unit_subentry"] == "PC/FIS"
         @test reduced.diagnostics["normalisation"] ==

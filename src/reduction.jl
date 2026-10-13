@@ -35,7 +35,8 @@ An observable tabulated against its abscissa, reduced from one dataset.
   never zero; a zero is one the archive states.
 - `diagnostics::Dict{String,Any}`: what the reduction had to do — isomer totals used, isomer
   sums taken and the nuclides summed, nuclides written from one marked isomeric state alone,
-  ambiguous groups, duplicates combined, distinct incident energies retained.
+  ambiguous groups, duplicates combined, distinct incident energies retained, and for a yield
+  the sum of the written values.
 """
 struct ReducedDataset
     abscissa_columns::Vector{Symbol}
@@ -922,6 +923,9 @@ function reduce_dataset(
         diagnostics["unit_subentry"] = get(dataset.units, "DATA", dataset.unit)
         diagnostics["normalisation"] =
             get(YIELD_NORMALISATIONS, unit_written, "as the unit $(unit_written) states")
+        # The sum of the written yields, in the written unit: 2 over both fragments and about 1
+        # over one side for a mass yield in PART/FIS. Recorded, never a cut.
+        diagnostics["yield_sum"] = sum(final_values)
     end
 
     return ReducedDataset(
