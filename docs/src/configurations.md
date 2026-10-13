@@ -83,9 +83,11 @@ so these configurations omit `energy_min` and `energy_max`.
   (Hambsch 1997); the width column of 12709004 (Weber 1981) is refused as no width.
 - `Cf252_sf_Y_vs_A_TKE` — the joint pre-neutron yield Y(A, TKE): 23268002 (Göök 2014), 30 000
   cells of counts, written under `relative/`.
-- `Cf252_sf_Y_vs_A_p` — post-neutron mass yields: 13081002 (Schmitt 1965), 14259009 (Romano
-  2010), 14420002 (Meierbachtol 2015), 14652002 and 14652003 (Britt 1964) and 14790002 (Gastis
-  2022).
+- `Cf252_sf_Y_vs_A_p` — post-neutron mass yields, 13 datasets, 6 coded `SEC` and 7 `CHN`: 13081002
+  (Schmitt 1965), 14259009 (Romano 2010), 14420002 (Meierbachtol 2015), 14652002 and 14652003
+  (Britt 1964) and 14790002 (Gastis 2022); the chain yields of note are 33158006 (Naik 2021),
+  30691002 (Li Ze 1983), 21531003 (Thierens 1976) and 13283008 (Harbour 1971), flagged as chain
+  yields in the record.
 - `Cf252_sf_Y_vs_Z_A_p` — independent yields of nuclides: eight tables of one to 15 nuclides,
   23560003 (Erten 1978) read from the constants `ELEMENT` and `MASS` of its COMMON section.
   Refused: the 15 yields of correlated fragment pairs coded `CRN`, 13648002 to 13648006, 13749002
@@ -158,9 +160,14 @@ so these configurations omit `energy_min` and `energy_max`.
   23014003 (Baba 1997), 40235017 (D'yachenko 1968, a variance) and 40200003 (Zakharova 1973).
 - `U235_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system, and the
   record lists the slices it holds instead.
-- `U235_nth_Y_vs_A_p` — post-neutron mass yields: 14208003 (Derengowski 1970), 14259005 (Romano
-  2010), 21752016 (Wagemans 1981), 21981012 (Geltenbort 1985), 23594002 (Shiraishi 1968),
-  31738002 (Koblik 2014) and 32888002 (Liu 2022).
+- `U235_nth_Y_vs_A_p` — post-neutron mass yields, 35 datasets, 7 coded `SEC` and 28 `CHN`:
+  14208003 (Derengowski 1970), 14259005 (Romano 2010), 21752016 (Wagemans 1981), 21981012
+  (Geltenbort 1985), 23594002 (Shiraishi 1968), 31738002 (Koblik 2014) and 32888002 (Liu 2022);
+  the chain yields of note are 316850021 and 316850022 (Ajitanand 1978), 13359002 (Diiorio
+  1977), 33186006 (Naik 2023), 21543013 (Asghar 1977), 10865002 (Maeck 1978), 21531002 (Thierens
+  1976), 21054087 (Wohlfarth 1976), 13270003 (Lisman 1970) and 22985006 (Bail 2009), flagged as
+  chain yields in the record. 31738002 sums to 1.82 over the heavy group alone, A_p 125 to 155,
+  and is written as the archive gives it.
 - `U235_nth_Y_vs_Z_A_p` — independent yields of nuclides, 48 datasets. The large tables are
   10722003 (Strittmatter 1977), 21689019 (Lang 1980), 221610021 (Rudstam 1990), 22151003 (Sida
   1989), 23586004 (Armbruster 1987), 23558007 (Günther 1972) and 13600002 (Tipnis 1998); the rest
@@ -225,8 +232,11 @@ be written under a directory of its own.
 - `U233_nth_sigma_TKE_vs_A` — the standard deviation of the pre-neutron TKE against mass, from
   23014002 (Baba 1997).
 - `U233_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system.
-- `U233_nth_Y_vs_A_p` — post-neutron mass yields: 21981011 (Geltenbort 1985), 23784002
-  (Chebboubi 2021) and 41496006 (Aleksandrov 1994).
+- `U233_nth_Y_vs_A_p` — post-neutron mass yields, 14 datasets, 3 coded `SEC` and 11 `CHN`:
+  21981011 (Geltenbort 1985), 23784002 (Chebboubi 2021) and 41496006 (Aleksandrov 1994); the
+  chain yields of note are 132700021 and 132700022 (Lisman 1970), 33187006 (Naik 2023), 21771012
+  (Asghar 1981), 10918004 (Wehring 1980) and 13208002 to 13208004 (Bidinosti 1961), flagged as
+  chain yields in the record.
 - `U233_nth_Y_vs_Z_A_p` — independent yields of nuclides, 17 datasets. The large tables are
   10918003 (Wehring 1980) and 23794002 (Johansson 1997); the rest are radiochemical tables of a
   few nuclides each, and 5 datasets are read from constants of a COMMON section. Refused: 11
@@ -259,10 +269,12 @@ be written under a directory of its own.
   23012005 and 23012006 (Nishio 1995), the second a width of one fragment's energy.
 - `Pu239_nth_Y_vs_A_TKE` — the joint yield; the archive holds none for this system, and the
   record lists the slices it holds instead.
-- `Pu239_nth_Y_vs_A_p` — post-neutron mass yields: 21981013 (Geltenbort 1985); 222730131,
-  222730132 and 22273014 (Schillebeeckx 1992), coded `DERIV` and flagged among their
-  `qualifiers`; 23342002 to 23342005 (Gupta 2017); 23583002 (Boucheneb 1991); and 32879002 (Liu
-  2022).
+- `Pu239_nth_Y_vs_A_p` — post-neutron mass yields, 26 datasets, 10 coded `SEC` and 16 `CHN`:
+  21981013 (Geltenbort 1985); 222730131, 222730132 and 22273014 (Schillebeeckx 1992), coded
+  `DERIV` and flagged among their `qualifiers`; 23342002 to 23342005 (Gupta 2017); 23583002
+  (Boucheneb 1991); and 32879002 (Liu 2022). The chain yields of note are 33178006 (Naik 2022),
+  21544008 (Asghar 1978), 22985005 (Bail 2009), 13482002, 134800021 and 134800022 (Fickel 1959)
+  and 13270008 (Lisman 1970), flagged as chain yields in the record.
 - `Pu239_nth_Y_vs_Z_A_p` — independent yields of nuclides, 23 datasets. The large tables are
   23558006 (Günther 1972) and 22985008 (Bail 2009); the rest are radiochemical tables of a few
   nuclides each, and 8 datasets are read from constants of a COMMON section. Refused: 15

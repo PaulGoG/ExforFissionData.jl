@@ -6,10 +6,19 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-13
+
+Three post-neutron product observables for 252-Cf(sf) and thermal 235-U, 239-Pu and 233-U: the
+mass yield Y(A_p), the independent yield Y(Z, A_p) and the product kinetic energy E_K_p(A_p),
+twelve configurations in all. The charge-resolved path reads the archive's `ELEMENT` heading,
+so independent yields are selected for the first time. Every table and stored subentry that
+0.3.0 writes is written unchanged; the records of the yields change in `normalisation` and every
+record gains keys.
+
 ### Added
 
-- The post-neutron mass yield, `yield` against `["product_mass"]`, coded `MASS,SEC,FY`, written
-  under `Y_vs_A_p/` as `A_p Y Y_uncertainty`.
+- The post-neutron mass yield, `yield` against `["product_mass"]`, coded `MASS,SEC,FY` or
+  `MASS,CHN,FY`, written under `Y_vs_A_p/` as `A_p Y Y_uncertainty`.
 - The independent yield of a nuclide, `yield` against `["charge", "product_mass"]`, coded
   `ELEM/MASS,IND,FY`, written under `Y_vs_Z_A_p/` as `Z A_p Y Y_uncertainty`.
 - The post-neutron kinetic energy of a product, `product_kinetic_energy` against
@@ -24,6 +33,10 @@ Notable changes to ExforFissionData.jl. The format follows
 - For a charge abscissa, the convention `isomers` under `[conventions]`; per dataset
   `isomer_summed_nuclides`, `isomer_single_state_nuclides` and `isomer_ambiguous_nuclides`,
   naming the nuclides by labels such as `Sb-130`; and `isomer_warning` under `[datasets]`.
+- `yield_sum` in the record, for every yield: the sum of the written values in the unit the file
+  is written in, 2 over both fragments and about 1 over one side for a mass yield in `PART/FIS`,
+  recorded and never a cut; and the convention `yield_sum` under `[conventions]` of every yield
+  retrieval. The convention `chain_yield` for a yield against the product mass.
 
 ### Changed
 
@@ -35,6 +48,14 @@ Notable changes to ExforFissionData.jl. The format follows
 - The README carries the Codecov coverage badge, and names the coverage upload in the status
   table and the file tree. The upload itself is unchanged: the test jobs of the CI workflow
   already reported the line coverage of `src/` to Codecov.
+- The post-neutron mass yield admits chain yields, `CHN`, as post-neutron mass yields: beta
+  decay conserves A, so the yield of a mass chain differs from the post-neutron mass yield by the
+  delayed-neutron transfer between neighbouring chains, below a per cent. A chain yield carries
+  the qualifier `CHN` among its `qualifiers`, is named in `scale_warning`, and the record states
+  the reading under `[conventions]` as `chain_yield`. `Y_vs_A_p` holds 13 datasets for 252-Cf
+  (6 `SEC`, 7 `CHN`), 35 for 235-U (7 `SEC`, 28 `CHN`), 26 for 239-Pu (10 `SEC`, 16 `CHN`) and
+  14 for 233-U (3 `SEC`, 11 `CHN`). The pre-neutron yield against mass and the independent yield
+  of a nuclide refuse `CHN` as before.
 - `yield` refuses `FRC` (Dictionary 34), the independent yield as a fraction of its chain yield,
   a ratio and not the yield: under the nuclide abscissa 39 datasets of 235-U, 15 of 239-Pu, 11 of
   233-U and 5 of 252-Cf, `23558005` (Günther 1972) and `14088003` to `14088006` among them.
@@ -46,8 +67,8 @@ Notable changes to ExforFissionData.jl. The format follows
   the independent yield of the entry, `21689019`, is written. The pre-neutron yield is unaffected.
 - The `normalisation` statement of every yield, the pre-neutron ones included, follows the unit
   the file is written in, not the subentry's: it said "sums to 200 %" of files summing to 2. The
-  records of the shipped yield retrievals change in that one key, beside the new `unit_subentry`;
-  the files do not change at all.
+  records of the shipped yield retrievals change in that one key, beside the new `unit_subentry`
+  and `yield_sum`; the files do not change at all.
 
 ### Fixed
 

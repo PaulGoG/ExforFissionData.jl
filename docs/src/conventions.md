@@ -160,10 +160,12 @@ The checks easiest to get wrong:
   yield `CHN` and the provisional yield `PRV` are refused beside it. A chain yield is a
   post-neutron product mass, and a provisional mass is one derived from the two fragment energies
   without correcting them for neutron emission; before the rule the `Y_vs_A` retrievals of the
-  four systems carried 69 chain and 5 provisional yields beside 51 pre-neutron ones. The
-  post-neutron yields, against the product mass or the nuclide, require `SEC` or `IND` instead
-  and refuse `PRE`. A multiplicity against mass, `MASS,PR/FRG,NU`, carries no branch and is not
-  affected;
+  four systems carried 69 chain and 5 provisional yields beside 51 pre-neutron ones. The yield
+  against the product mass requires `SEC`, `IND` or `CHN` instead and refuses `PRE`, a chain
+  yield being the post-neutron mass yield, since beta decay conserves A, up to the
+  delayed-neutron transfer between neighbouring chains, below a per cent; the yield of a nuclide
+  requires `SEC` or `IND`. A multiplicity against mass, `MASS,PR/FRG,NU`, carries no branch and
+  is not affected;
 - an independent yield is not every `FY` coded `ELEM/MASS`. `yield` refuses `FRC`
   (Dictionary 34), the independent yield as a fraction of its chain yield, a ratio and not the
   yield: `23558005` (Günther 1972) and `14088003` to `14088006`. The nuclide abscissa refuses
@@ -179,7 +181,9 @@ The checks easiest to get wrong:
 Reaction-code qualifiers that bear on a value's scale — `MSC`, `REL`, `CHN`, `DERIV`, `FCT` — are
 recorded per dataset without rejecting it where the observable admits them, and so are those
 naming the inducing neutron spectrum, except that a spectrum no measurement of the channel can
-have been made in rejects the dataset; see [Entrance channels](channels.md).
+have been made in rejects the dataset; see [Entrance channels](channels.md). The record of a
+yield against the product mass states under `[conventions]` how a chain yield is read, as
+`chain_yield`, and every yield record carries `yield_sum`, the sum of the written yields.
 
 Two statements of the reaction code on what a dataset is are written among its `qualifiers` under
 a prefix of their own and named in a warning, the dataset being written as the archive holds it:

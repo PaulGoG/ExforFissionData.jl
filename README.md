@@ -164,7 +164,9 @@ dataset, the column that holds it, what it holds and whose energy it is.
 
 The three rows after Y(A, TKE) are the products after neutron emission: the post-neutron mass
 yield, the independent yields of nuclides, and the kinetic energy of a product against its mass.
-The independent yields are read from the `ELEMENT`, `MASS` and `ISOMER` headings of the subentry,
+The post-neutron mass yield admits the chain yields of radiochemistry beside the yields of the
+physical methods, since beta decay conserves A, and flags them in the record. The independent
+yields are read from the `ELEMENT`, `MASS` and `ISOMER` headings of the subentry,
 or from constants of its COMMON section, and a nuclide reported in several isomeric states is
 written once, with what was done recorded per dataset. Fractional yields, yields of correlated
 fragment pairs and partial yields at one product kinetic energy are refused. The archive holds no
@@ -242,7 +244,7 @@ itself is referred to, cite the software:
 @software{gogita2026exforfissiondata,
   author  = {Gogîță, Paul-Adrian},
   title   = {ExforFissionData.jl: retrieval of experimental fission observables from the IAEA EXFOR archive},
-  version = {0.3.0},
+  version = {0.4.0},
   year    = {2026},
   url     = {https://github.com/PaulGoG/ExforFissionData.jl}
 }

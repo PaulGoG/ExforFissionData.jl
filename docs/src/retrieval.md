@@ -54,7 +54,7 @@ the machine as well, which is useful when the records stay yours.
 | `[query]` | `target_Z`, `target_A`, `target_symbol`, `channel`, `abscissa`, `ordinate` | the query as configured, with the EXFOR nuclide symbol formed from `Z` and `A` |
 | | `energy_min_mev`, `energy_max_mev` | the incident-energy window applied, `Inf` when open |
 | `[conventions]` | `energies`, `ordinate_normalisation`, `absent_uncertainty`, `duplicate_abscissa`, `abscissa_resolution`, `archive_state` | the conventions above, stated in prose for a reader of the record alone |
-| | `ordinate_frame`, whose text gives the three values of `ordinate_frame_basis`, `ordinate_bound` and `mean_formation` (mean neutron energy and its fit parameters), `fit_parameter` (fit parameters of the neutron spectrum), `distribution` (P(ν)), `maxwellian_temperature` (ratio to a Maxwellian), `ratio` (ratio to 252-Cf(sf)), `isomers` (charge abscissae) | the conventions of those observables, present for those observables only |
+| | `ordinate_frame`, whose text gives the three values of `ordinate_frame_basis`, `ordinate_bound` and `mean_formation` (mean neutron energy and its fit parameters), `fit_parameter` (fit parameters of the neutron spectrum), `distribution` (P(ν)), `maxwellian_temperature` (ratio to a Maxwellian), `ratio` (ratio to 252-Cf(sf)), `isomers` (charge abscissae), `yield_sum` (every yield), `chain_yield` (yield against the product mass) | the conventions of those observables, present for those observables only |
 | `[platform]` | `julia_version`, `julia_threads`, `cpu_model`, `cpu_threads`, `total_memory_gb` | the hardware and runtime; `hostname` too when `record_hostname = true` |
 | `[datasets]` | `accepted`, `rejected`, `relative` | counts |
 | | `retrieved_earliest_utc`, `retrieved_latest_utc` | the span of the dataset retrieval dates |
@@ -85,6 +85,7 @@ the machine as well, which is useful when the records stay yours.
 | | `abscissa_binned` | whether any abscissa quantity came from a `-MIN`, `-MAX` pair |
 | | `tke_heading`, `tke_convention`, `tke_step_mev`, `tke_bin_widths_mev` | for a TKE abscissa: the heading it was read from, point values or bins written at their midpoints, the spacings of the written values, and the bin widths |
 | | `normalisation` | for a yield, what the unit the file is written in says of the scale: per fission, a mass yield over both fragments summing to 2; percent per fission, summing to 200 %; or arbitrary units such as counts |
+| | `yield_sum` | for a yield, the sum of the written values in the unit the file is written in: for a mass yield in `PART/FIS`, 2 over both fragments and about 1 over one side; recorded, never a cut |
 | | `uncertainty_source` | `csv`, `subentry ERR-S` and the like where the rendering carries none and the subentry does, or `none` |
 | | `uncertainty_zero_rows`, `uncertainty_absent_rows` | the lines stating a zero uncertainty, written as zero, and those stating none, written `NaN` wherever the column is written |
 | | `curation`, `archive_defects` | for a dataset read from its subentry text, the evidence, and for a multiplicity derived from fragment masses the passages of its publication; and the compilation defects whose lines were left out |

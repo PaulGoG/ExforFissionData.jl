@@ -340,12 +340,18 @@ dataset.
 
 ### The post-neutron mass yield
 
-`yield` against `["product_mass"]` is the mass yield of the products, `MASS,SEC,FY`, written
-under `Y_vs_A_p/` as `A_p Y Y_uncertainty`. The abscissa requires `MASS` in SF4 and `SEC` or `IND`
-in SF5, and refuses `PRE`, `ELEM`, `TKE` and `DE`. A blank branch establishes nothing and is
-refused; neither the chain yield `CHN`, which is neither independent nor secondary, nor the
-provisional yield `PRV` is among the alternatives. `CUM`, the cumulative yield, is refused for
-every observable, and the partial branch `PAR` as for the independent yield below.
+`yield` against `["product_mass"]` is the mass yield of the products, `MASS,SEC,FY` or
+`MASS,CHN,FY`, written under `Y_vs_A_p/` as `A_p Y Y_uncertainty`. The abscissa requires `MASS`
+in SF4 and `SEC`, `IND` or `CHN` in SF5, and refuses `PRE`, `ELEM`, `TKE` and `DE`. A chain
+yield, `CHN`, is the yield of a mass chain after beta decay, which conserves A, so it is the
+post-neutron mass yield up to the delayed-neutron transfer between neighbouring chains, below a
+per cent. It is written as one and flagged: its `qualifiers` carry an entry beginning
+`CHN: chain yield:` with that reading, `scale_warning` under `[datasets]` names it, and the
+record states the reading under `[conventions]` as `chain_yield`. The pre-neutron yield against
+mass and the independent yield of a nuclide refuse `CHN`. A blank branch establishes nothing and
+is refused, and the provisional yield `PRV` is not among the alternatives. `CUM`, the cumulative
+yield, is refused for every observable, and the partial branch `PAR` as for the independent
+yield below.
 
 The csv rendering restates the unit of the subentry, `PC/FIS` as `PART/FIS` with the values
 divided by 100, and the values written are the rendering's: a mass yield in `PART/FIS` sums to 2
@@ -353,16 +359,40 @@ over both fragments. The `normalisation` statement of the record follows the uni
 written in, and `unit_subentry` records the unit the subentry heads the datum with. Both hold for
 every yield, the pre-neutron ones included.
 
-For 252-Cf the archive holds six: `13081002` (Schmitt 1965), `14259009` (Romano 2010), `14420002`
-(Meierbachtol 2015), `14652002` and `14652003` (Britt 1964) and `14790002` (Gastis 2022). For 235-U
-it holds seven: `14208003` (Derengowski 1970), `14259005` (Romano 2010), `21752016` (Wagemans
-1981), `21981012` (Geltenbort 1985), `23594002` (Shiraishi 1968), `31738002` (Koblik 2014) and
-`32888002` (Liu 2022). For 239-Pu ten: `21981013` (Geltenbort 1985); `222730131`, `222730132` and
-`22273014` (Schillebeeckx 1992), coded `DERIV`, recorded among their `qualifiers` and named in
-`scale_warning`; `23342002` to `23342005` (Gupta 2017); `23583002` (Boucheneb 1991); and
-`32879002` (Liu 2022). For 233-U three: `21981011` (Geltenbort 1985), `23784002` (Chebboubi 2021)
-and `41496006` (Aleksandrov 1994). The masses of `14420002`, `14652002`, `14652003` and `23594002`
-are interpolated onto the integers.
+Every yield carries `yield_sum`, the sum of the written yields of the dataset in the unit the
+file is written in: for a mass yield in `PART/FIS`, 2 over both fragments and about 1 over one
+side. It is recorded and never a cut, and the convention `yield_sum` under `[conventions]`
+states it for every yield retrieval. A sum its coverage does not explain is to be read with the
+publication: `31738002` (Koblik 2014, `MASS,SEC,FY,,SPA`) sums to 1.82 over the heavy group
+alone, A_p 125 to 155, and is written as the archive gives it.
+
+For 252-Cf the archive holds 13, 6 coded `SEC` and 7 `CHN`. The six are `13081002` (Schmitt
+1965), `14259009` (Romano 2010), `14420002` (Meierbachtol 2015), `14652002` and `14652003` (Britt
+1964) and `14790002` (Gastis 2022). For 235-U it holds 35, 7 `SEC` and 28 `CHN`; the seven are
+`14208003` (Derengowski 1970), `14259005` (Romano 2010), `21752016` (Wagemans 1981), `21981012`
+(Geltenbort 1985), `23594002` (Shiraishi 1968), `31738002` (Koblik 2014) and `32888002` (Liu
+2022). For 239-Pu 26, 10 `SEC` and 16 `CHN`; the ten are `21981013` (Geltenbort 1985);
+`222730131`, `222730132` and `22273014` (Schillebeeckx 1992), coded `DERIV`, recorded among their
+`qualifiers` and named in `scale_warning`; `23342002` to `23342005` (Gupta 2017); `23583002`
+(Boucheneb 1991); and `32879002` (Liu 2022). For 233-U 14, 3 `SEC` and 11 `CHN`; the three are
+`21981011` (Geltenbort 1985), `23784002` (Chebboubi 2021) and `41496006` (Aleksandrov 1994). The
+masses of `14420002`, `14652002`, `14652003` and `23594002` are interpolated onto the integers.
+
+The chain-yield tables of note are, for 252-Cf, `33158006` (Naik 2021, 62 masses), `30691002`
+(Li Ze 1983, 44), `21531003` (Thierens 1976, 43) and `13283008` (Harbour 1971, 20); for 235-U,
+`316850021` and `316850022` (Ajitanand 1978, 87 and 78 masses, A_p 70 to 170), `13359002`
+(Diiorio 1977, 64), `33186006` (Naik 2023, 48), `21543013` (Asghar 1977, 44, heavy group),
+`10865002` (Maeck 1978, 39), `21531002` (Thierens 1976, 37), `21054087` (Wohlfarth 1976, 32,
+light group), `13270003` (Lisman 1970, 31) and `22985006` (Bail 2009, 30, heavy group); for
+239-Pu, `33178006` (Naik 2022, 68), `21544008` (Asghar 1978, 46, heavy group), `22985005` (Bail
+2009, 25, heavy group), `13482002`, `134800021` and `134800022` (Fickel 1959) and `13270008`
+(Lisman 1970); and for 233-U, `132700021` and `132700022` (Lisman 1970, 41 and 40), `33187006`
+(Naik 2023, 58), `21771012` (Asghar 1981, 38, heavy group), `10918004` (Wehring 1980, 32, light
+group) and `13208002` to `13208004` (Bidinosti 1961). The rest are tables of one to 28 masses,
+most of a dozen or fewer. Many chain yields carry `SPA` or `MXW`, recorded as for every
+observable. Two chain yields stay out: `13067002` (Fraser 1963, 252-Cf, 89 masses), which the
+archive renders with every value marked an upper limit (`Max`) and which is refused as a limit,
+not a measurement; and `22130003` (Asghar 1981, 233-U), in arbitrary units.
 
 ### The independent yield
 
@@ -435,7 +465,8 @@ are radiochemical tables of a few nuclides each.
 mass after neutron emission, `MASS,SEC,KE`, `AKE` accepted as `KE`. It is written under
 `E_K_p_vs_A_p/` as `A_p E_K_p E_K_p_uncertainty` in MeV, restated from the `EV` of the rendering.
 The ordinate composes with the product-mass abscissa: `KE` in SF6, `MASS` in SF4 and `SEC` or
-`IND` in SF5, and no `LF+HF`, no `N`, no `PRE` and no `ELEM`.
+`IND` in SF5, and no `LF+HF`, no `N`, no `PRE` and no `ELEM`; the chain branch `CHN`, which the
+abscissa admits for a yield, names a yield and is refused here.
 
 For 252-Cf the archive holds no `MASS,SEC,KE`: its post-neutron kinetic energies, `32928002` and
 `32928003`, are `ELEM,SEC,AKE`, resolved in charge, and `Cf252_sf_E_K_p_vs_A_p` writes nothing.
