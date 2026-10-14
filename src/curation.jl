@@ -500,7 +500,9 @@ from their subentry text: Mehta 1973 (entry 23213), whose 4π gadolinium-loaded 
 tank measured the total prompt γ energy per fission ("total number of neutrons emitted per
 fission event and average prompt-gamma energy for binary and LRA fission simultaneously were
 measured", METHOD of 23213001) under codes with the branch blank, and Krupa 2004, whose energy
-of one fragment is coded without `FRG`. Merged into [`CURATED_DATASETS`](@ref).
+of one fragment is coded without `FRG`. Consulted under the prompt-γ ordinates alone, so that
+every other ordinate refuses these datasets for their γ codes, as before; see
+[`curation_for`](@ref).
 """
 const GAMMA_CURATIONS = Dict{String, Curation}(
     "232130061" => Curation(
@@ -658,8 +660,18 @@ const CURATED_DATASETS = merge(
         ),
     ),
     MULTIPLICITY_READINGS,
-    GAMMA_CURATIONS,
 )
+
+"""
+    curation_for(identifier, ordinate) -> Union{Curation,Nothing}
+
+The curated reading of a dataset under `ordinate`: of [`GAMMA_CURATIONS`](@ref) under a prompt-γ
+ordinate, of [`CURATED_DATASETS`](@ref) under any other.
+"""
+function curation_for(identifier::AbstractString, ordinate::AbstractString)
+    table = ordinate in GAMMA_ORDINATES ? GAMMA_CURATIONS : CURATED_DATASETS
+    return get(table, String(identifier), nothing)
+end
 
 """
     curation_rejection(curation, abscissa, ordinate, code) -> Union{String,Nothing}

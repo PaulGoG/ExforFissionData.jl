@@ -143,7 +143,8 @@ end
 # experiment. Empty for a dataset it records nothing of.
 function _curation_record(identifier::AbstractString)
     record = Dict{String, Any}()
-    curation = get(CURATED_DATASETS, identifier, nothing)
+    curation =
+        get(CURATED_DATASETS, identifier, get(GAMMA_CURATIONS, String(identifier), nothing))
     if curation !== nothing
         record["curation"] = curation.reason
         merge!(record, curation.notes)

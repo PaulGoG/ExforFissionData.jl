@@ -250,7 +250,7 @@ function screen_dataset(
         provisional = provisional_mass(identifier)
         provisional === nothing || return Rejection(identifier, code, provisional)
     end
-    curation = get(CURATED_DATASETS, String(identifier), nothing)
+    curation = curation_for(identifier, ordinate)
     reason = something(
         slice_rejection(identifier, query.abscissa, ordinate),
         if ordinate == REFERENCE_RATIO_ORDINATE
@@ -682,7 +682,7 @@ function select_dataset(
         )
         dataset_unit = subentry_unit
     end
-    curated = get(CURATED_DATASETS, identifier, nothing)
+    curated = curation_for(identifier, query.ordinate)
     (curated === nothing || curated.unit === nothing) || (dataset_unit = curated.unit)
 
     rows = nrow(screened.table)
