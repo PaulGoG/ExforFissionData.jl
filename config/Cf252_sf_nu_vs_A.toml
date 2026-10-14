@@ -7,7 +7,8 @@ channel = "sf"          # entrance channel, one of: "sf" | "nth" | "nres" | "nfa
 abscissa = ["mass"]     # quantities the observable is tabulated against; one of:
                         #   ["mass"] | ["product_mass"] | ["charge"] | ["neutron_energy"] |
                         #   ["total_kinetic_energy"] | ["charge", "product_mass"] |
-                        #   ["mass", "total_kinetic_energy"] | ["neutron_number"]
+                        #   ["mass", "total_kinetic_energy"] | ["neutron_number"] |
+                        #   [] (a quantity per fission, prompt-gamma ordinates only)
 ordinate = "multiplicity"
                         # the observable; one of:
                         #   "yield" | "multiplicity" | "multiplicity_per_fission" |
@@ -17,7 +18,9 @@ ordinate = "multiplicity"
                         #   "neutron_kinetic_energy" | "neutron_spectrum_temperature" |
                         #   "neutron_spectrum_exponent" | "multiplicity_distribution" |
                         #   "spectrum" | "spectrum_maxwellian_ratio" |
-                        #   "spectrum_cf252_ratio"
+                        #   "spectrum_cf252_ratio" | "gamma_multiplicity_per_fission" |
+                        #   "gamma_energy_per_fission" | "gamma_mean_energy" |
+                        #   "gamma_multiplicity" | "gamma_energy"
 
 [retrieval]
 concurrency = 4         # simultaneous requests, 1 to 16
