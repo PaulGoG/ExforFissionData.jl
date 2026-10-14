@@ -6,6 +6,13 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-14
+
+One compilation defect of the archive left out, and corrections to the documentation. Every
+table and stored subentry that 0.4.0 writes is written unchanged but one, which loses a row:
+1055 of 1056 files byte for byte. The records gain `archive_defects` and
+`archive_defect_warning`.
+
 ### Fixed
 
 - `40535004` (Blinov 1980, 252-Cf(sf), ratio to a Maxwellian, 25 cm flight path) gives 0.059 ±
@@ -23,6 +30,9 @@ Notable changes to ExforFissionData.jl. The format follows
 - The `[0.4.0]` entry placed `isomer_summed_nuclides`, `isomer_single_state_nuclides` and
   `isomer_ambiguous_nuclides` under the charge abscissa only. 0.4.0 writes them for every
   accepted dataset, empty outside it; the entry now says so.
+- The README and the retrieval page now say that the ninth character of an identifier is the
+  pointer as the subentry codes it, a digit or a letter: `30666002I` (Hsu 1981) is the
+  independent yield of subentry 30666002, whose pointer `C` codes the cumulative one.
 
 ### Changed
 
