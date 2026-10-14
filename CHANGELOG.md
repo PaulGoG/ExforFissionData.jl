@@ -16,6 +16,10 @@ Notable changes to ExforFissionData.jl. The format follows
   row; the evidence is in the dataset's `archive_defects`, and its `rows_retrieved` and
   `rows_written` go from 77 to 76. Every other table and stored subentry that 0.4.0 writes is
   written unchanged.
+- The documentation said the archive holds no prompt-γ multiplicity or energy per fission or
+  against mass. It holds both, coded `0-G-0` and returned under `FY` and `E`; the earlier survey
+  had looked for `MLT` and `GAM` only. The "Not covered" section of the observables page now says
+  what the archive holds and why it is not retrieved yet.
 
 ### Changed
 

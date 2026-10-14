@@ -490,13 +490,14 @@ rejected by `Cf252_sf_spectrum_vs_E` on that heading rather than retrieved along
 spectra. The refusal concerns spectra: the mean neutron energy is read from `DATA-CM` where its
 subentry heads it so.
 
-For the prompt-γ quantities, exclusion is what the archive holds rather than a preference:
-
-**Prompt-γ.** The quantity code is `MLT`, and it returns five datasets for 252-Cf and one for
-235-U, none for 233-U or 239-Pu. Not one carries `MASS`: the largest is differential in secondary
-γ energy, three are relative and miscellaneous, one is a single number, and the 235-U entry is
-resonance-region. Under `MFQ` for 235-U(n,f), none of the 125 datasets carries `GAM` or a `,G`
-branch, so the γ-ray spectrum is not there either.
+**Prompt-γ.** The archive codes prompt γ rays with the photon as product, `0-G-0`, and returns
+them under the quantities `FY` and `E` that the shipped configurations already query: the
+multiplicity per fission as `0-G-0,PR,FY`, the energies as `0-G-0,PR,KE`, the spectrum as
+`0-G-0,PR,FY/DE`, and multiplicities and energies against fragment mass for 252-Cf and 235-U and
+against TKE for 252-Cf. They are not retrieved yet, for a reason that is the archive's rather than a
+preference. `0-G-0,PR,KE` holds the mean photon energy in some entries and the total γ energy per
+fission in others, and the quantities are defined by a detection threshold and a time window that
+most entries state in free text or not at all.
 
 P(ν) of the fission is retrieved, as `multiplicity_distribution`; P(ν) per fragment and the
 variance of ν against mass or TKE are not.
