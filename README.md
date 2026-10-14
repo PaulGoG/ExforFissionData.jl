@@ -266,7 +266,9 @@ data/Cf252_sf/nu_vs_A/
 ```
 
 A dataset identifier with a ninth character, such as `400170021`, is a pointer into a subentry
-shared by several datasets, and the text stored beside it is that whole subentry.
+shared by several datasets, and the text stored beside it is that whole subentry. The pointer is
+the one the subentry codes, a digit or a letter: `30666002I` (Hsu 1981) is the independent yield
+of subentry 30666002, whose pointer `C` codes the cumulative one.
 
 Data files are space-separated with a single header line — `A nu nu_uncertainty`, or `A nu` where
 the archive quotes no uncertainty. Where it quotes one on some rows only, the others hold `NaN`,

@@ -122,7 +122,9 @@ The author in a file name keeps only the characters `[A-Za-z0-9.-]`, so that EXF
 verbatim, and spellings that EXFOR gives one person in different entries are not merged.
 
 A dataset identifier with a ninth character, such as `400170021`, is a pointer into a subentry
-shared by several datasets, and the text stored beside it is that whole subentry.
+shared by several datasets, and the text stored beside it is that whole subentry. The pointer is
+the one the subentry codes, a digit or a letter: `30666002I` (Hsu 1981) is the independent yield
+of subentry 30666002, whose pointer `C` codes the cumulative one.
 
 Data files are space-separated with a single header line — `A nu nu_uncertainty`, or `A nu` where
 the archive quotes no uncertainty:

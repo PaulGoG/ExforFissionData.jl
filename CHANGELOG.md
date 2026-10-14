@@ -20,6 +20,9 @@ Notable changes to ExforFissionData.jl. The format follows
   against mass. It holds both, coded `0-G-0` and returned under `FY` and `E`; the earlier survey
   had looked for `MLT` and `GAM` only. The "Not covered" section of the observables page now says
   what the archive holds and why it is not retrieved yet.
+- The `[0.4.0]` entry placed `isomer_summed_nuclides`, `isomer_single_state_nuclides` and
+  `isomer_ambiguous_nuclides` under the charge abscissa only. 0.4.0 writes them for every
+  accepted dataset, empty outside it; the entry now says so.
 
 ### Changed
 
@@ -55,9 +58,10 @@ conventions `abscissa_resolution` and `duplicate_abscissa` are reworded in all o
 - `common_constants` in the record: the `ELEMENT`, `MASS` or `ISOMER` a subentry holds as a
   constant of its COMMON section or of that of subentry 001, used where the charge is in the
   abscissa. `unit_subentry`, for every yield: the unit the subentry heads the datum with.
-- For a charge abscissa, the convention `isomers` under `[conventions]`; per dataset
-  `isomer_summed_nuclides`, `isomer_single_state_nuclides` and `isomer_ambiguous_nuclides`,
-  naming the nuclides by labels such as `Sb-130`; and `isomer_warning` under `[datasets]`.
+- `isomer_summed_nuclides`, `isomer_single_state_nuclides` and `isomer_ambiguous_nuclides` for
+  every accepted dataset, naming the nuclides by labels such as `Sb-130`; the lists are empty
+  outside a charge abscissa. For a charge abscissa, the convention `isomers` under
+  `[conventions]` and `isomer_warning` under `[datasets]`.
 - `yield_sum` in the record, for every yield: the sum of the written values in the unit the file
   is written in, 2 over both fragments and about 1 over one side for a mass yield in `PART/FIS`,
   recorded and never a cut; and the convention `yield_sum` under `[conventions]` of every yield
