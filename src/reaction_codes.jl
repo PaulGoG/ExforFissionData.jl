@@ -233,6 +233,32 @@ const BASE_FORBID = [
     "SF8:RAW",
 ]
 
+"""
+The prompt-γ ordinates: the multiplicity and the total energy of the prompt γ rays per fission,
+their mean photon energy, and the multiplicity and the energy of one fragment's γ rays. The
+archive codes them with the photon as the product, `0-G-0`, or with `G` as the particle
+considered beside a fragment mass, so these two refusals of [`BASE_FORBID`](@ref) are lifted for
+them and for nothing else; see [`base_forbid`](@ref).
+"""
+const GAMMA_ORDINATES = (
+    "gamma_multiplicity_per_fission",
+    "gamma_energy_per_fission",
+    "gamma_mean_energy",
+    "gamma_multiplicity",
+    "gamma_energy",
+)
+
+"""
+    base_forbid(ordinate) -> Vector{String}
+
+The tags of [`BASE_FORBID`](@ref) that apply to `ordinate`: all of them, except that an ordinate
+of [`GAMMA_ORDINATES`](@ref) admits the γ codes `SF4:0-G-0` and `SF7:G`.
+"""
+function base_forbid(ordinate::AbstractString)
+    ordinate in GAMMA_ORDINATES || return BASE_FORBID
+    return filter(tag -> !(tag in ("SF7:G", "SF4:0-G-0")), BASE_FORBID)
+end
+
 # Abscissa rules, keyed by the `abscissa` list of the configuration. An abscissa is a joint
 # index, so the key is a list of quantities rather than a composite token: the two-quantity
 # rules are not the composition of the one-quantity ones and have to be stated in their own
@@ -263,7 +289,16 @@ const BASE_FORBID = [
 #   neutron_number        the number of neutrons emitted in one fission, which the branch NUM
 #                         marks a distribution over; not for a fragment of given mass or charge
 #                         (23598004 holds it for Z = 42 and 56)
+#   (none)                a quantity per fission, tabulated against nothing: the photon as the
+#                         product (0-G-0), and no fragment, charge, kinetic energy, energy
+#                         spectrum (DE) or angular distribution (DA). Only the prompt-γ
+#                         ordinates per fission take it
 const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
+    String[] => TagRule(
+        ["SF4:0-G-0"],
+        String[],
+        ["SF4:MASS", "SF4:ELEM", "TKE", "SF6:DE", "SF6:DA"],
+    ),
     ["mass"] => TagRule(
         ["SF4:MASS"],
         String[],
@@ -365,10 +400,38 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      252-Cf(sf), in either orientation: the rule of spectrum,
 #                                      applied to each of the two reactions of the ratio; see
 #                                      spectrum_ratio
+#   gamma_multiplicity_per_fission     the number of prompt γ rays per fission, M_gamma_bar: the
+#                                      prompt branch PR with the yield FY, which LEXFOR
+#                                      (Multiplicity, NRDC WP2022-12) makes the photons per
+#                                      fission of the product 0-G-0; PAR beside PR, a γ-energy
+#                                      range stated, is admitted and flagged. Not per fragment
+#                                      (FRG), not a distribution (NUM), not miscellaneous (MSC,
+#                                      which marks a fragment group in 14214 and K X-rays in
+#                                      33071)
+#   gamma_energy_per_fission           the total prompt γ energy per fission, E_gamma_tot: PR
+#                                      with KE. The archive codes the mean photon energy KE as
+#                                      well, and which of the two a dataset holds is read from
+#                                      its REACTION text and its magnitude; see
+#                                      gamma_quantity_reading
+#   gamma_mean_energy                  the mean energy of a prompt photon, eps_gamma: as above
+#   gamma_multiplicity                 the prompt γ multiplicity of one fragment, against its
+#                                      mass: FY per fragment (FRG) with the photon G as the
+#                                      particle considered
+#   gamma_energy                       the prompt γ energy of one fragment, against its mass:
+#                                      KE per fragment (FRG) with G
 #
 # MSC excludes miscellaneous groupings; DA excludes angle-differential spectra, and FRG, NUM
 # and PAR beside PR the per-fragment, per-multiplicity and partial ones.
 const ORDINATE_RULES = Dict{String, TagRule}(
+    "gamma_multiplicity_per_fission" =>
+        TagRule(["SF5:PR", "SF6:FY"], String[], ["SF5:FRG", "SF5:NUM", "SF8:MSC"]),
+    "gamma_energy_per_fission" =>
+        TagRule(["SF5:PR", "SF6:KE"], String[], ["SF5:FRG", "SF5:NUM"]),
+    "gamma_mean_energy" =>
+        TagRule(["SF5:PR", "SF6:KE"], String[], ["SF5:FRG", "SF5:NUM"]),
+    "gamma_multiplicity" =>
+        TagRule(["SF6:FY", "SF5:FRG", "SF7:G"], String[], ["SF5:NUM", "SF8:MSC"]),
+    "gamma_energy" => TagRule(["SF6:KE", "SF5:FRG", "SF7:G"], String[], ["SF5:NUM"]),
     "multiplicity" => TagRule(["SF5:PR", "SF5:FRG"], String[], ["SF8:MSC"]),
     "multiplicity_per_fission" => TagRule(["SF5:PR"], String[], ["SF8:MSC", "SF5:FRG"]),
     "yield" => TagRule(["SF6:FY"], String[], ["SF8:FRC"]),
@@ -446,6 +509,11 @@ const ORDINATE_TOKEN = Dict(
     "spectrum" => "spectrum",
     "spectrum_maxwellian_ratio" => "spectrum_maxwellian_ratio",
     "spectrum_cf252_ratio" => "spectrum_cf252_ratio",
+    "gamma_multiplicity_per_fission" => "M_gamma_bar",
+    "gamma_energy_per_fission" => "E_gamma_tot",
+    "gamma_mean_energy" => "eps_gamma",
+    "gamma_multiplicity" => "M_gamma",
+    "gamma_energy" => "E_gamma",
 )
 
 """
@@ -509,6 +577,9 @@ energy, coded `ELEM/MASS,PAR/IND,FY` with the energy a constant of the COMMON se
 (21689014 to 21689018, Lang 1980, 88.5 MeV in the first), are slices of the energy-resolved
 distribution and not the independent yield, which the same entry gives as `ELEM/MASS,IND,FY`
 (21689019).
+
+The prompt-γ multiplicity per fission against TKE carries the photon as its product,
+`0-G-0,PR,FY/TKE` (32788003): the TKE abscissa alone would admit a fragment yield at given TKE.
 """
 const OBSERVABLE_RULES = Dict{Tuple{Vector{String}, String}, TagRule}(
     (["mass"], "yield") => TagRule(["SF5:PRE"], String[], String[]),
@@ -516,6 +587,8 @@ const OBSERVABLE_RULES = Dict{Tuple{Vector{String}, String}, TagRule}(
         TagRule(["SF5:PRE"], String[], String[]),
     (["product_mass"], "yield") => TagRule(String[], String[], ["SF5:PAR"]),
     (["charge", "product_mass"], "yield") => TagRule(String[], String[], ["SF5:PAR"]),
+    (["total_kinetic_energy"], "gamma_multiplicity_per_fission") =>
+        TagRule(["SF4:0-G-0"], String[], String[]),
 )
 
 """
@@ -565,7 +638,7 @@ function tag_rule(abscissa::AbstractVector{<:AbstractString}, ordinate::Abstract
     return TagRule(
         vcat(x.require_all, y.require_all, both.require_all),
         require_any,
-        vcat(BASE_FORBID, x.forbid, y.forbid, both.forbid),
+        vcat(base_forbid(ordinate), x.forbid, y.forbid, both.forbid),
     )
 end
 
@@ -663,6 +736,9 @@ const ENERGY_ORDINATES = (
     "total_kinetic_energy",
     "post_neutron_total_kinetic_energy",
     "neutron_kinetic_energy",
+    "gamma_energy_per_fission",
+    "gamma_mean_energy",
+    "gamma_energy",
 )
 
 """
@@ -844,6 +920,11 @@ const ORDINATE_QUANTITY = Dict(
     "spectrum" => "MFQ",
     "spectrum_maxwellian_ratio" => "MFQ",
     "spectrum_cf252_ratio" => "MFQ",
+    "gamma_multiplicity_per_fission" => "FY",
+    "gamma_energy_per_fission" => "E",
+    "gamma_mean_energy" => "E",
+    "gamma_multiplicity" => "FY",
+    "gamma_energy" => "E",
 )
 
 """

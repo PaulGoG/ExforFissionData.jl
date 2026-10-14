@@ -197,6 +197,19 @@ function screen_dataset(
         return Rejection(identifier, code, "dataset carries no value-kind column")
     kind = String(kind_entry)
 
+    # K X-rays, discrete lines, delayed γ rays and fragment-group values are coded as prompt γ
+    # rays; they are refused for what they are before anything else is asked of them.
+    if query.ordinate in GAMMA_ORDINATES
+        refusal = gamma_refusal(
+            identifier,
+            code,
+            table[1, COL_Y],
+            table[1, COL_DY],
+            last(parse_value_kind(kind)),
+        )
+        refusal === nothing || return Rejection(identifier, code, refusal)
+    end
+
     if occursin('?', kind)
         return Rejection(identifier, code, "value kind \"$(kind)\" is marked uncertain")
     end
@@ -283,6 +296,10 @@ function screen_dataset(
     # apply; for induced fission the window selects rows.
     keep = trues(nrow(table))
     if !query.spontaneous
+        # An incident energy the rendering misstates is replaced by the one its entry states.
+        misstated = incident_energy_reading(identifier)
+        misstated === nothing ||
+            (table[!, COL_INCIDENT_ENERGY] = fill(first(misstated), nrow(table)))
         energies = table[!, COL_INCIDENT_ENERGY]
         keep = BitVector(map(energies) do value
             ismissing(value) && return false
@@ -589,6 +606,19 @@ function select_dataset(
         end
     end
     charge_constant = any(startswith("ELEMENT"), constants)
+    # A column holding an abscissa quantity under another heading than the standard one is read
+    # as that quantity where its entry has been read for it.
+    heading_reading = get(ABSCISSA_HEADING_READINGS, identifier, nothing)
+    if heading_reading !== nothing
+        index = column(data, first(heading_reading))
+        index === nothing && return Rejection(
+            identifier,
+            code,
+            "the curated reading of column $(first(heading_reading)) as \
+             $(last(heading_reading)) finds no such column; the reading must be reviewed",
+        )
+        data.headings[index] = last(heading_reading)
+    end
 
     # A fragment energy coded as a neutron energy is named for what it is before anything else
     # is asked of its table.
@@ -761,6 +791,8 @@ function select_dataset(
     # A distribution coded with the product NPART, a number of particles, carries a product
     # of zero in the rendering (21495003): no nuclide.
     "neutron_number" in query.abscissa && filter!(!iszero, product)
+    # A photon, the product 0-G-0, is rendered as a product of zero as well.
+    query.ordinate in GAMMA_ORDINATES && filter!(!iszero, product)
     # An abscissa made of energies alone identifies no nuclide; every other one does.
     identifies_product =
         !all(
@@ -856,6 +888,78 @@ function select_dataset(
         temperature isa String && return Rejection(identifier, code, temperature)
         record["maxwellian_temperature_mev"] = temperature.temperature
         record["maxwellian_temperature_source"] = temperature.source
+    end
+
+    # A prompt-γ quantity is defined by its γ-energy range, its time window and the corrections
+    # made for what lies outside them; the record carries them. An energy coded KE is the total
+    # per fission or the mean photon energy, which the REACTION text and the magnitude tell.
+    if query.ordinate in GAMMA_ORDINATES
+        # A quantity per fission is one value. Rows of one dataset are kept apart rather than
+        # combined into a value no publication states: two detectors of one experiment (Qi
+        # 2018) are refused with both values.
+        if isempty(query.abscissa) && nrow(table) > 1
+            values = [
+                ismissing(dy) ? string(y) : "$(y) ± $(dy)" for
+                (y, dy) in zip(table[!, COL_Y], table[!, COL_DY])
+            ]
+            return Rejection(
+                identifier,
+                code,
+                "a quantity per fission is written as one value, and the dataset gives \
+                 $(nrow(table)), $(join(values, ", ")) $(screened.unit), which are not \
+                 combined into a value no publication states",
+            )
+        end
+        definition = gamma_definition(
+            identifier,
+            code,
+            structured_range(subentry, data),
+            subentry_text,
+        )
+        definition isa String && return Rejection(identifier, code, definition)
+        merge!(record, definition)
+        heading_reading === nothing || (
+            record["abscissa_heading_reading"] = "column $(first(heading_reading)) read as \
+                $(last(heading_reading))"
+        )
+        if query.ordinate in ("gamma_energy_per_fission", "gamma_mean_energy")
+            wanted =
+                query.ordinate == "gamma_energy_per_fission" ? "total_energy_per_fission" :
+                "mean_photon_energy"
+            reading = if curated === nothing
+                factor = energy_factor(screened.unit)
+                factor === nothing && return Rejection(
+                    identifier,
+                    code,
+                    "the energy is in $(screened.unit), not an energy unit this package \
+                     converts",
+                )
+                gamma_energy_reading(
+                    reaction_text(subentry_text, identifier),
+                    Float64[v * factor for v in skipmissing(table[!, COL_Y])],
+                )
+            else
+                QuantityReading(wanted, "curation", curated.reason)
+            end
+            reading isa String && return Rejection(identifier, code, reading)
+            reading.reading == wanted || return Rejection(
+                identifier,
+                code,
+                "holds the $(replace(reading.reading, '_' => ' ')), not the \
+                 $(replace(wanted, '_' => ' ')) ($(reading.basis): $(reading.evidence))",
+            )
+            record["quantity_reading"] = reading.reading
+            record["quantity_reading_basis"] = reading.basis
+            reading.basis == "curation" ||
+                (record["quantity_reading_evidence"] = reading.evidence)
+        end
+        if !query.spontaneous
+            energies = sort!(unique(Float64.(skipmissing(table[!, COL_INCIDENT_ENERGY]))))
+            record["incident_energy_basis"] =
+                incident_energy_basis(subentry, data, energies .* EV_TO_MEV)
+            misstated = incident_energy_reading(identifier)
+            misstated === nothing || (record["incident_energy_reading"] = last(misstated))
+        end
     end
 
     columns, units = _column_table(data)

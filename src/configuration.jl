@@ -147,7 +147,13 @@ end
 
 # An array-valued key, normalised to a vector of strings. TOML hands back a `Vector{Any}`, and a
 # key that holds one string rather than a list is a common slip worth naming precisely.
-function _require_strings(section::AbstractDict, key::AbstractString, path, source)
+function _require_strings(
+    section::AbstractDict,
+    key::AbstractString,
+    path,
+    source;
+    allow_empty::Bool = false,
+)
     value = _require(section, key, AbstractVector, path, source)
     all(entry -> entry isa AbstractString, value) || throw(
         ArgumentError(
@@ -155,6 +161,7 @@ function _require_strings(section::AbstractDict, key::AbstractString, path, sour
         ),
     )
     isempty(value) &&
+        !allow_empty &&
         throw(ArgumentError("$(source): [$(path)].$(key) must name at least one quantity"))
     return String[String(entry) for entry in value]
 end
@@ -236,7 +243,7 @@ function load_configuration(path::AbstractString)
         source,
     )
     abscissa = _one_of(
-        _require_strings(query_section, "abscissa", "query", source),
+        _require_strings(query_section, "abscissa", "query", source; allow_empty = true),
         ABSCISSAE,
         "abscissa",
         "query",
@@ -320,9 +327,29 @@ function load_configuration(path::AbstractString)
         )
     end
 
+    # A prompt-γ ordinate is retrieved against the abscissae of GAMMA_OBSERVABLES alone, and
+    # only a quantity per fission is tabulated against nothing.
+    if ordinate in GAMMA_ORDINATES
+        abscissa in GAMMA_OBSERVABLES[ordinate] || throw(
+            ArgumentError(
+                "$(source): [query].ordinate \"$(ordinate)\" is retrieved against \
+                 $(join(map(repr, GAMMA_OBSERVABLES[ordinate]), ", ")), not $(abscissa)",
+            ),
+        )
+    elseif isempty(abscissa)
+        throw(
+            ArgumentError(
+                "$(source): [query].abscissa must name at least one quantity for ordinate \
+                 \"$(ordinate)\"; only the prompt-γ quantities per fission take none",
+            ),
+        )
+    end
+
     # A distribution over the number of neutrons is tabulated against that number, and nothing
-    # else is.
-    if (ordinate == DISTRIBUTION_ORDINATE) != (abscissa == ["neutron_number"])
+    # else is but the total prompt-γ energy, which a fission emitting that many neutrons
+    # releases.
+    if ordinate != "gamma_energy_per_fission" &&
+       (ordinate == DISTRIBUTION_ORDINATE) != (abscissa == ["neutron_number"])
         throw(
             ArgumentError(
                 "$(source): [query].ordinate \"$(DISTRIBUTION_ORDINATE)\" and \
@@ -671,6 +698,7 @@ The ordinate, `vs`, then the abscissa quantities, all as the ASCII symbols of
 written to, under the directory of its system.
 """
 function observable_label(query::Query)
+    isempty(query.abscissa) && return ORDINATE_TOKEN[query.ordinate]
     abscissa = join((ABSCISSA_TOKEN[quantity] for quantity in query.abscissa), '_')
     return string(ORDINATE_TOKEN[query.ordinate], "_vs_", abscissa)
 end

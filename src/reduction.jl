@@ -853,7 +853,7 @@ function reduce_dataset(
     end
     result[!, ordinate_column] = final_values
     result[!, uncertainty_column(ordinate_column)] = final_uncertainties
-    sort!(result, abscissa_columns)
+    isempty(abscissa_columns) || sort!(result, abscissa_columns)
 
     retained_energies = sort!(unique(collect(skipmissing(energies))))
     diagnostics = Dict{String, Any}(

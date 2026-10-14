@@ -495,6 +495,65 @@ _vorobiev_yield(geometry, mean_heavy_mass, figures) = "curated: unfolded for $(g
      does not say what NUt=0 denotes; the article could not be consulted"
 
 """
+Prompt-γ datasets whose reaction code does not establish the quantity or the abscissa, read
+from their subentry text: Mehta 1973 (entry 23213), whose 4π gadolinium-loaded scintillator
+tank measured the total prompt γ energy per fission ("total number of neutrons emitted per
+fission event and average prompt-gamma energy for binary and LRA fission simultaneously were
+measured", METHOD of 23213001) under codes with the branch blank, and Krupa 2004, whose energy
+of one fragment is coded without `FRG`. Merged into [`CURATED_DATASETS`](@ref).
+"""
+const GAMMA_CURATIONS = Dict{String, Curation}(
+    "232130061" => Curation(
+        String[],
+        "gamma_energy_per_fission",
+        "curated: coded 0-G-0,,KE with the branch blank, 'Binary fission.'; the value, 7 MeV, \
+         is the total prompt γ energy per fission that the 4π scintillator tank measured, a \
+         mean photon energy being near 1 MeV (Mehta 1973, doi:10.1103/PhysRevC.7.373)",
+    ),
+    "23213010" => Curation(
+        ["mass"],
+        "gamma_energy_per_fission",
+        "curated: coded MASS,,KE,G with the branch blank, 'Average prompt-gamma energy as \
+         function of light fragment mass for binary fission.'; 6.4 to 8.8 MeV, the total prompt \
+         γ energy per fission against the mass of the light fragment. The entry does not say \
+         whether the masses are pre- or post-neutron, as for its nu(A) 23213012 and 23213014; \
+         digitized from Fig. 1, the masses rounded to integers",
+    ),
+    "23213018" => Curation(
+        ["total_kinetic_energy"],
+        "gamma_energy_per_fission",
+        "curated: coded 0-G-0,,KE,,MSC, 'Average prompt-gamma energy as function of total \
+         kinetic energy E of both fragments in binary fission.'; 4.1 to 8.7 MeV, the total \
+         prompt γ energy per fission against E, '(E,FF) Energy of both fragments.', 153 to 225 \
+         MeV, which the entry does not say is pre- or post-neutron; digitized from Fig. 5",
+    ),
+    "232130301" => Curation(
+        ["neutron_number"],
+        "gamma_energy_per_fission",
+        "curated: coded 0-G-0,,KE,,MSC, 'Average prompt gamma energy as function of average \
+         total neutron emission (MISC) in binary and ternary LRA fission.', pointer 1 the \
+         binary fission; 4.7 to 7.8 MeV, the total prompt γ energy per fission against the \
+         number of neutrons the fission emitted, 1 to 5, which the MISC column holds ('Average \
+         total neutron emission - neutron multiplicity.'); digitized from Fig. 13",
+    ),
+    "23814006" => Curation(
+        ["mass"],
+        "gamma_energy",
+        "curated: coded MASS,PRE/PR,KE,G,MSC without FRG, 'Average energy of gammas emitted \
+         from the fragment which mass (before neutron emission) is specified'; 1.6 to 5.1 MeV, \
+         the prompt γ energy of one fragment against its pre-neutron mass (Krupa 2004)",
+    ),
+)
+
+"""
+DATA headings read as an abscissa quantity they are not the standard heading of, by dataset:
+the MISC column of 232130301 (Mehta 1973) holds the number of neutrons a fission emitted, which
+the standard tables head `PART-OUT`. See [`GAMMA_CURATIONS`](@ref).
+"""
+const ABSCISSA_HEADING_READINGS =
+    Dict{String, Pair{String, String}}("232130301" => ("MISC" => "PART-OUT"))
+
+"""
 Datasets whose ordinate is read from the subentry text, keyed by dataset identifier; see
 [`Curation`](@ref).
 
@@ -599,6 +658,7 @@ const CURATED_DATASETS = merge(
         ),
     ),
     MULTIPLICITY_READINGS,
+    GAMMA_CURATIONS,
 )
 
 """
@@ -608,7 +668,7 @@ The reason a curated dataset with reaction code `code` does not answer the query
 and `ordinate`, or `nothing` when it does.
 
 The curated ordinate stands in for the ordinate rule of [`tag_rule`](@ref); the abscissa rule
-and [`BASE_FORBID`](@ref) are applied to the code as for any other dataset, unless the curation
+and the tags of [`base_forbid`](@ref) are applied to the code as for any other dataset, unless the curation
 names the abscissa too, in which case it stands in for the whole rule.
 """
 function curation_rejection(
@@ -623,7 +683,7 @@ function curation_rejection(
     end
     x = ABSCISSA_RULES[String[abscissa...]]
     return rejection_reason(
-        TagRule(x.require_all, x.require_any, vcat(BASE_FORBID, x.forbid)),
+        TagRule(x.require_all, x.require_any, vcat(base_forbid(ordinate), x.forbid)),
         code,
     )
 end
@@ -659,6 +719,16 @@ function RowDefect(heading::AbstractString, value::Real, occurrences::Integer, d
     return RowDefect([String(heading) => Float64(value)], occurrences, description)
 end
 
+const _VERBINSKI_BINS = "EXFOR 14195.005 (Verbinski 1973, 235-U(n_th,f), the prompt γ energy per \
+    fission in bins of γ energy) gives 0.0064 MeV in the bin 6.0 to 7.0 MeV and 0.0019 MeV in \
+    the bin 7.0 to 10.0 MeV, over 0.0098 and 0.0027 photons per fission in the same bins of \
+    14195.002: 0.65 and 0.70 MeV per photon, below the bins they are in, where the energy per \
+    photon of every other bin lies inside it. Read as 0.064 and 0.019 MeV the bins sum to 6.51 \
+    MeV, the total the publication states for 235-U ('6.51, 6.81, and 6.84 MeV/fission for \
+    235U(n,f), 239Pu(n,f), and 252Cf (s.f.), respectively, for photons above 0.14 MeV and for \
+    0-10 nsec after fission', doi:10.1103/PhysRevC.7.1173, p. 1173), against 6.43 MeV as \
+    compiled: a factor 10 lost in transcription. Both lines are left out rather than corrected"
+
 """
 Compilation defects of individual datasets, keyed by dataset identifier; see [`RowDefect`](@ref).
 The lines they mark are left out before the dataset is reduced, and the description is written
@@ -690,6 +760,10 @@ const ARCHIVE_DEFECTS = Dict{String, Vector{RowDefect}}(
              (INDC(CCP)-195) was not consulted. The line is left out rather than replaced by a \
              value the archive does not hold",
         ),
+    ],
+    "14195005" => [
+        RowDefect(["E-MIN" => 6.0, "DATA" => 0.0064], 1, _VERBINSKI_BINS),
+        RowDefect(["E-MIN" => 7.0, "DATA" => 0.0019], 1, _VERBINSKI_BINS),
     ],
 )
 
@@ -1058,6 +1132,88 @@ const CORRELATION_GROUPS = [
          1965): 237090031, coded DERIV, is formed from 23709002, the values of four samples \
          and their average, as its STATUS states (DEP,23709002). One of the two is used, \
          never both",
+    ),
+    CorrelationGroup(
+        [
+            "231970021",
+            "231970031",
+            "231970051",
+            "231970061",
+            "231970071",
+            "231970081",
+            "231970091",
+        ],
+        "dependent",
+        "the prompt γ multiplicity of 252-Cf(sf) measured with six detectors in one experiment \
+         (Oberstedt 2015, doi:10.1103/PhysRevC.92.014618), 23197002 to 23197008, and their \
+         weighted average 23197009, which its STATUS forms from them (DEP). The average or the \
+         detectors as one measurement, never both",
+    ),
+    CorrelationGroup(
+        [
+            "231970022",
+            "231970032",
+            "231970052",
+            "231970062",
+            "231970072",
+            "231970082",
+            "231970092",
+        ],
+        "dependent",
+        "the mean photon energy of the same six detectors and their average (Oberstedt 2015), \
+         23197009 formed from the others (DEP). The average or the detectors as one \
+         measurement, never both",
+    ),
+    CorrelationGroup(
+        [
+            "231970023",
+            "231970033",
+            "231970053",
+            "231970063",
+            "231970073",
+            "231970083",
+            "231970093",
+        ],
+        "dependent",
+        "the total prompt γ energy of the same six detectors and their average (Oberstedt \
+         2015), 23197009 formed from the others (DEP). The average or the detectors as one \
+         measurement, never both",
+    ),
+    CorrelationGroup(
+        ["317290071", "317290072", "317290073", "317290074", "317290075", "31729008"],
+        "dependent",
+        "the prompt γ multiplicity of 235-U measured with five detectors in one experiment \
+         (Oberstedt 2013, doi:10.1103/PhysRevC.87.051602) and 31729008, the average of three \
+         of them, which its STATUS forms from 31729007 (DEP). The average or the detectors, \
+         never both",
+    ),
+    CorrelationGroup(
+        ["317290091", "317290092", "317290093", "317290094", "317290095", "31729010"],
+        "dependent",
+        "the mean photon energy of the same five detectors and 31729010, the average of three \
+         of them, formed from 31729009 (DEP; Oberstedt 2013). The average or the detectors, \
+         never both",
+    ),
+    CorrelationGroup(
+        ["31778002", "31778003", "31778004", "31778005"],
+        "dependent",
+        "the total prompt γ energy of 239-Pu stated for the spectra of three detectors and for \
+         their sum (Gatera 2017, doi:10.1103/PhysRevC.95.064609); the summed spectrum 31778005 \
+         is formed from the others (DEP). The sum or the detectors, never both",
+    ),
+    CorrelationGroup(
+        ["317780061", "317780062", "317780063", "31778007"],
+        "dependent",
+        "the prompt γ multiplicity of 239-Pu from the spectra of three detectors and from their \
+         sum (Gatera 2017), 31778007 formed from the summed spectrum 31778005 (DEP). The sum or \
+         the detectors, never both",
+    ),
+    CorrelationGroup(
+        ["317780081", "317780082", "317780083", "31778009"],
+        "dependent",
+        "the mean photon energy of 239-Pu from the spectra of three detectors and from their \
+         sum (Gatera 2017), 31778009 formed from the summed spectrum (DEP). The sum or the \
+         detectors, never both",
     ),
 ]
 
@@ -1696,6 +1852,11 @@ number, with the code and what stands beside it. Every dataset of such a subentr
 as those of [`PRELIMINARY_ENTRIES`](@ref) are.
 """
 const PRELIMINARY_SUBENTRIES = Dict{String, String}(
+    "23263002" => "its subentry carries STATUS (PRELM), 'Preliminary result.'; Murray 2014, \
+                   pages 219 and 220 of Nucl. Data Sheets 119, 217",
+    "23283002" => "its subentry carries STATUS (PRELM), 'Data are regarded as preliminary by \
+                   compiler because it's mentioned in the article: \"Systematic effects are \
+                   being investigate\".'; Pollitt 2015, EPJ Web Conf. 93, 02018",
     "30949003" => "its subentry carries STATUS (PRELM); Lee 1968, text of IA-1168, p. 67",
     "40644003" => "its subentry carries STATUS (PRELM), beside (OUTDT,40644002) and \
                    (SPSDD,40644002)",

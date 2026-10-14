@@ -3078,6 +3078,7 @@ of = "$(of)"
 
     include("subentry_tests.jl")
     include("written_tables.jl")
+    include("gamma_tests.jl")
 
     @testset "the mean neutron energy of a fragment" begin
         rule = tag_rule(["mass"], "neutron_kinetic_energy")

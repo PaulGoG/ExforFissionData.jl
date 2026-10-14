@@ -346,6 +346,45 @@ function write_metadata(
              totals that cannot be told apart and are combined as repeats; \
              `isomer_ambiguous_nuclides` names them"
     end
+    if query.ordinate in GAMMA_ORDINATES
+        record["conventions"]["gamma_definition"] = "a prompt-γ quantity is defined by the γ-energy range of the photons counted, \
+             the time window after fission they were counted in and the corrections made for \
+             what lies outside either; each dataset records them as read, never as a cut. \
+             `gamma_energy_min_mev` and `gamma_energy_max_mev` give the range where it is \
+             stated, `gamma_energy_range_basis` whether a heading of the entry (entry), its \
+             text (subentry text) or its publication states it, or nobody (unstated), and \
+             `gamma_energy_range_evidence` the headings or the words; `time_window_ns`, \
+             `time_window_kind`, `time_window_basis` and `time_window_evidence` the same of \
+             the window, prompt gate or acquisition trigger; `time_resolution_ns` a \
+             resolution stated where no window is; `corrections_stated` the corrections the entry states, whatever quantity they concern, \
+             verbatim with their place. `gamma_range_partial` is true where the archive codes \
+             the set PAR, over a stated range, and such a set is written beside the full-range \
+             ones"
+        if !query.spontaneous
+            record["conventions"]["incident_energy_basis"] = "the archive lists datasets without an incident-energy window, so each dataset \
+                 records in `incident_energy_basis` the incident energy that put it in the \
+                 window and the heading of its entry it comes from; `incident_energy_reading` \
+                 states where the csv rendering misstates it and what the entry states"
+        end
+        if query.ordinate in ("gamma_energy_per_fission", "gamma_mean_energy")
+            record["conventions"]["quantity_reading"] = "the archive codes the total γ energy per fission and the mean photon energy \
+                 alike, 0-G-0,PR,KE. `quantity_reading` says which a dataset holds: the \
+                 magnitude decides, $(TOTAL_GAMMA_ENERGY_INTERVAL[1]) to \
+                 $(TOTAL_GAMMA_ENERGY_INTERVAL[2]) MeV for the total and \
+                 $(MEAN_PHOTON_ENERGY_INTERVAL[1]) to $(MEAN_PHOTON_ENERGY_INTERVAL[2]) MeV \
+                 for the mean; `quantity_reading_basis` is REACTION text where the words of \
+                 the reaction name the same quantity, a dataset whose words name the other \
+                 being refused, curation or subentry text where the entry has been read, and \
+                 magnitude where nothing else says it"
+        end
+        if isempty(query.abscissa)
+            record["conventions"]["per_fission"] = "one value per dataset file, the quantity per fission; a dataset giving several \
+                 values is refused with them rather than combined into a value no \
+                 publication states. A value an entry states outside its DATA tables, with its \
+                 uncertainty, is written as a dataset named after the subentry stating it, \
+                 `stated_value_evidence` giving the words and their place"
+        end
+    end
     if query.ordinate == "yield"
         record["conventions"]["yield_sum"] = "`yield_sum` is the sum of the written yields of each dataset, in the unit the file \
              is written in: a mass yield in PART/FIS sums to 2 over both fragments and to \
@@ -472,6 +511,55 @@ function write_metadata(
              the dataset named after it; they are written and flagged among their \
              `qualifiers`, and where one of the two is wanted the superseding dataset is \
              the authors' own choice: " * join(superseded, ", ")
+    end
+    if query.ordinate in GAMMA_ORDINATES
+        undefined = String[]
+        partial = String[]
+        magnitude = String[]
+        stated = String[]
+        for entry in accepted
+            identifier = entry.dataset.identifier
+            own = entry.dataset.record
+            unstated = gamma_definition_unstated(own)
+            isempty(unstated) || push!(undefined, "$(identifier) ($(join(unstated, ", ")))")
+            if get(own, "gamma_range_partial", false)
+                bounds = [
+                    get(own, key, NaN) for
+                    key in ("gamma_energy_min_mev", "gamma_energy_max_mev")
+                ]
+                push!(
+                    partial,
+                    "$(identifier) ($(isnan(bounds[1]) ? "?" : bounds[1]) to \
+                     $(isnan(bounds[2]) ? "?" : bounds[2]) MeV)",
+                )
+            end
+            get(own, "quantity_reading_basis", "") == "magnitude" &&
+                push!(magnitude, identifier)
+            haskey(own, "stated_value_evidence") && push!(stated, identifier)
+        end
+        isempty(undefined) || (
+            record["datasets"]["gamma_definition_warning"] =
+                "the entries of these datasets state no γ-energy range or no time window, \
+                 nor does a publication read for them; their values are not comparable with \
+                 the others on that definition: " * join(undefined, ", ")
+        )
+        isempty(partial) || (
+            record["datasets"]["gamma_range_warning"] =
+                "the archive codes these datasets partial (PAR), over the γ-energy range \
+                 given; they are written beside the full-range sets, not filtered: " *
+                join(partial, ", ")
+        )
+        isempty(magnitude) || (
+            record["datasets"]["quantity_reading_warning"] =
+                "nothing but the magnitude says which quantity these datasets hold, their \
+                 REACTION text naming none: " * join(magnitude, ", ")
+        )
+        isempty(stated) || (
+            record["datasets"]["stated_value_warning"] =
+                "these values are stated by their entries outside any DATA table, with \
+                 their uncertainties, and read from the words of the subentry: " *
+                join(stated, ", ")
+        )
     end
     defective = String[]
     for entry in accepted

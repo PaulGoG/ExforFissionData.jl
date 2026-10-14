@@ -148,6 +148,40 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             subentry_texts[outcome.identifier] = subentry.body
         end
     end
+    # Values an entry states outside its DATA tables, read where the entry has been read for
+    # them: the subentry stating each is fetched like any other, and the words looked for in it.
+    stated = stated_values(query)
+    stated_responses = map_bounded(stated, options) do value
+        try
+            subentry_text(value.source, options)
+        catch exception
+            exception isa Union{HTTP.HTTPError, Base.IOError, ArgumentError} ||
+                rethrow()
+            exception
+        end
+    end
+    for (value, response) in zip(stated, stated_responses)
+        if response isa Exception
+            push!(
+                rejected,
+                Rejection(
+                    value.source,
+                    "",
+                    "retrieval of the subentry failed: " * sprint(showerror, response),
+                ),
+            )
+            continue
+        end
+        outcome = stated_dataset(value, response.body, query)
+        if outcome isa Rejection
+            push!(rejected, outcome)
+        else
+            push!(accepted_datasets, outcome)
+            accepted_responses[outcome.identifier] = response
+            subentry_texts[outcome.identifier] = response.body
+        end
+    end
+    sort!(accepted_datasets; by = dataset -> dataset.identifier)
     @info "selection complete" accepted = length(accepted_datasets) rejected =
         length(rejected)
 
@@ -175,6 +209,9 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     for dataset in accepted_datasets
         reduced =
             reduce_dataset(dataset, query; configuration.widths, configuration.parameters)
+        # A stated value carries the uncertainty its words state, not one of a rendering.
+        haskey(dataset.record, "stated_value_evidence") &&
+            (reduced.diagnostics["uncertainty_source"] = "subentry text")
         if query.ordinate == WIDTH_ORDINATE
             # Every MISC-COL definition of the subentry, the width's and any other, quoted for
             # the record; the width itself is read only from the column the configuration names.
@@ -251,4 +288,83 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     end
 
     return RetrievalResult(directory, accepted, rejected, metadata_file)
+end
+
+"""
+    stated_dataset(value, text, query) -> Union{Dataset,Rejection}
+
+The dataset of a value its entry states outside any DATA table, [`StatedValue`](@ref), read from
+the subentry text `text` of its source: the words must stand in the text and state both the
+value and its uncertainty, and the incident energy must lie in the window of `query`. The value
+is held as one row in the layout of the csv rendering, so that it is reduced and recorded as any
+other dataset is; its definition is read as [`gamma_definition`](@ref) reads one.
+"""
+function stated_dataset(value::StatedValue, text::AbstractString, query)
+    identifier = value.source
+    place = locate_statement(text, value.evidence)
+    place === nothing && return Rejection(
+        identifier,
+        "",
+        "the stated value \"$(value.evidence)\" is no longer in the subentry text; the reading \
+         must be reviewed",
+    )
+    numbers = [parse(Float64, m.match) for m in eachmatch(r"\d+(?:\.\d+)?", value.evidence)]
+    (value.value in numbers && value.uncertainty in numbers) || return Rejection(
+        identifier,
+        "",
+        "the words \"$(value.evidence)\" do not state $(value.value) and \
+         $(value.uncertainty); the reading must be reviewed",
+    )
+    if !query.spontaneous
+        energy = value.incident_energy_ev * EV_TO_MEV
+        query.energy_min ≤ energy ≤ query.energy_max || return Rejection(
+            identifier,
+            "",
+            "incident energy $(energy) MeV ($(value.incident_evidence)), outside the window \
+             $(query.energy_min) to $(query.energy_max) MeV",
+        )
+    end
+    definition = gamma_definition(identifier, "", value.range, text)
+    definition isa String && return Rejection(identifier, "", definition)
+    record = Dict{String, Any}(definition)
+    record["gamma_range_partial"] = value.partial
+    record["stated_value_evidence"] = "\"$(value.evidence)\" ($(place))"
+    record["stated_value_reading"] = value.reason
+    record["quantity_reading"] =
+        value.ordinate == "gamma_energy_per_fission" ? "total_energy_per_fission" :
+        "mean_photon_energy"
+    record["quantity_reading_basis"] = "subentry text"
+    record["quantity_reading_evidence"] = value.evidence
+    query.spontaneous || (record["incident_energy_basis"] = value.incident_evidence)
+
+    # In eV, as the rendering states every energy, so that one unit token stands for all.
+    to_ev = something(energy_factor(value.unit)) / EV_TO_MEV
+    row = Dict{Int, Any}(
+        1 => identifier,
+        COL_YEAR => value.year,
+        COL_AUTHOR => value.author,
+        COL_VALUE_KIND => "Data(EV)",
+        COL_Y => value.value * to_ev,
+        COL_DY => value.uncertainty * to_ev,
+        COL_INCIDENT_ENERGY => query.spontaneous ? missing : value.incident_energy_ev,
+        COL_REACTION_CODE => "",
+    )
+    table = DataFrame(
+        [
+            header => Any[get(row, position, missing)] for
+            (position, header) in enumerate(EXFOR_HEADER)
+        ];
+        copycols = false,
+    )
+    return Dataset(
+        identifier,
+        value.year,
+        value.author,
+        "",
+        "EV",
+        table,
+        DataFrame(),
+        Dict{String, String}(),
+        record,
+    )
 end
