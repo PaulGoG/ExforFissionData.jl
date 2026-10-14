@@ -17,7 +17,7 @@ files with a record of everything the query considered.
 ExforFissionData.jl/
 ├── activate.jl        # silent activation of the package environment
 ├── check.jl           # pre-commit gate: format, then test
-├── config/            # 83 retrieval configurations, <system>_<observable>.toml
+├── config/            # 86 retrieval configurations, <system>_<observable>.toml
 ├── scripts/
 │   └── retrieve.jl    # entry point
 ├── src/               # the package: selection, reduction, export, run record
@@ -155,6 +155,8 @@ that name the directories its data is written to.
 | E_γ,tot, `E_gamma_tot` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | ε_γ, `eps_gamma` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | M_γ(A), `M_gamma_vs_A` | `Cf252_sf` | `U235_nth` | | | |
+| M̄_γ(A), `M_gamma_bar_vs_A` | `Cf252_sf` | `U235_nth` | | | |
+| ε_γ(A), `eps_gamma_vs_A` | | `U235_nth` | | | |
 | E_γ(A), `E_gamma_vs_A` | `Cf252_sf` | | | | |
 | E_γ,tot(A), `E_gamma_tot_vs_A` | `Cf252_sf` | | | | |
 | M̄_γ(TKE), `M_gamma_bar_vs_TKE` | `Cf252_sf` | | | | |
@@ -181,9 +183,10 @@ written once, with what was done recorded per dataset. Fractional yields, yields
 fragment pairs and partial yields at one product kinetic energy are refused. The archive holds no
 mass-resolved post-neutron kinetic energy for 252-Cf, so `Cf252_sf_E_K_p_vs_A_p` writes nothing.
 
-The last nine rows are the prompt γ rays: the multiplicity, the total energy and the mean photon
+The last eleven rows are the prompt γ rays: the multiplicity, the total energy and the mean photon
 energy per fission, one value to a file, and, for 252-Cf and 235-U, the values of one fragment
-against its mass and those per fission against TKE and the number of neutrons. A prompt-γ value is
+and those per fission against fragment mass, and those per fission against TKE and the number of
+neutrons. A prompt-γ value is
 defined by the γ-energy range its photons were counted over, the time window after fission and
 the corrections made, which differ between experiments by up to about 1 MeV of total energy; each
 record states them as the entry or its publication does, and names the datasets for which nobody
@@ -302,8 +305,11 @@ is the quantity's own name suffixed with `_uncertainty`. A reader is nonetheless
 columns by **position**: the header says what is there, and renaming a quantity must not be able
 to break anything that reads these files.
 
-Nothing is overwritten. A retrieval landing on an existing directory writes beside it under a
-suffixed name.
+Nothing is overwritten. A retrieval never writes into an existing observable directory: where
+`<root>/<directory>/<system>/<observable>` exists (`directory` of `[output]`, `data` by default), it writes to `<observable>_1`, then `_2`, and so on,
+the system directory and the root left as they are. A consumer restaging a tree writes to a fresh
+root, or removes the old observable directory first; otherwise the new data lands beside the old
+under a suffixed name and the old directory is still the one under the plain name.
 
 ## Further reading
 
@@ -331,7 +337,7 @@ ExforFissionData.jl/
 ├── README.md
 ├── .JuliaFormatter.toml         # formatter settings shared by check.jl and CI
 ├── .gitignore
-├── config/                      # 83 configurations, <system>_<observable>.toml
+├── config/                      # 86 configurations, <system>_<observable>.toml
 ├── docs/                        # Documenter site
 │   ├── activate.jl
 │   ├── Project.toml

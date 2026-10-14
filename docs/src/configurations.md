@@ -332,18 +332,22 @@ it fissions spontaneously. These two stand in for what the archive lacks for 239
 
 ## Prompt γ-ray configurations
 
-Nineteen configurations retrieve the prompt-γ quantities of the four systems; see
+Twenty-two configurations retrieve the prompt-γ quantities of the four systems; see
 [Prompt γ rays](@ref) for the observables and what each record states of a value's definition.
 
 ### 252-Cf(sf), prompt γ
 
-- `Cf252_sf_M_gamma_bar` — the multiplicity per fission, 14 datasets: 14214009 (Pleasonton,
+- `Cf252_sf_M_gamma_bar` — the multiplicity per fission, 15 datasets: 23174004 (Skarsvåg 1970, above
+  100 keV), admitted by name from the archive's listing under `MLT`, 14214009 (Pleasonton,
   ORNL-4844, 1972), the six detectors of 23197 (Oberstedt 2015, 0.1 MeV to 6.0 to 7.7 MeV, coded
   `PAR`) and their average 231970091, 237830031 (Gjestvang 2021, corrected by a factor 1.30 the
   entry gives), 23814003 (Krupa 2004), 415800031 (Sokol 1991, 0.32 to 5.12 MeV within 4 µs),
   14320003 and 14320004 (Smith 1956, the first over 0.5 to 2.3 MeV) and 143870061 (Bowman 1958).
   Refused: 234170041 (Qi 2018), two detectors in one table; the light and heavy groups of 14214;
-  the K X-rays of 33071; the uncorrected 237830032 and 415800021.
+  the K X-rays of 33071; the uncorrected 237830032 and 415800021. The totals Smith 1956 (8.2 MeV)
+  and Sokol 1991 (9.6 MeV) state in MISC columns without an uncertainty are kept in reasons among
+  the rejections of `Cf252_sf_E_gamma_tot`, and the mean photon energy of Krupa 2004 (0.83 MeV) among
+  those of `Cf252_sf_eps_gamma`.
 - `Cf252_sf_E_gamma_tot` — the total energy per fission, 12 datasets: 14214008, the six detectors of
   23197 and their average, 237830041, 23814004 and 143870062, the last two read on their magnitude
   alone, and 232130061 (Mehta 1973), read from its subentry.
@@ -355,6 +359,10 @@ Nineteen configurations retrieve the prompt-γ quantities of the four systems; s
   (Krupa 2004), read from its subentry.
 - `Cf252_sf_E_gamma_tot_vs_A` — the total energy per fission against the light-fragment mass:
   23213010 (Mehta 1973), read from its subentry.
+- `Cf252_sf_M_gamma_bar_vs_A` — the multiplicity per fission against the pre-neutron mass of one
+  fragment, over a partial γ-energy range: 22757003 (Hotzel 1996, 3.5 to 8 MeV) and 23857004 (Singer
+  1997, 4 to 8 MeV), read from their code `PAR/PRE,FY,G`, 'Partial yield of fission gammas from
+  both fragments' in Dictionary 236. Refused: 23857005, the same for ternary fission.
 - `Cf252_sf_M_gamma_bar_vs_TKE` — the multiplicity per fission against TKE: 32788003 (Wang 2016).
 - `Cf252_sf_E_gamma_tot_vs_TKE` — the total energy per fission against TKE: 23213018 (Mehta 1973).
 - `Cf252_sf_E_gamma_tot_vs_nu` — the total energy per fission against the number of neutrons the
@@ -373,7 +381,11 @@ Nineteen configurations retrieve the prompt-γ quantities of the four systems; s
 - `U235_nth_eps_gamma` — 10 datasets: 14214027, the five detectors of 31729 and their average,
   232830022, 23541005 and 23659003.
 - `U235_nth_M_gamma_vs_A` — the multiplicity of one fragment against its pre-neutron mass:
-  14197005 (Pleasonton 1972).
+  14197005 (Pleasonton 1972), whose row at A = 82, −0.36 ± 1.36, is written as given and noted.
+- `U235_nth_M_gamma_bar_vs_A` — the multiplicity per fission against the heavy-fragment mass:
+  14197003 (Pleasonton 1972).
+- `U235_nth_eps_gamma_vs_A` — the mean photon energy against the heavy-fragment mass: 14197004
+  (Pleasonton 1972), read from its subentry.
 
 The entry 31729 was measured in a cold neutron beam whose temperature, 100 K, the csv rendering
 gives as an incident energy of 100 eV; it is read as kT = 8.6 meV.

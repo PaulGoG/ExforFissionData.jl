@@ -8,7 +8,8 @@ Notable changes to ExforFissionData.jl. The format follows
 
 The prompt γ rays of 252-Cf(sf) and thermal 235-U, 239-Pu and 233-U: the multiplicity, the total
 energy and the mean photon energy per fission, and, where the archive holds them, the values of one
-fragment against its mass and those per fission against TKE and the number of neutrons. Each
+fragment and those per fission against fragment mass, and those per fission against TKE and the
+number of neutrons. Each
 record states what defines a value — its γ-energy range, its time window and the corrections made —
 as the entry or its publication states it. Every table and stored subentry that 0.4.1 writes is
 written unchanged.
@@ -23,11 +24,14 @@ written unchanged.
   ordinates per fission, written under a directory named for the ordinate alone, one row to a
   file, `M_gamma_bar M_gamma_bar_uncertainty`. A dataset giving several values is refused with them
   rather than combined. `E_gamma_tot` is also retrieved against `["mass"]`,
-  `["total_kinetic_energy"]` and `["neutron_number"]`, `M_gamma_bar` against
-  `["total_kinetic_energy"]`, and `M_gamma` and `E_gamma` against `["mass"]`.
-- Nineteen configurations, 83 in all: `<system>_M_gamma_bar`, `<system>_E_gamma_tot` and
+  `["total_kinetic_energy"]` and `["neutron_number"]`, `M_gamma_bar` against `["mass"]` and
+  `["total_kinetic_energy"]`, `eps_gamma` against `["mass"]`, and `M_gamma` and `E_gamma`
+  against `["mass"]`. Against an abscissa a prompt-γ code must name the photon, `G` beside a mass
+  and `0-G-0` otherwise.
+- Twenty-two configurations, 86 in all: `<system>_M_gamma_bar`, `<system>_E_gamma_tot` and
   `<system>_eps_gamma` for `Cf252_sf`, `U235_nth`, `Pu239_nth` and `U233_nth`;
-  `Cf252_sf_M_gamma_vs_A` and `U235_nth_M_gamma_vs_A`; `Cf252_sf_E_gamma_vs_A`,
+  `Cf252_sf_M_gamma_vs_A` and `U235_nth_M_gamma_vs_A`; `Cf252_sf_M_gamma_bar_vs_A` and
+  `U235_nth_M_gamma_bar_vs_A`; `U235_nth_eps_gamma_vs_A`; `Cf252_sf_E_gamma_vs_A`,
   `Cf252_sf_E_gamma_tot_vs_A`, `Cf252_sf_M_gamma_bar_vs_TKE`, `Cf252_sf_E_gamma_tot_vs_TKE` and
   `Cf252_sf_E_gamma_tot_vs_nu`.
 - In the record of a prompt-γ dataset: `gamma_energy_min_mev`, `gamma_energy_max_mev` and
@@ -43,7 +47,13 @@ written unchanged.
   named after the subentry stating them, once the words are found in its text and both numbers
   stand in them: the total γ energy per fission of Oberstedt 2013 (`31729001`), Gatera 2017
   (`31778002` to `31778005`) and Makii 2019 (`23541005`). Their records carry
-  `stated_value_evidence` and `stated_value_reading`.
+  `stated_value_evidence` and `stated_value_reading`. A value in an auxiliary column with no
+  uncertainty beside it — the totals of Smith 1956 and Sokol 1991 and the mean photon energy of
+  Krupa 2004 — is kept, with its words and place, in a reason among the rejections.
+- Skarsvåg 1970 (`23174004`), the multiplicity per fission above 100 keV that the archive lists
+  under `MLT` alone, is admitted by name for `M_gamma_bar`, recorded as `listed_under`.
+- `row_notes`: the multiplicity of one fragment of `14197005` at A = 82, −0.36 ± 1.36, is written
+  as the archive gives it and noted.
 - Curation of the prompt-γ datasets: K X-rays, discrete lines, delayed γ rays and source fields
   refused by name; the light and heavy fragment groups of 14214 kept, with their values, in the
   reason of their refusal; Mehta 1973 and the fragment energy of Krupa 2004 read from their
@@ -60,6 +70,8 @@ written unchanged.
 
 ### Changed
 
+- The retrieval page and the README state the name a retrieval writes to when its observable
+  directory exists: `<observable>_1`, then `_2`; it never writes into an existing one.
 - The configuration comments list the empty abscissa and the five prompt-γ ordinates among the
   choices; the observables, configurations, conventions, naming and retrieval pages describe them.
 

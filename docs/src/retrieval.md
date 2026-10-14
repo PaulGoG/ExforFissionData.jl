@@ -105,6 +105,8 @@ the machine as well, which is useful when the records stay yours.
 | | `incident_energy_basis`, `incident_energy_reading` | for prompt γ of induced fission: the incident energy that put the dataset in the window and the heading of the entry it comes from; where the csv rendering misstates it, what the entry states |
 | | `stated_value_evidence`, `stated_value_reading` | for a value an entry states outside its DATA tables: the words, with their place, and what the value is |
 | | `abscissa_heading_reading` | the column read as an abscissa quantity it is not the standard heading of |
+| | `listed_under` | the quantity the archive lists a dataset under where it is admitted by name from another than its ordinate's |
+| | `row_notes` | notes on single rows, written as the archive gives them and not curated |
 | | `correlated_with`, `correlation`, `correlation_relation` | the other datasets of the same experiment, why they are one, and how they are related, one of `republication`, `alternative_analysis`, `repeated_run`, `complementary_range` or `dependent` (see [Conventions and selection](conventions.md)) |
 | `[[slices]]` | `identifier`, `holds`, `energies`, `masses`, `source` | for Y(A, TKE) only: datasets holding slices of the joint distribution for the system, rejected as the distribution and listed for cross-checks at their masses |
 | `[[rejected]]` | `identifier`, `reaction_code`, `reason` | the dataset, its code, and why it was excluded |
@@ -147,5 +149,8 @@ is the quantity's own name suffixed with `_uncertainty`. A reader is nonetheless
 columns by **position**: the header says what is there, and renaming a quantity must not be able
 to break anything that reads these files.
 
-Nothing is overwritten. A retrieval landing on an existing directory writes beside it under a
-suffixed name.
+Nothing is overwritten. A retrieval never writes into an existing observable directory: where
+`<root>/<directory>/<system>/<observable>` exists (`directory` of `[output]`, `data` by default), it writes to `<observable>_1`, then `_2`, and so on,
+the system directory and the root left as they are. A consumer restaging a tree writes to a fresh
+root, or removes the old observable directory first; otherwise the new data lands beside the old
+under a suffixed name and the old directory is still the one under the plain name.

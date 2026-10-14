@@ -502,6 +502,8 @@ refused for every other ordinate.
 | `Cf252_sf_M_gamma_vs_A`, `U235_nth_M_gamma_vs_A` | the multiplicity of one fragment against its pre-neutron mass | `A M_gamma M_gamma_uncertainty` |
 | `Cf252_sf_E_gamma_vs_A` | the γ energy of one fragment against its pre-neutron mass | `A E_gamma E_gamma_uncertainty` |
 | `Cf252_sf_E_gamma_tot_vs_A` | the total γ energy per fission against the light-fragment mass | `A E_gamma_tot E_gamma_tot_uncertainty` |
+| `Cf252_sf_M_gamma_bar_vs_A`, `U235_nth_M_gamma_bar_vs_A` | the multiplicity per fission against the pre-neutron mass of one fragment | `A M_gamma_bar M_gamma_bar_uncertainty` |
+| `U235_nth_eps_gamma_vs_A` | the mean photon energy against the heavy-fragment mass | `A eps_gamma eps_gamma_uncertainty` |
 | `Cf252_sf_M_gamma_bar_vs_TKE` | the multiplicity per fission against TKE | `TKE M_gamma_bar M_gamma_bar_uncertainty` |
 | `Cf252_sf_E_gamma_tot_vs_TKE` | the total γ energy per fission against TKE | `TKE E_gamma_tot E_gamma_tot_uncertainty` |
 | `Cf252_sf_E_gamma_tot_vs_nu` | the total γ energy per fission against the number of neutrons the fission emitted | `nu E_gamma_tot E_gamma_tot_uncertainty` |
@@ -537,7 +539,18 @@ energy of one fragment of Krupa 2004 are read from their subentry text.
 total γ energy per fission with its uncertainty in the additional results of their entries and in
 no DATA table. These are written as datasets named after the subentry that states them, once the
 words are found in its text and both numbers stand in them; nothing is formed from the
-multiplicity and the mean energy. `stated_value_warning` names them.
+multiplicity and the mean energy. `stated_value_warning` names them. A total stated in an
+auxiliary column with no uncertainty beside it, as Smith 1956 and Sokol 1991 give theirs in MISC,
+is no dataset; the value, its words and their place are kept in a reason among the rejections of
+the observable it would answer, and so is the mean photon energy of Krupa 2004.
+
+**By name.** Skarsvåg 1970 (23174004), the multiplicity per fission above 100 keV, is listed by the
+archive under the quantity `MLT` alone. The multiplicity per fission admits it by name, records
+`listed_under = "MLT"`, and takes nothing else from that quantity.
+
+**A row as it stands.** Pleasonton's multiplicity of one fragment at A = 82, −0.36 ± 1.36, is
+below zero and consistent with it; it is written as the archive gives it, since dropping it would
+bias the row, and `row_notes` says so.
 
 **What is refused.** K X-rays (Kapoor 1968 and 1969, Popeko 1975), discrete lines of individual
 products, delayed γ rays, the γ field of a source measured without fission coincidence, and the
@@ -551,10 +564,12 @@ of entry 31729 gives the temperature of its cold beam, `KT-K` 100 K, as an incid
 
 | Configuration | Cf252_sf | U235_nth | Pu239_nth | U233_nth |
 | :--- | ---: | ---: | ---: | ---: |
-| `M_gamma_bar` | 14 | 11 | 5 | 1 |
+| `M_gamma_bar` | 15 | 11 | 5 | 1 |
 | `E_gamma_tot` | 12 | 5 | 5 | 1 |
 | `eps_gamma` | 9 | 10 | 5 | 1 |
 | `M_gamma_vs_A` | 1 | 1 | | |
+| `M_gamma_bar_vs_A` | 2 | 1 | | |
+| `eps_gamma_vs_A` | | 1 | | |
 | `E_gamma_vs_A`, `E_gamma_tot_vs_A`, `M_gamma_bar_vs_TKE`, `E_gamma_tot_vs_TKE`, `E_gamma_tot_vs_nu` | 1 each | | | |
 
 ## Not covered
