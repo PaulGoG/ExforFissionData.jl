@@ -6,6 +6,26 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `40535004` (Blinov 1980, 252-Cf(sf), ratio to a Maxwellian, 25 cm flight path) gives 0.059 ±
+  0.037 at 220.9 keV among neighbours of 0.93 to 0.98. The uncertainty is that of a value near
+  0.95, and the 50 cm flight path of the same measurement (`40535005`) gives 0.936 ± 0.047 at
+  220.3 keV. The line is a transcription defect of the archive and is left out of
+  `Cf252_sf/spectrum_maxwellian_ratio_vs_E/40535004_M.V.Blinov_1980.dat`, which loses that one
+  row; the evidence is in the dataset's `archive_defects`, and its `rows_retrieved` and
+  `rows_written` go from 77 to 76. Every other table and stored subentry that 0.4.0 writes is
+  written unchanged.
+
+### Changed
+
+- A compilation defect can be marked by the datum as well as by an independent variable, so that
+  a value the archive later corrects is not left out with it; the dataset is then rejected until
+  the defect record is reviewed, as before.
+- Records list the datasets with lines left out as compilation defects under
+  `[datasets] archive_defect_warning`: `Cf252_sf/spectrum_maxwellian_ratio_vs_E` names
+  `40535004` and `Cf252_sf/TKE_vs_A` names `14101003`.
+
 ## [0.4.0] - 2026-10-13
 
 Three post-neutron product observables for 252-Cf(sf) and thermal 235-U, 239-Pu and 233-U: the

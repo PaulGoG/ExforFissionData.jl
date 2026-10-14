@@ -473,6 +473,23 @@ function write_metadata(
              `qualifiers`, and where one of the two is wanted the superseding dataset is \
              the authors' own choice: " * join(superseded, ", ")
     end
+    defective = String[]
+    for entry in accepted
+        defects = get(ARCHIVE_DEFECTS, entry.dataset.identifier, nothing)
+        defects === nothing && continue
+        lines = sum(d.occurrences for d in defects)
+        push!(
+            defective,
+            "$(entry.dataset.identifier) ($(lines) $(lines == 1 ? "line" : "lines"))",
+        )
+    end
+    if !isempty(defective)
+        record["datasets"]["archive_defect_warning"] =
+            "lines of these datasets are compilation defects of the archive; they are left \
+             out of the written tables, never corrected, and each dataset's \
+             `archive_defects` gives the line, the evidence and the reason: " *
+            join(defective, ", ")
+    end
     reduced_form = [
         entry.dataset.identifier for
         entry in accepted if has_code(entry.dataset.reaction_code, SPECTRUM_FORM_TAG)

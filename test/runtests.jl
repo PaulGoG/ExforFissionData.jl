@@ -3685,6 +3685,87 @@ of = "$(of)"
         @test haskey(record["conventions"], "maxwellian_temperature")
     end
 
+    @testset "a compilation defect in the datum is left out and recorded" begin
+        # 40535004 (Blinov 1980): DATA 0.059 at 220.9 keV among neighbours near 0.95.
+        cf = test_query(;
+            target_Z = 98,
+            target_A = 252,
+            channel = "sf",
+            abscissa = ["neutron_energy"],
+            ordinate = "spectrum_maxwellian_ratio",
+        )
+        blinov(middle) = select_dataset(
+            "40535004",
+            exfor_csv([
+                exfor_row(;
+                    dataset_id = "40535004",
+                    year = 1980,
+                    author = "M.V.Blinov+",
+                    reaction_code = "98-CF-252(0,F),PR,NU/DE,,MXD",
+                    value_kind = "Data(NO-DIM)",
+                    secondary_ev = 1000e,
+                    y = v,
+                    dy = dv,
+                ) for (e, v, dv) in
+                ((216.4, 0.976, 0.033), (220.9, middle, 0.037), (225.4, 0.933, 0.036))
+            ]),
+            exfor_subentry(;
+                entry = "40535",
+                subentry = "40535004",
+                bib = ["REACTION   (98-CF-252(0,F),PR,NU/DE,,MXD)"],
+                common = (headings = ["KT-NRM"], units = ["MEV"], values = [1.42]),
+                headings = ["E", "DATA", "DATA-ERR"],
+                units = ["KEV", "NO-DIM", "NO-DIM"],
+                rows = [
+                    [216.4, 0.976, 0.033],
+                    [220.9, middle, 0.037],
+                    [225.4, 0.933, 0.036],
+                ],
+            ),
+            cf,
+        )
+        defective = blinov(0.059)
+        @test defective isa Dataset
+        reduced = reduce_dataset(defective, cf)
+        @test isapprox(reduced.table.E, [0.2164, 0.2254]; rtol = 1.0e-12)
+        @test reduced.table[!, reduced.ordinate_column] == [0.976, 0.933]
+        # Marked by its datum as well as its energy: a corrected value is not left out, and the
+        # dataset waits for the defect record to be reviewed.
+        corrected = blinov(0.959)
+        @test corrected isa Rejection
+        @test occursin("DATA 0.059", corrected.reason)
+        @test occursin("must be reviewed", corrected.reason)
+
+        directory = mktempdir()
+        config_path = joinpath(directory, "configuration.toml")
+        write(
+            config_path,
+            """
+            [query]
+            target_Z = 98
+            target_A = 252
+            channel = "sf"
+            abscissa = ["neutron_energy"]
+            ordinate = "spectrum_maxwellian_ratio"
+            """,
+        )
+        retrieved = DateTime(2026, 10, 14, 12)
+        record_path = joinpath(directory, "retrieval.toml")
+        write_metadata(
+            record_path,
+            load_configuration(config_path),
+            [AcceptedDataset(defective, reduced, "40535004.dat", retrieved, false)],
+            Rejection[],
+            ExforFissionData.Listing(["40535004"], retrieved, false),
+        )
+        record = TOML.parsefile(record_path)
+        @test occursin(
+            "transcription defect",
+            only(only(record["accepted"])["archive_defects"]),
+        )
+        @test occursin("40535004 (1 line)", record["datasets"]["archive_defect_warning"])
+    end
+
     @testset "the ratio of a spectrum to that of 252-Cf(sf)" begin
         over_cf = "(92-U-233(N,F),PR,NU/DE,,REL)/(98-CF-252(0,F),PR,NU/DE,,REL)"
         cf_over = "(98-CF-252(0,F),PR,NU/DE)/(92-U-233(N,F),PR,NU/DE,,MXW)"

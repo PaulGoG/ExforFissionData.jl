@@ -629,27 +629,34 @@ function curation_rejection(
 end
 
 """
+    RowDefect(marks, occurrences, description)
     RowDefect(heading, value, occurrences, description)
 
-Lines of one dataset's DATA table that a compilation defect makes unusable: every line whose
-`heading` column holds `value`, of which the archive is expected to hold `occurrences`.
+Lines of one dataset's DATA table that a compilation defect makes unusable: every line on which
+each heading of `marks` holds its value, of which the archive is expected to hold `occurrences`.
+The second form marks by one heading.
 
 The count is a guard. An entry the archive has since corrected no longer matches it, and the
 dataset is then rejected until the defect record is reviewed, rather than losing a line that is
-now right.
+now right. Where the defect is in the datum rather than in an independent variable, the marks
+must include the defective datum itself: marked by its energy alone, the line would still be
+left out after the archive had corrected its value.
 
 # Fields
-- `heading::String`: the DATA heading tested, e.g. `"MASS"`.
-- `value::Float64`: the value that marks the defective lines.
-- `occurrences::Int`: how many lines carry it.
+- `marks::Vector{Pair{String,Float64}}`: DATA headings with the values that mark the defective
+  lines, e.g. `["E" => 220.9, "DATA" => 0.059]`.
+- `occurrences::Int`: how many lines carry all of them.
 - `description::String`: the defect, its evidence and what is done about it, written to the run
   record in a form that can be reported to the IAEA Nuclear Data Section.
 """
 struct RowDefect
-    heading::String
-    value::Float64
+    marks::Vector{Pair{String, Float64}}
     occurrences::Int
     description::String
+end
+
+function RowDefect(heading::AbstractString, value::Real, occurrences::Integer, description)
+    return RowDefect([String(heading) => Float64(value)], occurrences, description)
 end
 
 """
@@ -670,27 +677,44 @@ const ARCHIVE_DEFECTS = Dict{String, Vector{RowDefect}}(
              measured",
         ),
     ],
+    "40535004" => [
+        RowDefect(
+            ["E" => 220.9, "DATA" => 0.059],
+            1,
+            "EXFOR 40535.004 (Blinov 1980, 25 cm flight path, ratio to a Maxwellian of KT-NRM \
+             1.42 MeV) gives DATA 0.059 with DATA-ERR 0.037 at E 220.9 keV, between 0.976 +- \
+             0.033 at 216.4 keV and 0.933 +- 0.036 at 225.4 keV. The uncertainty is 3.9 % of a \
+             value near 0.95, as on the neighbouring lines (3.3 to 3.9 %), not 63 % of 0.059, \
+             and the 50 cm flight path of the same measurement (40535.005) gives 0.936 +- \
+             0.047 at 220.3 keV: a transcription defect of the value. The English translation \
+             (INDC(CCP)-195) was not consulted. The line is left out rather than replaced by a \
+             value the archive does not hold",
+        ),
+    ],
 )
 
 """
     defect_lines(defects, data) -> Union{BitVector,String}
 
 The lines of the DATA table `data` that `defects` mark, or the reason the defect records no
-longer match the archive: a heading absent, or a marked value found on a different number of
+longer match the archive: a heading absent, or the marks found together on a different number of
 lines than recorded.
 """
 function defect_lines(defects::AbstractVector{RowDefect}, data::SubentryColumns)
     marked = falses(line_count(data))
     for defect in defects
-        index = column(data, defect.heading)
-        index === nothing &&
-            return "the recorded compilation defect concerns column $(defect.heading), which \
-                    the subentry no longer carries; the defect record must be reviewed"
-        lines = BitVector(map(v -> !ismissing(v) && v == defect.value, data.values[index]))
+        lines = trues(line_count(data))
+        for (heading, value) in defect.marks
+            index = column(data, heading)
+            index === nothing &&
+                return "the recorded compilation defect concerns column $(heading), which \
+                        the subentry no longer carries; the defect record must be reviewed"
+            lines .&= map(v -> !ismissing(v) && v == value, data.values[index])
+        end
         count(lines) == defect.occurrences || return "the subentry holds \
-            $(defect.heading) $(defect.value) on $(count(lines)) lines where the recorded \
-            compilation defect expects $(defect.occurrences); the archive may have corrected \
-            it, and the defect record must be reviewed"
+            $(join(("$(h) $(v)" for (h, v) in defect.marks), " with ")) on $(count(lines)) \
+            lines where the recorded compilation defect expects $(defect.occurrences); the \
+            archive may have corrected it, and the defect record must be reviewed"
         marked .|= lines
     end
     return marked

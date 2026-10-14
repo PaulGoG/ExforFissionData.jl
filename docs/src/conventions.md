@@ -364,3 +364,17 @@ what the subentry and the rendering state; the record carries `energy_unit_repor
 `energy_unit_miscoded`, the evidence ([`MISCODED_ENERGY_UNITS`](@ref)). The reading stands only
 while the column as headed holds a value beyond 100 MeV, which no fission neutron reaches, so
 that an entry the archive corrects is read as headed.
+
+### Lines left out as compilation defects
+
+Two datasets carry a line no reading of the subentry can make right; the line is left out of the
+written table, never corrected, and the record gives the evidence under `archive_defects` and
+names the dataset in `archive_defect_warning` ([`ARCHIVE_DEFECTS`](@ref)). `14101003` (Whetstone
+1963), TKE against heavy-fragment mass, gives `MASS` 133 on two lines and 134 on none; both lines
+are left out rather than one guessed to be 134. `40535004` (Blinov 1980), the ²⁵²Cf spectrum as a
+ratio to a Maxwellian at 25 cm, gives 0.059 ± 0.037 at 220.9 keV between 0.976 and 0.933; the
+uncertainty is that of a value near 0.95, and the 50 cm flight path of the same measurement
+(`40535005`) gives 0.936 ± 0.047 at 220.3 keV. A defect record names the values that mark its
+lines, the datum included where the datum is what is wrong, and the number of lines carrying
+them: an entry the archive has corrected no longer matches, and the dataset is refused until the
+record is reviewed.
