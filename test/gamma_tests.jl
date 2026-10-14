@@ -59,6 +59,8 @@ end
     @test observable_label(
         configuration("[\"neutron_number\"]", "gamma_energy_per_fission").query,
     ) == "E_gamma_tot_vs_nu"
+    @test observable_label(configuration("[\"mass\"]", "gamma_mean_energy").query) ==
+          "eps_gamma_vs_A"
     @test observable_label(configuration("[\"mass\"]", "gamma_multiplicity").query) ==
           "M_gamma_vs_A"
     @test occursin(
@@ -322,4 +324,66 @@ end
     )
     @test other isa Rejection
     @test occursin("outside the window", other.reason)
+end
+
+@testset "prompt γ: against fragment mass, by name, and kept in reasons" begin
+    # The photon is named against a mass: the mean energy of the prompt neutrons of a
+    # fragment is no mean photon energy.
+    against_mass = tag_rule(["mass"], "gamma_mean_energy")
+    @test occursin(
+        "\"G\" in SF7",
+        rejection_reason(against_mass, "98-CF-252(0,F)MASS,PRE/PR,KE,N"),
+    )
+    @test matches(
+        tag_rule(["mass"], "gamma_multiplicity_per_fission"),
+        "92-U-235(N,F)MASS,PR,FY,G,MXW",
+    )
+    # Skarsvag 1970 comes in by name under MLT, for the multiplicity per fission alone.
+    per_fission = test_query(;
+        target_Z = 98,
+        target_A = 252,
+        channel = "sf",
+        abscissa = String[],
+        ordinate = "gamma_multiplicity_per_fission",
+    )
+    @test ExforFissionData.named_listing(per_fission) == ("MLT", ["23174004"])
+    against_tke = test_query(;
+        target_Z = 98,
+        target_A = 252,
+        channel = "sf",
+        abscissa = ["total_kinetic_energy"],
+        ordinate = "gamma_multiplicity_per_fission",
+    )
+    @test ExforFissionData.named_listing(against_tke) === nothing
+    # A value in a MISC column without an uncertainty is kept in a reason, with its words.
+    energy = test_query(;
+        target_Z = 98,
+        target_A = 252,
+        channel = "sf",
+        abscissa = String[],
+        ordinate = "gamma_energy_per_fission",
+    )
+    smith = only(
+        v for v in ExforFissionData.unadmitted_values(energy) if v.identifier == "14320004"
+    )
+    text(misc) = exfor_subentry(;
+        entry = "14320",
+        subentry = "14320004",
+        bib = [
+            "REACTION   (98-CF-252(0,F)0-G-0,PR,FY) Photon emission in",
+            "MISC-COL   Total energy loss in photons from Table 2.",
+        ],
+        headings = ["DATA", "MISC"],
+        units = ["PRT/FIS", "MEV"],
+        rows = [[10.3, misc]],
+    )
+    note = ExforFissionData.unadmitted_note(smith, text(8.2))
+    @test occursin("8.2 MEV in its column MISC", note)
+    @test occursin("subentry 14320004, MISC-COL", note)
+    @test occursin("must be reviewed", ExforFissionData.unadmitted_note(smith, text(8.3)))
+    # A row note is recorded with the dataset, the row uncurated.
+    @test occursin(
+        "A = 82",
+        only(ExforFissionData._curation_record("14197005")["row_notes"]),
+    )
 end

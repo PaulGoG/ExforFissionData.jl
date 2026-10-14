@@ -20,10 +20,10 @@ The abscissae each prompt-γ ordinate is retrieved against; the configuration va
 every other pairing. An empty abscissa is a quantity per fission, written one row per dataset.
 """
 const GAMMA_OBSERVABLES = Dict{String, Vector{Vector{String}}}(
-    "gamma_multiplicity_per_fission" => [String[], ["total_kinetic_energy"]],
+    "gamma_multiplicity_per_fission" => [String[], ["mass"], ["total_kinetic_energy"]],
     "gamma_energy_per_fission" =>
         [String[], ["mass"], ["total_kinetic_energy"], ["neutron_number"]],
-    "gamma_mean_energy" => [String[]],
+    "gamma_mean_energy" => [String[], ["mass"]],
     "gamma_multiplicity" => [["mass"]],
     "gamma_energy" => [["mass"]],
 )
@@ -146,6 +146,12 @@ const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
         gamma_correction("Fitting detector response"),
     ],
     "23197009" => [gamma_range(0.1, NaN, "Energy range > 0.1 MeV .")],
+    "23174004" => [
+        gamma_correction(
+            "Attenuation of gamma-rays in air was taken into account by extrapolating the \
+             number of gamma-rays to zero distance.",
+        ),
+    ],
     "23283" => [
         gamma_correction(
             "The response function matrix was produced by performing a large series of \
@@ -475,8 +481,12 @@ const GAMMA_REFUSALS = Dict{String, String}(
         (Weigmann 1969)",
     "22958" => "discrete lines of the 1.9 µs isomer of Zr-98, delayed (Simpson 2006)",
     "30225" => "delayed γ rays of the β decay of bromine fission products (Cojocaru 1966)",
-    "23174" => "the time distribution of γ rays after fission, prompt and delayed, in arbitrary \
-        units (Skarsvag 1970)",
+    "23174002" => "the time distribution of γ rays after fission, prompt and delayed, in \
+        arbitrary units (Skarsvag 1970)",
+    "23174003" => "the time distribution of γ rays after fission, prompt and delayed, fitted, \
+        in arbitrary units (Skarsvag 1970)",
+    "23857005" => "the γ multiplicity of ternary fission, which only MSC and the REACTION text \
+        mark (Singer 1997)",
     "41582" => "the γ field of 252-Cf neutron sources measured without fission coincidence \
         (Kolevatov 1979)",
     "41507" => "an upper limit on the bremsstrahlung of fission fragments, 36 to 90 MeV \
@@ -862,3 +872,128 @@ stated_values(query) = [
         value.ordinate == query.ordinate &&
         isempty(query.abscissa)
 ]
+
+"""
+Datasets listed under another quantity than their ordinate's, admitted by name, keyed by ordinate
+and abscissa: Skarsvag 1970 (23174004), the prompt γ multiplicity per fission above 100 keV, which
+the archive lists under `MLT` alone (ruling of 2026-10-14). Nothing else under that quantity
+comes in this way.
+"""
+const NAMED_LISTINGS = Dict{Tuple{String, Vector{String}}, Tuple{String, Vector{String}}}(
+    ("gamma_multiplicity_per_fission", String[]) => ("MLT", ["23174004"]),
+)
+
+"""
+    named_listing(query) -> Union{Tuple{String,Vector{String}},Nothing}
+
+The quantity and the datasets of [`NAMED_LISTINGS`](@ref) for the observable of `query`.
+"""
+named_listing(query) = get(NAMED_LISTINGS, (query.ordinate, query.abscissa), nothing)
+
+"""
+    UnadmittedValue
+
+A value an entry states in an auxiliary column of a DATA table, with no uncertainty column beside
+it, which the ruling of 2026-10-14 does not admit as a dataset: kept, with its words and its
+place, among the reasons of the rejections of the observable it would answer.
+
+# Fields
+- `identifier::String`: the dataset whose subentry holds the column.
+- `target_Z::Int`, `target_A::Int`, `channel::String`, `ordinate::String`: the observable.
+- `heading::String`, `value::Float64`, `unit::String`: the column, the value and its unit.
+- `definition::String`: the words of `MISC-COL` defining the column, verbatim.
+"""
+struct UnadmittedValue
+    identifier::String
+    target_Z::Int
+    target_A::Int
+    channel::String
+    ordinate::String
+    heading::String
+    value::Float64
+    unit::String
+    definition::String
+end
+
+"""
+Values of [`UnadmittedValue`](@ref): the total prompt γ energy per fission of Smith 1956 and Sokol
+1991 and the mean photon energy of Krupa 2004, each in a MISC column of a dataset written for
+another quantity.
+"""
+const UNADMITTED_VALUES = UnadmittedValue[
+    UnadmittedValue(
+        "14320004",
+        98,
+        252,
+        "sf",
+        "gamma_energy_per_fission",
+        "MISC",
+        8.2,
+        "MEV",
+        "Total energy loss in photons from Table 2.",
+    ),
+    UnadmittedValue(
+        "415800031",
+        98,
+        252,
+        "sf",
+        "gamma_energy_per_fission",
+        "MISC",
+        9.6,
+        "MEV",
+        "Average energy per fission <E-tot>",
+    ),
+    UnadmittedValue(
+        "23814004",
+        98,
+        252,
+        "sf",
+        "gamma_mean_energy",
+        "MISC1",
+        0.83,
+        "MEV",
+        "Average energy per one gamma.",
+    ),
+]
+
+"""
+    unadmitted_values(query) -> Vector{UnadmittedValue}
+
+The values of [`UNADMITTED_VALUES`](@ref) that would answer `query`, a quantity per fission.
+"""
+unadmitted_values(query) = [
+    value for
+    value in UNADMITTED_VALUES if (value.target_Z, value.target_A, value.channel) ==
+    (query.target_Z, query.target_A, query.channel) &&
+        value.ordinate == query.ordinate &&
+        isempty(query.abscissa)
+]
+
+"""
+    unadmitted_note(value, text) -> String
+
+The reason recorded for an [`UnadmittedValue`](@ref), read from the subentry text `text`: the
+value as its column holds it and the words defining the column, with their place; or why the
+reading must be reviewed, where the column or the words are no longer there.
+"""
+function unadmitted_note(value::UnadmittedValue, text::AbstractString)
+    subentry = try
+        parse_subentry(text, value.identifier)
+    catch exception
+        exception isa SubentryError || rethrow()
+        return "the subentry of $(value.identifier) cannot be read: $(exception.msg)"
+    end
+    index = column(subentry.data, value.heading)
+    held =
+        index !== nothing && any(
+            v -> !ismissing(v) && isapprox(v, value.value; rtol = 1.0e-9),
+            subentry.data.values[index],
+        )
+    place = locate_statement(text, value.definition)
+    (held && place !== nothing) || return "the curated reading of $(value.value) \
+        $(value.unit) in column $(value.heading) of $(value.identifier) no longer matches the \
+        subentry; the reading must be reviewed"
+    return "$(value.identifier) states $(value.value) $(value.unit) in its column \
+            $(value.heading), \"$(value.definition)\" ($(place)), with no uncertainty column \
+            beside it: no dataset under the ruling on values outside the DATA column, kept here"
+end

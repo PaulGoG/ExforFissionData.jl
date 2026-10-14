@@ -578,8 +578,11 @@ energy, coded `ELEM/MASS,PAR/IND,FY` with the energy a constant of the COMMON se
 distribution and not the independent yield, which the same entry gives as `ELEM/MASS,IND,FY`
 (21689019).
 
-The prompt-γ multiplicity per fission against TKE carries the photon as its product,
-`0-G-0,PR,FY/TKE` (32788003): the TKE abscissa alone would admit a fragment yield at given TKE.
+A prompt-γ quantity against an abscissa names the photon: as its product, `0-G-0`, against TKE
+or the number of neutrons (`0-G-0,PR,FY/TKE`, 32788003), and as the particle considered, `G`,
+beside a fragment mass (`MASS,PR,FY,G`, 14197003). Without it the rule of the ordinate, prompt
+branch and kinetic energy, admits the mean energy of the prompt neutrons of a fragment,
+`MASS,PR/FRG,KE,N`, under the mean photon energy against mass.
 """
 const OBSERVABLE_RULES = Dict{Tuple{Vector{String}, String}, TagRule}(
     (["mass"], "yield") => TagRule(["SF5:PRE"], String[], String[]),
@@ -589,6 +592,14 @@ const OBSERVABLE_RULES = Dict{Tuple{Vector{String}, String}, TagRule}(
     (["charge", "product_mass"], "yield") => TagRule(String[], String[], ["SF5:PAR"]),
     (["total_kinetic_energy"], "gamma_multiplicity_per_fission") =>
         TagRule(["SF4:0-G-0"], String[], String[]),
+    (["total_kinetic_energy"], "gamma_energy_per_fission") =>
+        TagRule(["SF4:0-G-0"], String[], String[]),
+    (["neutron_number"], "gamma_energy_per_fission") =>
+        TagRule(["SF4:0-G-0"], String[], String[]),
+    (["mass"], "gamma_multiplicity_per_fission") =>
+        TagRule(["SF7:G"], String[], String[]),
+    (["mass"], "gamma_energy_per_fission") => TagRule(["SF7:G"], String[], String[]),
+    (["mass"], "gamma_mean_energy") => TagRule(["SF7:G"], String[], String[]),
 )
 
 """

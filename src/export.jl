@@ -155,6 +155,8 @@ function _curation_record(identifier::AbstractString)
     masses === nothing || (record["curation"] = masses)
     defects = get(ARCHIVE_DEFECTS, identifier, nothing)
     defects === nothing || (record["archive_defects"] = [d.description for d in defects])
+    notes = get(ROW_NOTES, identifier, nothing)
+    notes === nothing || (record["row_notes"] = notes)
     group = correlation_group(identifier)
     if group !== nothing
         record["correlated_with"] = filter(!=(identifier), group.members)

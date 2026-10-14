@@ -953,6 +953,10 @@ function select_dataset(
             reading.basis == "curation" ||
                 (record["quantity_reading_evidence"] = reading.evidence)
         end
+        named = named_listing(query)
+        named !== nothing &&
+            identifier in last(named) &&
+            (record["listed_under"] = first(named))
         if !query.spontaneous
             energies = sort!(unique(Float64.(skipmissing(table[!, COL_INCIDENT_ENERGY]))))
             record["incident_energy_basis"] =

@@ -505,6 +505,41 @@ every other ordinate refuses these datasets for their γ codes, as before; see
 [`curation_for`](@ref).
 """
 const GAMMA_CURATIONS = Dict{String, Curation}(
+    "22757003" => Curation(
+        ["mass"],
+        "gamma_multiplicity_per_fission",
+        "curated: coded MASS,PAR/PRE,FY,G, which Dictionary 236 expands as 'Partial yield of \
+         fission gammas from both fragments as a function of primary fragment mass': the γ \
+         multiplicity per fission over 3.5 to 8 MeV, the E-MIN and E-MAX of its COMMON \
+         section, against the pre-neutron mass of one fragment (Hotzel 1996; digitized from \
+         Fig. 12a)",
+    ),
+    "23857004" => Curation(
+        ["mass"],
+        "gamma_multiplicity_per_fission",
+        "curated: coded MASS,PAR/PRE,FY,G, which Dictionary 236 expands as 'Partial yield of \
+         fission gammas from both fragments as a function of primary fragment mass': the γ \
+         multiplicity per fission over 4 to 8 MeV, the E-MIN and E-MAX of its COMMON section, \
+         against the pre-neutron mass of one fragment (Singer 1997; digitized from Fig. 4)",
+    ),
+    "14197004" => Curation(
+        ["mass"],
+        "gamma_mean_energy",
+        "curated: coded MASS,PRE,KE,G,MXW, 'Average gamma energy per fission'; the values, 0.86 \
+         to 1.19 MeV, are the mean energy of a photon, the total per fission being 6 to 7 MeV, \
+         and the publication determines 'the average number and average energy of γ rays \
+         emitted within ∼5 nsec after fission ... as functions of fragment mass' \
+         (Pleasonton 1972, doi:10.1103/PhysRevC.6.1023, p. 1023); digitized from Fig. 6, \
+         against the heavy-fragment mass",
+    ),
+    "23174004" => Curation(
+        String[],
+        "gamma_multiplicity_per_fission",
+        "curated: coded ,PAR,MLT,G and listed under the quantity MLT, 'Yield of gamma-rays with \
+         energies greater 100 keV, per one fission.': the prompt γ multiplicity per fission \
+         above 100 keV (Skarsvag 1970, Nucl. Phys. A 153, 82, p. 93). Admitted by name under \
+         MLT for the multiplicity per fission alone (ruling of 2026-10-14)",
+    ),
     "232130061" => Curation(
         String[],
         "gamma_energy_per_fission",
@@ -554,6 +589,18 @@ the standard tables head `PART-OUT`. See [`GAMMA_CURATIONS`](@ref).
 """
 const ABSCISSA_HEADING_READINGS =
     Dict{String, Pair{String, String}}("232130301" => ("MISC" => "PART-OUT"))
+
+"""
+Notes on single rows of a dataset, written to its record as `row_notes` with the rows as the
+archive gives them, uncurated: a value a reader may take for a defect and that is not one.
+"""
+const ROW_NOTES = Dict{String, Vector{String}}(
+    "14197005" => [
+        "A = 82: -0.36 +- 1.36 photons per fragment, below zero but consistent with it within \
+         its uncertainty; written as the archive gives it, since dropping it would bias the \
+         row, and not curated (ruling of 2026-10-14)",
+    ],
+)
 
 """
 Datasets whose ordinate is read from the subentry text, keyed by dataset identifier; see

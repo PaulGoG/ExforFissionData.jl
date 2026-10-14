@@ -34,6 +34,13 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         query.quantity abscissa = query.abscissa ordinate = query.ordinate
     listing = dataset_identifiers(target, query.reaction, query.quantity, options)
     identifiers = listing.identifiers
+    # Datasets the archive lists under another quantity, admitted by name alone.
+    named = named_listing(query)
+    if named !== nothing
+        extra = dataset_identifiers(target, query.reaction, first(named), options)
+        identifiers =
+            sort!(unique(vcat(identifiers, filter(in(last(named)), extra.identifiers))))
+    end
     @info "dataset identifiers returned" count = length(identifiers) from_cache =
         listing.from_cache retrieved = listing.retrieved
 
@@ -182,6 +189,27 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         end
     end
     sort!(accepted_datasets; by = dataset -> dataset.identifier)
+    # Values stated outside the DATA column without an uncertainty: kept in the reasons.
+    for value in unadmitted_values(query)
+        note = try
+            unadmitted_note(value, subentry_text(value.identifier, options).body)
+        catch exception
+            exception isa Union{HTTP.HTTPError, Base.IOError, ArgumentError} ||
+                rethrow()
+            "retrieval of the subentry failed: " * sprint(showerror, exception)
+        end
+        index = findfirst(r -> r.identifier == value.identifier, rejected)
+        if index === nothing
+            push!(rejected, Rejection(value.identifier, "", note))
+        else
+            earlier = rejected[index]
+            rejected[index] = Rejection(
+                earlier.identifier,
+                earlier.reaction_code,
+                earlier.reason * "; " * note,
+            )
+        end
+    end
     @info "selection complete" accepted = length(accepted_datasets) rejected =
         length(rejected)
 
