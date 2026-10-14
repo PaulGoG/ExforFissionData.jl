@@ -59,10 +59,20 @@ an equation and none is spelled as one.
 | `spectrum` | `spectrum` | prompt fission neutron spectrum |
 | `spectrum_maxwellian_ratio` | `spectrum_maxwellian_ratio` | the spectrum as a ratio to a Maxwellian |
 | `spectrum_cf252_ratio` | `spectrum_cf252_ratio` | the spectrum as a ratio to that of 252-Cf(sf) |
+| `gamma_multiplicity_per_fission` | `M_gamma_bar` | prompt γ multiplicity per fission, M̄_γ |
+| `gamma_multiplicity` | `M_gamma` | prompt γ multiplicity of one fragment |
+| `gamma_energy_per_fission` | `E_gamma_tot` | total prompt γ energy per fission, E_γ,tot |
+| `gamma_energy` | `E_gamma` | prompt γ energy of one fragment |
+| `gamma_mean_energy` | `eps_gamma` | mean energy of a prompt γ photon, ε_γ |
 
 A subscript is written with an underscore — `A_p`, `E_K`, `TKE_p`, `sigma_TKE`, `T_eff` — and
 never run together: `T_eff`, not `Teff`. The temperature of the fitted spectrum is `T_eff`
 because it is an effective temperature of a form, not the temperature of a nucleus.
+
+The prompt-γ quantities follow the neutron ones: per fragment plain, per fission `_bar` for the
+multiplicity as for ν̄, and `E_gamma_tot` for the energy per fission, the field's E_γ,tot. A
+mean photon energy is `eps_gamma`, beside `eps` of the neutrons; `E_gamma_bar` would read as
+that mean and is not used.
 
 A quantity that is an abscissa in one query and an ordinate in another — the total kinetic energy
 is both — keeps one word and one symbol. [`ABSCISSA_TOKEN`](@ref) and [`ORDINATE_TOKEN`](@ref)
@@ -155,7 +165,9 @@ carries the provenance, which is what makes the identifier recoverable from a fi
 `vs` is what makes an observable name a statement rather than a list of symbols. An abscissa is a
 **list** of quantities, because it is a joint index, so `["mass", "total_kinetic_energy"]` needs
 no composite token of its own and the directory follows from the same rule as every other:
-`nu_vs_A_TKE`.
+`nu_vs_A_TKE`. A quantity per fission is tabulated against nothing, its abscissa the empty list,
+and its directory is the ordinate symbol alone: `M_gamma_bar`, `E_gamma_tot`, `eps_gamma`, each
+file one row.
 
 Extensions state a format and nothing else: `.dat` whitespace-separated, `.csv` comma-separated,
 `.toml` metadata. A file extension never carries a nuclide.
@@ -167,6 +179,7 @@ A nu nu_uncertainty
 A TKE nu nu_uncertainty
 E spectrum spectrum_uncertainty
 nu P P_uncertainty
+E_gamma_tot E_gamma_tot_uncertainty
 ```
 
 **No column is named `value`.** Naming the column for its quantity is what frees the reader from

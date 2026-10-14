@@ -6,6 +6,63 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+The prompt γ rays of 252-Cf(sf) and thermal 235-U, 239-Pu and 233-U: the multiplicity, the total
+energy and the mean photon energy per fission, and, where the archive holds them, the values of one
+fragment against its mass and those per fission against TKE and the number of neutrons. Each
+record states what defines a value — its γ-energy range, its time window and the corrections made —
+as the entry or its publication states it. Every table and stored subentry that 0.4.1 writes is
+written unchanged.
+
+### Added
+
+- Five ordinates: `gamma_multiplicity_per_fission` (`M_gamma_bar`), `gamma_energy_per_fission`
+  (`E_gamma_tot`), `gamma_mean_energy` (`eps_gamma`), `gamma_multiplicity` (`M_gamma`) and
+  `gamma_energy` (`E_gamma`). The γ codes, `0-G-0` as the product and `G` as the particle
+  considered, are lifted from the refusals of `BASE_FORBID` for these ordinates alone.
+- A quantity per fission is tabulated against nothing: the abscissa `[]`, for the three prompt-γ
+  ordinates per fission, written under a directory named for the ordinate alone, one row to a
+  file, `M_gamma_bar M_gamma_bar_uncertainty`. A dataset giving several values is refused with them
+  rather than combined. `E_gamma_tot` is also retrieved against `["mass"]`,
+  `["total_kinetic_energy"]` and `["neutron_number"]`, `M_gamma_bar` against
+  `["total_kinetic_energy"]`, and `M_gamma` and `E_gamma` against `["mass"]`.
+- Nineteen configurations, 83 in all: `<system>_M_gamma_bar`, `<system>_E_gamma_tot` and
+  `<system>_eps_gamma` for `Cf252_sf`, `U235_nth`, `Pu239_nth` and `U233_nth`;
+  `Cf252_sf_M_gamma_vs_A` and `U235_nth_M_gamma_vs_A`; `Cf252_sf_E_gamma_vs_A`,
+  `Cf252_sf_E_gamma_tot_vs_A`, `Cf252_sf_M_gamma_bar_vs_TKE`, `Cf252_sf_E_gamma_tot_vs_TKE` and
+  `Cf252_sf_E_gamma_tot_vs_nu`.
+- In the record of a prompt-γ dataset: `gamma_energy_min_mev`, `gamma_energy_max_mev` and
+  `gamma_energy_range_basis` with its evidence, read from the headings `E-MIN` and `E-MAX` of the
+  entry or from a curated statement; `time_window_ns`, `time_window_kind`, `time_window_basis`
+  with its evidence, and `time_resolution_ns`; `corrections_stated`; `gamma_range_partial` for a
+  set coded `PAR`; `quantity_reading` with its basis for an energy coded `KE`; and, for induced
+  fission, `incident_energy_basis`. A statement of the subentry text is looked for in it at every
+  retrieval and recorded with its place; one the text no longer holds refuses the dataset until it
+  is reviewed. Under `[datasets]`: `gamma_definition_warning`, `gamma_range_warning`,
+  `quantity_reading_warning` and `stated_value_warning`.
+- Values an entry states with their uncertainty outside any DATA table are written as datasets
+  named after the subentry stating them, once the words are found in its text and both numbers
+  stand in them: the total γ energy per fission of Oberstedt 2013 (`31729001`), Gatera 2017
+  (`31778002` to `31778005`) and Makii 2019 (`23541005`). Their records carry
+  `stated_value_evidence` and `stated_value_reading`.
+- Curation of the prompt-γ datasets: K X-rays, discrete lines, delayed γ rays and source fields
+  refused by name; the light and heavy fragment groups of 14214 kept, with their values, in the
+  reason of their refusal; Mehta 1973 and the fragment energy of Krupa 2004 read from their
+  subentry text, the number of neutrons of 232130301 from its MISC column
+  (`abscissa_heading_reading`); dependent groups of the averages of Oberstedt 2013 and 2015 and
+  Gatera 2017 with the detectors they are formed from; Pollitt 2015 and Murray 2014 flagged
+  preliminary.
+- The incident energy of entry 31729 (Oberstedt 2013), which the csv rendering gives as 100 eV, the
+  temperature 100 K of its cold beam, is read as kT = 8.6 meV and recorded as
+  `incident_energy_reading`.
+- The bins 6 to 7 and 7 to 10 MeV of `14195005` (Verbinski 1973) are compilation defects, a factor
+  10 lost in transcription: read ten times larger the bins sum to the 6.51 MeV the publication
+  states. The binned set is refused by every prompt-γ observable, and the record stands ready.
+
+### Changed
+
+- The configuration comments list the empty abscissa and the five prompt-γ ordinates among the
+  choices; the observables, configurations, conventions, naming and retrieval pages describe them.
+
 ## [0.4.1] - 2026-10-14
 
 One compilation defect of the archive left out, and corrections to the documentation. Every

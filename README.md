@@ -17,7 +17,7 @@ files with a record of everything the query considered.
 ExforFissionData.jl/
 ├── activate.jl        # silent activation of the package environment
 ├── check.jl           # pre-commit gate: format, then test
-├── config/            # 64 retrieval configurations, <system>_<observable>.toml
+├── config/            # 83 retrieval configurations, <system>_<observable>.toml
 ├── scripts/
 │   └── retrieve.jl    # entry point
 ├── src/               # the package: selection, reduction, export, run record
@@ -151,6 +151,15 @@ that name the directories its data is written to.
 | spectrum, `spectrum_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | ratio to a Maxwellian, `spectrum_maxwellian_ratio_vs_E` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | ratio to 252-Cf(sf), `spectrum_cf252_ratio_vs_E` | | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| M̄_γ, `M_gamma_bar` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| E_γ,tot, `E_gamma_tot` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| ε_γ, `eps_gamma` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| M_γ(A), `M_gamma_vs_A` | `Cf252_sf` | `U235_nth` | | | |
+| E_γ(A), `E_gamma_vs_A` | `Cf252_sf` | | | | |
+| E_γ,tot(A), `E_gamma_tot_vs_A` | `Cf252_sf` | | | | |
+| M̄_γ(TKE), `M_gamma_bar_vs_TKE` | `Cf252_sf` | | | | |
+| E_γ,tot(TKE), `E_gamma_tot_vs_TKE` | `Cf252_sf` | | | | |
+| E_γ,tot(ν), `E_gamma_tot_vs_nu` | `Cf252_sf` | | | | |
 
 The file of a cell is `<system>_<observable>.toml`, `config/U235_nth_TKE_vs_A.toml` for instance.
 The first four rows are what a pre-neutron Y(A, TKE) is built from: the mass yield, the mean TKE
@@ -171,6 +180,14 @@ or from constants of its COMMON section, and a nuclide reported in several isome
 written once, with what was done recorded per dataset. Fractional yields, yields of correlated
 fragment pairs and partial yields at one product kinetic energy are refused. The archive holds no
 mass-resolved post-neutron kinetic energy for 252-Cf, so `Cf252_sf_E_K_p_vs_A_p` writes nothing.
+
+The last nine rows are the prompt γ rays: the multiplicity, the total energy and the mean photon
+energy per fission, one value to a file, and, for 252-Cf and 235-U, the values of one fragment
+against its mass and those per fission against TKE and the number of neutrons. A prompt-γ value is
+defined by the γ-energy range its photons were counted over, the time window after fission and
+the corrections made, which differ between experiments by up to about 1 MeV of total energy; each
+record states them as the entry or its publication does, and names the datasets for which nobody
+states them. Nothing is cut on them: a set over a partial range is written and flagged.
 
 A system is an element symbol, a mass number and an **entrance channel** — `sf` spontaneous, `nth`
 thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel decides the EXFOR
@@ -292,7 +309,7 @@ suffixed name.
 
 The reference lives in the documentation, one page per topic:
 
-- [Observables](https://PaulGoG.github.io/ExforFissionData.jl/stable/observables/): the abscissae and ordinates, their quantity codes, the mean neutron energy and the spectrum ratios, relative data, and what stays outside the observable set.
+- [Observables](https://PaulGoG.github.io/ExforFissionData.jl/stable/observables/): the abscissae and ordinates, their quantity codes, the mean neutron energy and the spectrum ratios, the prompt γ rays and what defines each value, relative data, and what stays outside the observable set.
 - [Entrance channels](https://PaulGoG.github.io/ExforFissionData.jl/stable/channels/): the incident-energy intervals and the physics behind them.
 - [Conventions and selection](https://PaulGoG.github.io/ExforFissionData.jl/stable/conventions/): units, precision, one row per abscissa value, the selection checks, and the known miscoded entries.
 - [Retrieval and the run record](https://PaulGoG.github.io/ExforFissionData.jl/stable/retrieval/): the cache, the archive dates, and every field of `retrieval.toml`.
@@ -314,7 +331,7 @@ ExforFissionData.jl/
 ├── README.md
 ├── .JuliaFormatter.toml         # formatter settings shared by check.jl and CI
 ├── .gitignore
-├── config/                      # 64 configurations, <system>_<observable>.toml
+├── config/                      # 83 configurations, <system>_<observable>.toml
 ├── docs/                        # Documenter site
 │   ├── activate.jl
 │   ├── Project.toml
@@ -350,6 +367,7 @@ ExforFissionData.jl/
 │   ├── reaction_codes.jl        # the tag grammar, as data
 │   ├── curation.jl              # datasets read from their subentry text; defects; repeated runs
 │   ├── widths.jl                # the width of the TKE distribution: columns, kinds, conversions
+│   ├── gamma.jl                 # prompt γ: definitions, readings, refusals, stated values
 │   ├── neutron_observables.jl   # fit parameters of the neutron spectrum; the moments of P(ν)
 │   ├── client.jl                # retrieval: timeout, backoff, bounded concurrency, cache
 │   ├── configuration.jl         # TOML loading and validation
@@ -363,6 +381,7 @@ ExforFissionData.jl/
 │   ├── Project.toml
 │   ├── runtests.jl
 │   ├── fixtures.jl              # synthetic responses in the layout of the csv rendering
+│   ├── gamma_tests.jl           # the prompt-γ observables
 │   ├── subentry_tests.jl        # the subentry parser
 │   └── written_tables.jl        # a retrieval tree's tables against its records, when present
 └── .github/

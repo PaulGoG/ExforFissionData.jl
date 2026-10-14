@@ -330,6 +330,69 @@ it fissions spontaneously. These two stand in for what the archive lacks for 239
   steps against heavy masses 120 to 160, under `relative/`; the record lists the TKE slices of
   Wagemans 1984 besides.
 
+## Prompt γ-ray configurations
+
+Nineteen configurations retrieve the prompt-γ quantities of the four systems; see
+[Prompt γ rays](@ref) for the observables and what each record states of a value's definition.
+
+### 252-Cf(sf), prompt γ
+
+- `Cf252_sf_M_gamma_bar` — the multiplicity per fission, 14 datasets: 14214009 (Pleasonton,
+  ORNL-4844, 1972), the six detectors of 23197 (Oberstedt 2015, 0.1 MeV to 6.0 to 7.7 MeV, coded
+  `PAR`) and their average 231970091, 237830031 (Gjestvang 2021, corrected by a factor 1.30 the
+  entry gives), 23814003 (Krupa 2004), 415800031 (Sokol 1991, 0.32 to 5.12 MeV within 4 µs),
+  14320003 and 14320004 (Smith 1956, the first over 0.5 to 2.3 MeV) and 143870061 (Bowman 1958).
+  Refused: 234170041 (Qi 2018), two detectors in one table; the light and heavy groups of 14214;
+  the K X-rays of 33071; the uncorrected 237830032 and 415800021.
+- `Cf252_sf_E_gamma_tot` — the total energy per fission, 12 datasets: 14214008, the six detectors of
+  23197 and their average, 237830041, 23814004 and 143870062, the last two read on their magnitude
+  alone, and 232130061 (Mehta 1973), read from its subentry.
+- `Cf252_sf_eps_gamma` — the mean photon energy, 9 datasets: 14214029, the six detectors of 23197
+  and their average, and 415800032 (Sokol 1991).
+- `Cf252_sf_M_gamma_vs_A` — the multiplicity of one fragment against its pre-neutron mass:
+  23814005 (Krupa 2004).
+- `Cf252_sf_E_gamma_vs_A` — the γ energy of one fragment against its pre-neutron mass: 23814006
+  (Krupa 2004), read from its subentry.
+- `Cf252_sf_E_gamma_tot_vs_A` — the total energy per fission against the light-fragment mass:
+  23213010 (Mehta 1973), read from its subentry.
+- `Cf252_sf_M_gamma_bar_vs_TKE` — the multiplicity per fission against TKE: 32788003 (Wang 2016).
+- `Cf252_sf_E_gamma_tot_vs_TKE` — the total energy per fission against TKE: 23213018 (Mehta 1973).
+- `Cf252_sf_E_gamma_tot_vs_nu` — the total energy per fission against the number of neutrons the
+  fission emitted: 232130301 (Mehta 1973), the number read from its MISC column.
+
+### 235-U(nth,f), prompt γ
+
+- `U235_nth_M_gamma_bar` — 11 datasets: 14214005 (Pleasonton 1972, within ∼5 ns by its
+  publication), the five detectors of 31729 (Oberstedt 2013, 0.1 to 6.0 MeV) and their average
+  31729008, 232830021 (Pollitt 2015) and 23263002 (Murray 2014), both preliminary, 23541004 (Makii
+  2019, 1 to 6 MeV) and 23659004 (Wright 2024, whose range is not coded). Refused: 14201003 (Peelle
+  1971), two ranges in one table, and 14195002 (Verbinski 1973), tabulated in bins of γ energy.
+- `U235_nth_E_gamma_tot` — 5 datasets: 14214004, 14735002 (Deutsch 1944, within 2 µs), 232830023,
+  and the values stated outside the DATA tables by 31729001 (6.92 ± 0.09 MeV) and 23541005 (4.07 ±
+  0.07 MeV over 1 to 6 MeV).
+- `U235_nth_eps_gamma` — 10 datasets: 14214027, the five detectors of 31729 and their average,
+  232830022, 23541005 and 23659003.
+- `U235_nth_M_gamma_vs_A` — the multiplicity of one fragment against its pre-neutron mass:
+  14197005 (Pleasonton 1972).
+
+The entry 31729 was measured in a cold neutron beam whose temperature, 100 K, the csv rendering
+gives as an incident energy of 100 eV; it is read as kT = 8.6 meV.
+
+### 239-Pu(nth,f), prompt γ
+
+- `Pu239_nth_M_gamma_bar` — 5 datasets: 14214007 (Pleasonton, ORNL-4844) and 317780061 to
+  317780063 and 31778007 (Gatera 2017, three detectors and their summed spectrum, 0.1 to 7.0 MeV,
+  recorded within a 300 ns acquisition window).
+- `Pu239_nth_E_gamma_tot` — 5 datasets: 14214006 and the four totals Gatera 2017 states outside its
+  DATA tables, 31778002 to 31778005.
+- `Pu239_nth_eps_gamma` — 5 datasets: 14214028 and 317780081 to 317780083 and 31778009.
+
+### 233-U(nth,f), prompt γ
+
+- `U233_nth_M_gamma_bar`, `U233_nth_E_gamma_tot`, `U233_nth_eps_gamma` — one dataset each, from
+  14214 (Pleasonton, ORNL-4844): 6.31 photons, 6.69 MeV and 1.06 MeV per photon, the values of
+  Pleasonton 1973 (doi:10.1016/0375-9474(73)90161-9), which has no entry of its own.
+
 ## Spectra
 
 A prompt fission neutron spectrum is conventionally measured relative and normalised afterwards,

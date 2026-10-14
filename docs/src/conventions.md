@@ -110,6 +110,16 @@ directly, since isotropic neutron emission leaves the mean fragment velocity unc
 double-energy measurement gives provisional masses until they are corrected with ν(A), and is
 admitted only where its entry states that correction.
 
+The prompt γ rays are coded with the photon as the product, `0-G-0`, or with `G` as the particle
+considered beside a fragment mass, and both codes are refused for every ordinate but the prompt-γ
+ones ([`base_forbid`](@ref)). Under those, K X-rays, discrete lines of individual products,
+delayed γ rays and the γ field of a source measured without fission coincidence are refused by
+curation, since the archive codes them alike ([`GAMMA_REFUSALS`](@ref)). An energy coded
+`0-G-0,PR,KE` is the total per fission or the mean photon energy, which its magnitude decides and
+its REACTION text confirms ([`gamma_energy_reading`](@ref)); and what defines a prompt-γ value,
+its γ-energy range, its time window and the corrections made, is read from the entry and recorded
+([`gamma_definition`](@ref)), never applied as a cut.
+
 The checks easiest to get wrong:
 
 - the `y:Value` column marks **upper limits** with a `Max(` prefix; those rows are bounds, not
@@ -365,16 +375,29 @@ what the subentry and the rendering state; the record carries `energy_unit_repor
 while the column as headed holds a value beyond 100 MeV, which no fission neutron reaches, so
 that an entry the archive corrects is read as headed.
 
+### An incident energy the rendering misstates
+
+Entry 31729 (Oberstedt 2013, prompt γ rays of 235-U) was measured in a cold neutron beam and
+states its temperature, `KT-K` 100 K, in the COMMON section of subentry 31729001. The csv rendering
+gives that number as an incident energy of 100 eV, which no thermal window admits. It is read as
+kT = 8.6 meV, and `incident_energy_reading` records the reading
+([`INCIDENT_ENERGY_READINGS`](@ref)).
+
 ### Lines left out as compilation defects
 
-Two datasets carry a line no reading of the subentry can make right; the line is left out of the
+Three datasets carry lines no reading of the subentry can make right; the line is left out of the
 written table, never corrected, and the record gives the evidence under `archive_defects` and
 names the dataset in `archive_defect_warning` ([`ARCHIVE_DEFECTS`](@ref)). `14101003` (Whetstone
 1963), TKE against heavy-fragment mass, gives `MASS` 133 on two lines and 134 on none; both lines
 are left out rather than one guessed to be 134. `40535004` (Blinov 1980), the ²⁵²Cf spectrum as a
 ratio to a Maxwellian at 25 cm, gives 0.059 ± 0.037 at 220.9 keV between 0.976 and 0.933; the
 uncertainty is that of a value near 0.95, and the 50 cm flight path of the same measurement
-(`40535005`) gives 0.936 ± 0.047 at 220.3 keV. A defect record names the values that mark its
+(`40535005`) gives 0.936 ± 0.047 at 220.3 keV. `14195005` (Verbinski 1973), the prompt γ energy of
+235-U in bins of γ energy, gives 0.0064 and 0.0019 MeV in the bins 6 to 7 and 7 to 10 MeV over
+0.0098 and 0.0027 photons, 0.65 and 0.70 MeV per photon, below the bins they are in; read ten times
+larger the bins sum to 6.51 MeV, the total the publication states, against 6.43 MeV as compiled.
+The binned set is refused by every prompt-γ observable, being tabulated against the bins, and the
+record stands ready for a binned observable. A defect record names the values that mark its
 lines, the datum included where the datum is what is wrong, and the number of lines carrying
 them: an entry the archive has corrected no longer matches, and the dataset is refused until the
 record is reviewed.

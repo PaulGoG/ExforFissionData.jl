@@ -16,6 +16,7 @@ the identifier and configuration rules, is on the [Naming](naming.md) page.
 | `neutron_energy` | `E` | secondary neutron energy |
 | `total_kinetic_energy` | `TKE` | total kinetic energy |
 | `neutron_number` | `nu` | number of neutrons emitted in a fission |
+| (none) | — | a quantity per fission, for the prompt-γ ordinates alone |
 
 | Ordinate | Symbol | Meaning |
 | :--- | :--- | :--- |
@@ -28,6 +29,9 @@ the identifier and configuration rules, is on the [Naming](naming.md) page.
 | `neutron_kinetic_energy` | `eps` | mean centre-of-mass energy of the prompt neutrons of a fragment |
 | `neutron_spectrum_temperature`, `neutron_spectrum_exponent` | `T_eff`, `lambda` | effective temperature and exponent of the form fitted to the centre-of-mass neutron spectrum |
 | `spectrum`, `spectrum_maxwellian_ratio`, `spectrum_cf252_ratio` | — | prompt fission neutron spectrum: absolute, as a ratio to a Maxwellian, and as a ratio to that of 252-Cf(sf) |
+| `gamma_multiplicity_per_fission`, `gamma_multiplicity` | `M_gamma_bar`, `M_gamma` | prompt γ multiplicity, per fission and per fragment |
+| `gamma_energy_per_fission`, `gamma_energy` | `E_gamma_tot`, `E_gamma` | prompt γ energy, per fission and per fragment |
+| `gamma_mean_energy` | `eps_gamma` | mean energy of a prompt γ photon |
 
 An abscissa is a **list**, because it is a joint index: `["mass"]`, or
 `["mass", "total_kinetic_energy"]` for ν(A, TKE). A joint abscissa is therefore no separate
@@ -36,10 +40,13 @@ symbols — `nu_vs_A_TKE`, `Y_vs_A`, `spectrum_maxwellian_ratio_vs_E`.
 
 The eight abscissae the archive can be asked for are `["mass"]`, `["product_mass"]`, `["charge"]`,
 `["neutron_energy"]`, `["total_kinetic_energy"]`, `["charge", "product_mass"]`,
-`["mass", "total_kinetic_energy"]` and `["neutron_number"]`.
+`["mass", "total_kinetic_energy"]` and `["neutron_number"]`, and the empty list `[]` of a quantity
+per fission, which only the prompt-γ ordinates take and whose directory is the ordinate symbol
+alone: `M_gamma_bar`, `E_gamma_tot`, `eps_gamma`.
 
 Each ordinate belongs to one EXFOR quantity code — `yield` to `FY`, the multiplicities to `NU`,
-the kinetic energies to `E`, the spectra to `MFQ` — and the configuration does not name it: the
+the kinetic energies to `E`, the spectra to `MFQ`, the prompt-γ multiplicities to `FY` and the
+prompt-γ energies to `E` — and the configuration does not name it: the
 code is read from the ordinate. The quantity decides which datasets the archive offers at all, and
 several ordinates impose no tags of their own, so a pairing that could be written down could be
 written down wrong and would retrieve a different observable under the requested name.
@@ -479,25 +486,89 @@ over `MISC1` to `MISC3`, which hold cooling times, `235580032` (Günther 1972), 
 `23583003` (Boucheneb 1991) and `416930051` (Belyaev 1988). For 233-U two: `21981014`
 (Geltenbort 1985) and `23784003` (Chebboubi 2021).
 
+## Prompt γ rays
+
+The archive codes prompt γ rays with the photon as the product, `0-G-0`, and returns them under
+the quantities `FY` and `E`: the multiplicity per fission as `0-G-0,PR,FY` (the photons per
+fission of LEXFOR, Multiplicity), the energies as `0-G-0,PR,KE`, and the values of one fragment
+against its mass with `G` as the particle considered, `MASS,PRE/PR/FRG,FY,G`. The γ codes stay
+refused for every other ordinate.
+
+| Configuration | Holds | Header |
+| :--- | :--- | :--- |
+| `<system>_M_gamma_bar` | the prompt γ multiplicity per fission | `M_gamma_bar M_gamma_bar_uncertainty` |
+| `<system>_E_gamma_tot` | the total prompt γ energy per fission, MeV | `E_gamma_tot E_gamma_tot_uncertainty` |
+| `<system>_eps_gamma` | the mean energy of a prompt photon, MeV | `eps_gamma eps_gamma_uncertainty` |
+| `Cf252_sf_M_gamma_vs_A`, `U235_nth_M_gamma_vs_A` | the multiplicity of one fragment against its pre-neutron mass | `A M_gamma M_gamma_uncertainty` |
+| `Cf252_sf_E_gamma_vs_A` | the γ energy of one fragment against its pre-neutron mass | `A E_gamma E_gamma_uncertainty` |
+| `Cf252_sf_E_gamma_tot_vs_A` | the total γ energy per fission against the light-fragment mass | `A E_gamma_tot E_gamma_tot_uncertainty` |
+| `Cf252_sf_M_gamma_bar_vs_TKE` | the multiplicity per fission against TKE | `TKE M_gamma_bar M_gamma_bar_uncertainty` |
+| `Cf252_sf_E_gamma_tot_vs_TKE` | the total γ energy per fission against TKE | `TKE E_gamma_tot E_gamma_tot_uncertainty` |
+| `Cf252_sf_E_gamma_tot_vs_nu` | the total γ energy per fission against the number of neutrons the fission emitted | `nu E_gamma_tot E_gamma_tot_uncertainty` |
+
+A quantity per fission is written one value to a file. A dataset giving several, two detectors of
+one experiment in one table as Qi 2018 does, is refused with its values rather than combined into
+one no publication states, and a dataset tabulated over bins of γ energy, as Verbinski 1973 is, is
+refused as tabulated against them.
+
+**What defines a value.** The total γ energy per fission differs between experiments by up to
+about 1 MeV on its definition alone: the γ-energy range the photons were counted over, the time
+window after fission, and the corrections made for what lies outside either. Each dataset records
+them as read and is never cut on them. The range comes from the headings `E-MIN` and `E-MAX` of
+the entry, in its DATA table or a COMMON section, where they state one; a range, a window, a time
+resolution or a correction stated in the text of the entry, or in the publication it cites, is a
+curated statement, verbatim, looked for in the text at every retrieval and recorded with the place
+it stands. `gamma_definition_warning` names the datasets whose range or window nobody states, as
+the 1972 report of Pleasonton (14214) states neither for any of its four systems. A set the
+archive codes partial, `PR/PAR` over a stated range, is written beside the full-range sets and
+named in `gamma_range_warning`: Makii 2019 counts 2.29 photons per fission over 1 to 6 MeV, a third
+of the full multiplicity.
+
+**Which energy.** The archive codes the total energy per fission and the mean photon energy alike,
+`0-G-0,PR,KE`: 14214029 holds 0.85 MeV per photon and 143870062 9.0 MeV per fission under the same
+code, and `MSC` marks the total in one entry and the mean in another. The magnitude decides, the
+total lying between 3 and 15 MeV and the mean between 0.3 and 2.5 MeV, and the REACTION text is the
+basis where it names the same quantity ("Total gammas energy.", "Average gamma energy per gamma");
+a text naming the other refuses the dataset, and a reading on magnitude alone is named in
+`quantity_reading_warning`. Mehta 1973 (entry 23213), whose codes leave the branch blank, and the
+energy of one fragment of Krupa 2004 are read from their subentry text.
+
+**Values outside the tables.** Oberstedt 2013 (235-U), Gatera 2017 (239-Pu) and Makii 2019 state the
+total γ energy per fission with its uncertainty in the additional results of their entries and in
+no DATA table. These are written as datasets named after the subentry that states them, once the
+words are found in its text and both numbers stand in them; nothing is formed from the
+multiplicity and the mean energy. `stated_value_warning` names them.
+
+**What is refused.** K X-rays (Kapoor 1968 and 1969, Popeko 1975), discrete lines of individual
+products, delayed γ rays, the γ field of a source measured without fission coincidence, and the
+values of one fragment group in 14214, which are kept in the reason of their refusal with their
+values. Uncorrected values (`RAW`) are refused beside their corrected ones.
+
+**Thermal.** The archive lists datasets without an incident-energy window, so each record states
+the incident energy that put a dataset in the window and the heading it comes from. The rendering
+of entry 31729 gives the temperature of its cold beam, `KT-K` 100 K, as an incident energy of
+100 eV; it is read as kT = 8.6 meV and the reading recorded.
+
+| Configuration | Cf252_sf | U235_nth | Pu239_nth | U233_nth |
+| :--- | ---: | ---: | ---: | ---: |
+| `M_gamma_bar` | 14 | 11 | 5 | 1 |
+| `E_gamma_tot` | 12 | 5 | 5 | 1 |
+| `eps_gamma` | 9 | 10 | 5 | 1 |
+| `M_gamma_vs_A` | 1 | 1 | | |
+| `E_gamma_vs_A`, `E_gamma_tot_vs_A`, `M_gamma_bar_vs_TKE`, `E_gamma_tot_vs_TKE`, `E_gamma_tot_vs_nu` | 1 each | | | |
+
 ## Not covered
 
-Fragment and prompt-neutron observables only. Prompt-γ quantities — ⟨Eγ⟩(A), ⟨Nγ⟩(A) and the
-prompt fission γ-ray spectrum — are outside the observable set, as is the centre-of-mass spectrum
-Φ(ε), which the archive does not carry as a quantity of its own — with the consequence that a
-measurement in the centre of mass is compiled under the same reaction code as a laboratory-frame
-one. The subentry heads its energy column `E-CM`, and `23268009` (Göök, 2014), such a dataset, is
+The centre-of-mass spectrum Φ(ε) is not retrieved. The archive does not carry it as a quantity of
+its own, so a measurement in the centre of mass is compiled under the same reaction code as a
+laboratory-frame one. The subentry heads its energy column `E-CM`, and `23268009` (Göök, 2014), such a dataset, is
 rejected by `Cf252_sf_spectrum_vs_E` on that heading rather than retrieved alongside laboratory
 spectra. The refusal concerns spectra: the mean neutron energy is read from `DATA-CM` where its
 subentry heads it so.
 
-**Prompt-γ.** The archive codes prompt γ rays with the photon as product, `0-G-0`, and returns
-them under the quantities `FY` and `E` that the shipped configurations already query: the
-multiplicity per fission as `0-G-0,PR,FY`, the energies as `0-G-0,PR,KE`, the spectrum as
-`0-G-0,PR,FY/DE`, and multiplicities and energies against fragment mass for 252-Cf and 235-U and
-against TKE for 252-Cf. They are not retrieved yet, for a reason that is the archive's rather than a
-preference. `0-G-0,PR,KE` holds the mean photon energy in some entries and the total γ energy per
-fission in others, and the quantities are defined by a detection threshold and a time window that
-most entries state in free text or not at all.
+The prompt fission γ-ray spectrum (`0-G-0,PR,FY/DE`), the distribution of the γ multiplicity
+(`0-G-0,NUM,FY`) and the γ values of one fragment group, light or heavy, are not retrieved; the
+last are kept in the record of the dataset that gives them; see [Prompt γ rays](@ref).
 
 P(ν) of the fission is retrieved, as `multiplicity_distribution`; P(ν) per fragment and the
 variance of ν against mass or TKE are not.
