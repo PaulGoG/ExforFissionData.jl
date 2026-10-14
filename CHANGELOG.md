@@ -6,12 +6,14 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-14
+
 The prompt γ rays of 252-Cf(sf) and thermal 235-U, 239-Pu and 233-U: the multiplicity, the total
 energy and the mean photon energy per fission, and, where the archive holds them, the values of one
 fragment and those per fission against fragment mass, and those per fission against TKE and the
-number of neutrons. Each
-record states what defines a value — its γ-energy range, its time window and the corrections made —
-as the entry or its publication states it. Every table and stored subentry that 0.4.1 writes is
+number of neutrons, 91 datasets under 22 configurations. Each record states what defines a value —
+its γ-energy range, its time window and the corrections made — as the entry or its publication
+states it. Every table and stored subentry that 0.4.1 writes is
 written unchanged.
 
 ### Added
