@@ -122,8 +122,14 @@ its γ-energy range, its time window and the corrections made, is read from the 
 
 The checks easiest to get wrong:
 
-- the `y:Value` column marks **upper limits** with a `Max(` prefix; those rows are bounds, not
-  measurements;
+- the `y:Value` column marks **bounds** with a prefix — upper limits `Max(`, lower limits `Min(`,
+  two-sided bounds `Min2Max(` — and a limit is never written as a value: such rows leave the
+  table row by row, counted and listed with the bound in the record (`rows_left_out`), and a
+  dataset left with no value row is refused with the count of each kind. A value the archive
+  marks **approximate**, `Aprx(` (`DATA-APRX`), is written and listed per row
+  (`approximate_rows`). A bound on one isomeric state beside a value of the other leaves the
+  value written as a single state, and `isomer_states_left_out` and
+  `isomer_single_state_nuclides` name each other;
 - it also marks **arbitrary units** as `ARB-UNITS`, which carry no scale and cannot be combined
   with absolute data. The subentry's own unit decides where the two differ: `23268002` is counts
   in `ARB-UNITS` in its subentry and `PART/FIS` in the rendering;

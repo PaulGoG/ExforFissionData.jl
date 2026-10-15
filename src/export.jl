@@ -584,6 +584,26 @@ function write_metadata(
              `archive_defects` gives the line, the evidence and the reason: " *
             join(defective, ", ")
     end
+    counted(key) = [
+        "$(entry.dataset.identifier) ($(length(rows)) $(length(rows) == 1 ? "row" : "rows"))"
+        for entry in accepted for
+        rows in (get(entry.dataset.record, key, nothing),) if rows !== nothing
+    ]
+    left_out = counted("rows_left_out")
+    if !isempty(left_out)
+        record["datasets"]["rows_left_out_warning"] =
+            "rows of these datasets hold a bound (Max, Min, Min2Max), a kind marked uncertain \
+             or no value kind, and were left out of the written tables, since a limit is \
+             never written as a value; each dataset's `rows_left_out` lists them with the \
+             bound: " * join(left_out, ", ")
+    end
+    approximate = counted("approximate_rows")
+    if !isempty(approximate)
+        record["datasets"]["approximate_warning"] =
+            "rows of these datasets hold values the archive marks approximate (DATA-APRX); \
+             they are written, and each dataset's `approximate_rows` lists them: " *
+            join(approximate, ", ")
+    end
     reduced_form = [
         entry.dataset.identifier for
         entry in accepted if has_code(entry.dataset.reaction_code, SPECTRUM_FORM_TAG)

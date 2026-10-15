@@ -80,8 +80,11 @@ include("fixtures.jl")
         @test parse_value_kind("Data") == ("Data", "")
 
         @test is_measurement("Data(PART/FIS)")
-        # Upper limits are bounds, not measurements.
+        # An approximate value is a value; the bounds are not measurements.
+        @test is_measurement("Aprx(PART/FIS)")
         @test !is_measurement("Max(NO-DIM)")
+        @test !is_measurement("Min(NO-DIM)")
+        @test !is_measurement("Min2Max(NO-DIM)")
 
         @test has_absolute_scale("Data(PART/FIS)")
         @test has_absolute_scale("Data(NO-DIM)")
@@ -3079,6 +3082,7 @@ of = "$(of)"
     include("subentry_tests.jl")
     include("written_tables.jl")
     include("gamma_tests.jl")
+    include("limits_tests.jl")
 
     @testset "the mean neutron energy of a fragment" begin
         rule = tag_rule(["mass"], "neutron_kinetic_energy")

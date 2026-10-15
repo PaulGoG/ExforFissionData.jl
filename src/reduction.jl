@@ -696,7 +696,11 @@ function reduce_dataset(
             elseif outcome == :ambiguous
                 push!(ambiguous_nuclides, label(at))
             elseif outcome == :single && !ismissing(marks[1])
-                push!(single_state_nuclides, label(at))
+                # Named beside the bound on its other state where selection left one out.
+                written = label(at)
+                written in get(dataset.record, "isomer_states_left_out", String[]) &&
+                    (written *= " (the other state a bound, left out)")
+                push!(single_state_nuclides, written)
             end
             # The rows combined as repeats: the unmarked totals, or those of each state given
             # more than once.
@@ -857,7 +861,8 @@ function reduce_dataset(
 
     retained_energies = sort!(unique(collect(skipmissing(energies))))
     diagnostics = Dict{String, Any}(
-        "rows_retrieved" => nrow(table),
+        "rows_retrieved" =>
+            nrow(table) + length(get(dataset.record, "rows_left_out", String[])),
         "rows_written" => nrow(result),
         "isomer_totals_used" => outcomes[:total],
         "isomer_states_summed" => outcomes[:summed],
@@ -925,7 +930,7 @@ function reduce_dataset(
             get(YIELD_NORMALISATIONS, unit_written, "as the unit $(unit_written) states")
         # The sum of the written yields, in the written unit: 2 over both fragments and about 1
         # over one side for a mass yield in PART/FIS. Recorded, never a cut.
-        diagnostics["yield_sum"] = sum(final_values)
+        diagnostics["yield_sum"] = round(sum(final_values); sigdigits = 15)
     end
 
     return ReducedDataset(

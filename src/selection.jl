@@ -68,12 +68,17 @@ A dataset that passed every test the csv rendering can answer.
 # Fields
 - `identifier::String`, `year::Int`, `author::String`, `reaction_code::String`,
   `unit::String`: as on [`Dataset`](@ref).
-- `table::DataFrame`: the full parsed csv rendering, every row.
-- `keep::BitVector`: the rows inside the incident-energy window, all of them for spontaneous
-  fission.
+- `table::DataFrame`: the parsed csv rendering, less the rows that hold no value.
+- `keep::BitVector`: the rows of `table` inside the incident-energy window, all of them for
+  spontaneous fission.
+- `left_out::Vector{String}`: the rows that hold a bound (`Max`, `Min`, `Min2Max`), a kind
+  marked uncertain or no value kind, described with the bound; they are not in `table`.
+- `approximate::Vector{String}`: the rows of `table` the archive marks approximate (`Aprx`),
+  described.
+- `left_out_marked::Vector{Int}`: the `ProdZA` of the rows left out that carry an isomer mark.
 
-The subentry stage aligns `table` with the DATA table before applying `keep`, since both are in
-the archive's row order.
+The subentry stage aligns `table` with the lines of the DATA table that carry a value before
+applying `keep`, since both are in the archive's row order.
 """
 struct Screened
     identifier::String
@@ -83,6 +88,9 @@ struct Screened
     unit::String
     table::DataFrame
     keep::BitVector
+    left_out::Vector{String}
+    approximate::Vector{String}
+    left_out_marked::Vector{Int}
 end
 
 """
@@ -99,6 +107,126 @@ struct Rejection
     identifier::String
     reaction_code::String
     reason::String
+end
+
+"""The reason of a dataset whose csv rendering has no rows; see [`empty_rendering_reason`](@ref)."""
+const EMPTY_RENDERING = "dataset is empty"
+
+_whole(x) = isinteger(x) ? string(round(Int, x)) : string(x)
+
+# A row of the csv rendering located by what identifies it — the product with its isomer mark,
+# the secondary energy, the incident energy — whichever are present, after its row number.
+function _row_place(table::DataFrame, i::Integer)
+    parts = String[]
+    product = table[i, COL_PRODUCT_ZA]
+    if !ismissing(product)
+        mark = table[i, COL_PRODUCT_ISOMER]
+        push!(
+            parts,
+            "ProdZA $(_whole(product))" *
+            (ismissing(mark) ? "" : ", ProdM $(_whole(mark))"),
+        )
+    end
+    secondary = table[i, COL_SECONDARY_ENERGY]
+    ismissing(secondary) || push!(parts, "x3 $(secondary) eV")
+    incident = table[i, COL_INCIDENT_ENERGY]
+    ismissing(incident) || push!(parts, "incident $(incident) eV")
+    return isempty(parts) ? "row $(i)" : "row $(i) ($(join(parts, ", ")))"
+end
+
+# The value of a row of the csv rendering with its uncertainty, as the rendering gives them.
+function _row_value(table::DataFrame, i::Integer)
+    y = table[i, COL_Y]
+    dy = table[i, COL_DY]
+    ismissing(y) && return "no value"
+    return ismissing(dy) ? string(y) : "$(y) ± $(dy)"
+end
+
+"""
+    sort_rows(table) -> NamedTuple or String
+
+Sort the rows of a csv rendering by what their value kind says they hold. `kept` marks the rows
+that hold a value: `Data`, or `Aprx`, which the archive marks approximate (`DATA-APRX`) and which
+is written and described in `approximate`. `left_out` describes, with the bound, the rows that
+hold a bound (`Max`, `Min`, `Min2Max`; see [`LIMIT_KINDS`](@ref)), a kind marked uncertain or no
+kind at all: a limit is never written as a value, so these rows leave the table, counted and
+listed in the record. `left_out_marked` holds the `ProdZA` of the rows left out that carry an
+isomer mark, so that a bound on one state can be named beside the value of the other. A kind
+this package does not read is returned as the reason the dataset is refused.
+"""
+function sort_rows(table::DataFrame)
+    kept = falses(nrow(table))
+    approximate = String[]
+    left_out = String[]
+    left_out_marked = Int[]
+    for i in 1:nrow(table)
+        token = table[i, COL_VALUE_KIND]
+        if ismissing(token)
+            push!(left_out, "no value kind, $(_row_place(table, i))")
+            continue
+        end
+        token = String(token)
+        kind = first(parse_value_kind(token))
+        if occursin('?', token)
+            push!(left_out, "$(token), marked uncertain, $(_row_place(table, i))")
+        elseif kind in LIMIT_KINDS
+            push!(left_out, "$(token) $(_row_value(table, i)), $(_row_place(table, i))")
+        elseif kind == APPROXIMATE_KIND
+            kept[i] = true
+            push!(approximate, "$(token) $(_row_value(table, i)), $(_row_place(table, i))")
+        elseif kind in MEASUREMENT_KINDS
+            kept[i] = true
+        else
+            return "value kind \"$(token)\" is none this package reads \
+                    ($(join((MEASUREMENT_KINDS..., LIMIT_KINDS...), ", ")))"
+        end
+        if !kept[i] &&
+           !ismissing(table[i, COL_PRODUCT_ISOMER]) &&
+           !ismissing(table[i, COL_PRODUCT_ZA])
+            push!(left_out_marked, round(Int, table[i, COL_PRODUCT_ZA]))
+        end
+    end
+    return (; kept, approximate, left_out, left_out_marked)
+end
+
+# Whether the branch field SF5 of a reaction code is blank, as in `MASS,,KE`.
+function _blank_branch(code::AbstractString)
+    closing = findlast(')', code)
+    closing === nothing && return false
+    fields = split(code[nextind(code, closing):end], ',')
+    return length(fields) ≥ 2 && isempty(strip(fields[2]))
+end
+
+"""
+    empty_rendering_reason(identifier, text) -> String
+
+Why the csv rendering of `identifier` has no rows, read from its subentry text `text`: the
+subentry holds no data and says so under STATUS, `(NODATA)`, whose words are quoted; it holds no
+DATA table without saying so; or it holds a DATA table of so many lines, in which case the
+rendering is empty and the data is not, and a retrieval without the cache may fill it.
+"""
+function empty_rendering_reason(identifier::AbstractString, text::AbstractString)
+    statuses = filter(
+        !isempty,
+        [
+            bib_text(text, first(identifier, 8), "STATUS"),
+            bib_text(text, first(identifier, 5) * "001", "STATUS"),
+        ],
+    )
+    status = join(statuses, " ")
+    occursin("(NODATA)", status) &&
+        return "$(EMPTY_RENDERING): the subentry holds no data, STATUS (NODATA) \"$(status)\""
+    lines = try
+        line_count(parse_subentry(text, identifier).data)
+    catch exception
+        exception isa SubentryError || rethrow()
+        0
+    end
+    lines > 0 &&
+        return "$(EMPTY_RENDERING), although the subentry DATA table holds $(lines) \
+        $(lines == 1 ? "line" : "lines"): the rendering is empty, not the data; retrieve it \
+        again without the cache"
+    return "$(EMPTY_RENDERING): the subentry holds no DATA table"
 end
 
 # The first non-missing entry of a column, or `nothing` when every entry is missing.
@@ -149,7 +277,12 @@ The first stage of [`select_dataset`](@ref): every test the csv rendering of one
 answer, in the order below, the first failure being reported.
 
 1. the dataset is non-empty and carries a reaction code;
-2. the `y:Value` column marks measurements rather than limits, and is not in arbitrary units;
+2. the rows are sorted by their value kind ([`sort_rows`](@ref)): the bounds (`Max`, `Min`,
+   `Min2Max`), the kinds marked uncertain and the rows without a kind leave the table, listed
+   for the record, since a limit is never written as a value; the approximate values (`Aprx`)
+   stay, listed; the value rows share one unit, which is not arbitrary; a kind this package
+   does not read refuses the dataset. A dataset whose every row is a bound is refused after
+   step 3, so that a curated reason speaks first;
 3. the reaction code satisfies the composed tag rule of the abscissa and ordinate — or, for a
    dataset of [`CURATED_DATASETS`](@ref), the curated ordinate is the one asked for and the
    code satisfies the abscissa rule; see [`curation_rejection`](@ref). Under the ordinate
@@ -185,7 +318,7 @@ function screen_dataset(
     parameters::AbstractVector{ParameterColumn} = ParameterColumn[],
 )
     table = parse_dataset(identifier, body)
-    isempty(table) && return Rejection(identifier, "", "dataset is empty")
+    isempty(table) && return Rejection(identifier, "", EMPTY_RENDERING)
 
     code_entry = _first_present(table[!, COL_REACTION_CODE])
     code_entry === nothing &&
@@ -195,7 +328,28 @@ function screen_dataset(
     kind_entry = _first_present(table[!, COL_VALUE_KIND])
     kind_entry === nothing &&
         return Rejection(identifier, code, "dataset carries no value-kind column")
-    kind = String(kind_entry)
+
+    # Rows are sorted by what their value kind says they hold: a value, or a bound, which is
+    # never written as a value. The bounds leave the table below, listed for the record; whether
+    # a dataset left with no value is refused for that, or for what its curation says of it, is
+    # settled once the code has been read. The checks on the kind read the first value row.
+    sorting = sort_rows(table)
+    sorting isa String && return Rejection(identifier, code, sorting)
+    first_value = findfirst(sorting.kept)
+    kind =
+        first_value === nothing ? String(kind_entry) :
+        String(table[first_value, COL_VALUE_KIND])
+    units = unique([
+        last(parse_value_kind(String(token))) for
+        token in table[sorting.kept, COL_VALUE_KIND]
+    ])
+    length(units) > 1 && return Rejection(
+        identifier,
+        code,
+        "the value rows carry different units ($(join(units, ", "))), which one dataset \
+         cannot hold",
+    )
+    reference = something(first_value, 1)
 
     # K X-rays, discrete lines, delayed γ rays and fragment-group values are coded as prompt γ
     # rays; they are refused for what they are before anything else is asked of them.
@@ -203,23 +357,13 @@ function screen_dataset(
         refusal = gamma_refusal(
             identifier,
             code,
-            table[1, COL_Y],
-            table[1, COL_DY],
+            table[reference, COL_Y],
+            table[reference, COL_DY],
             last(parse_value_kind(kind)),
         )
         refusal === nothing || return Rejection(identifier, code, refusal)
     end
 
-    if occursin('?', kind)
-        return Rejection(identifier, code, "value kind \"$(kind)\" is marked uncertain")
-    end
-    if !is_measurement(kind)
-        return Rejection(
-            identifier,
-            code,
-            "value kind \"$(kind)\" is a limit, not a measurement",
-        )
-    end
     # Arbitrary units are fatal for most observables and normal for a spectrum, which is
     # conventionally measured relative and normalised afterwards. Where they are admitted the
     # data is written apart from absolute data rather than mixed with it.
@@ -264,7 +408,32 @@ function screen_dataset(
         end,
         Some(nothing),
     )
+    # A kinetic energy whose branch field is blank says neither PRE nor SEC: what the energy is
+    # of stays unstated, and the record says so rather than listing the alternatives.
+    if reason !== nothing &&
+       ordinate == "product_kinetic_energy" &&
+       startswith(reason, "none of the alternatives") &&
+       _blank_branch(code)
+        reason = "the branch field SF5 is blank: the code says neither that the kinetic \
+                  energy is of the pre-neutron fragment (PRE) nor of the post-neutron product \
+                  (SEC, IND), so what it is of stays unstated and nothing is written for it"
+    end
     reason === nothing || return Rejection(identifier, code, reason)
+    if first_value === nothing
+        tokens = Dict{String, Int}()
+        for token in table[!, COL_VALUE_KIND]
+            key = ismissing(token) ? "no value kind" : String(token)
+            tokens[key] = get(tokens, key, 0) + 1
+        end
+        summary = join(["$(n) $(k)" for (k, n) in sort!(collect(tokens); by = first)], ", ")
+        return Rejection(
+            identifier,
+            code,
+            "every row is a bound or carries no value ($(summary)), none a measurement; a \
+             limit is never written as a value",
+        )
+    end
+    table = table[sorting.kept, :]
     if query.ordinate == WIDTH_ORDINATE && width === nothing
         return Rejection(
             identifier,
@@ -344,7 +513,18 @@ function screen_dataset(
     year = year_entry === nothing ? 0 : round(Int, year_entry)
     author = author_entry === nothing ? "unknown" : replace(String(author_entry), "+" => "")
 
-    return Screened(String(identifier), year, author, code, unit, table, keep)
+    return Screened(
+        String(identifier),
+        year,
+        author,
+        code,
+        unit,
+        table,
+        keep,
+        sorting.left_out,
+        sorting.approximate,
+        sorting.left_out_marked,
+    )
 end
 
 # The first row on which the csv rendering and the DATA table disagree, described, or `nothing`
@@ -591,7 +771,13 @@ function select_dataset(
         "the subentry DATA table has no DATA column; its values are limits or derived \
          quantities the rendering does not present as measurements",
     )
-    data = restrict(subentry.data, BitVector(map(!ismissing, subentry.data.values[datum])))
+    present = BitVector(map(!ismissing, subentry.data.values[datum]))
+    # A value the archive marks approximate stands in a column of its own, DATA-APRX, the DATA
+    # field of its line blank; the rendering carries it as a row (Aprx), so the line is kept.
+    approximate = column(subentry.data, "DATA-APRX")
+    approximate === nothing ||
+        (present .|= BitVector(map(!ismissing, subentry.data.values[approximate])))
+    data = restrict(subentry.data, present)
     # A nuclide identification the subentry holds as a constant of its COMMON section, or of
     # the entry's — one element, its isotopes tabulated by mass; one isomeric state throughout —
     # is a column of the DATA table in all but layout, and is placed beside the lines before the
@@ -735,6 +921,18 @@ function select_dataset(
     # What selection reads of the dataset beyond its columns, for the run record.
     record = Dict{String, Any}()
     isempty(constants) || (record["common_constants"] = constants)
+    isempty(screened.left_out) || (record["rows_left_out"] = screened.left_out)
+    isempty(screened.approximate) || (record["approximate_rows"] = screened.approximate)
+    # A bound on one isomeric state beside a value of the other: the nuclides concerned, so that
+    # the single state written and the bound left out name each other.
+    if "charge" in query.abscissa && !isempty(screened.left_out_marked)
+        written = Set(round(Int, p) for p in skipmissing(table[!, COL_PRODUCT_ZA]))
+        states = unique([
+            nuclide_label(za ÷ ZA_CHARGE_FACTOR, za % ZA_CHARGE_FACTOR) for
+            za in screened.left_out_marked if za in written
+        ])
+        isempty(states) || (record["isomer_states_left_out"] = states)
+    end
     if source in CENTRE_OF_MASS_ORDINATES
         frame = ordinate_frame(identifier, data.headings)
         frame.frame == "laboratory" && return Rejection(

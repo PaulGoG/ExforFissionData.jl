@@ -61,6 +61,8 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     # The csv response each screened dataset was read from, for the retrieval date in the record.
     screened_responses = Response[]
     rejected = Rejection[]
+    # The positions in `rejected` of the datasets whose rendering is empty, explained below.
+    empties = Int[]
     parsed = 0
     layout_failures = String[]
     for (identifier, response) in zip(identifiers, responses)
@@ -94,6 +96,7 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         end
         if outcome isa Rejection
             push!(rejected, outcome)
+            outcome.reason == EMPTY_RENDERING && push!(empties, length(rejected))
         else
             push!(screened, outcome)
             push!(screened_responses, response)
@@ -107,6 +110,24 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
                  $(first(layout_failures))",
             ),
         )
+    end
+    # An empty rendering is explained from its subentry: the subentry holds no data and says so
+    # (NODATA), or it holds a DATA table and the rendering alone is empty.
+    if !isempty(empties)
+        explanations = map_bounded([rejected[i].identifier for i in empties], options) do id
+            try
+                empty_rendering_reason(id, subentry_text(id, options).body)
+            catch exception
+                exception isa Union{HTTP.HTTPError, Base.IOError, ArgumentError} ||
+                    rethrow()
+                "$(EMPTY_RENDERING); the subentry could not be retrieved to say why: " *
+                sprint(showerror, exception)
+            end
+        end
+        for (i, reason) in zip(empties, explanations)
+            rejected[i] =
+                Rejection(rejected[i].identifier, rejected[i].reaction_code, reason)
+        end
     end
 
     # Stage two: the subentry settles what each screened dataset is tabulated against.

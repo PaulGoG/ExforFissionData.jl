@@ -193,9 +193,21 @@ end
 Datum kinds appearing in the `y:Value` column, mapped to whether the row is a measurement.
 
 EXFOR marks upper and lower limits with a prefix on this column. Such rows carry a bound rather
-than a measured value; treating them as data reports a limit as though it were a result.
+than a measured value; treating them as data reports a limit as though it were a result. A
+value the archive marks approximate, `Aprx` (the heading `DATA-APRX`), is a value, written and
+listed row by row.
 """
-const MEASUREMENT_KINDS = ("Data",)
+const MEASUREMENT_KINDS = ("Data", "Aprx")
+
+"""The kind of `y:Value` the archive marks approximate, `DATA-APRX`: written, and listed per row."""
+const APPROXIMATE_KIND = "Aprx"
+
+"""
+Kinds of `y:Value` that are bounds and are never written as values: an upper limit `Max`
+(`DATA-MAX`), a lower limit `Min` (`DATA-MIN`) and a two-sided bound `Min2Max` (both on one
+line). Rows of these kinds leave the table, counted and listed in the record.
+"""
+const LIMIT_KINDS = ("Max", "Min", "Min2Max")
 
 """
 Unit tokens of the `y:Value` column that carry no absolute scale.

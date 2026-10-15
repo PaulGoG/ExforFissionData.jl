@@ -626,6 +626,7 @@ Datasets whose ordinate is read from the subentry text, keyed by dataset identif
 | `22413013` | `94-PU-240(0,F)MASS,PRE,FY/DE,,RAW` | Y(A, TKE), in raw counts |
 | `40420062` | `98-CF-252(0,F)MASS,PRE,FY/DE,LF+HF,RAW` | none: a joint histogram against provisional masses |
 | `41425015`, `41425016` | `98-CF-252(0,F)MASS,PRE,FY` | none: a yield 3 u off the inclusive one, from Fig. 11a (NUt=0) |
+| `23175011` | `98-CF-252(0,F)MASS,,KE,LF+HF,MSC` | none: the TKE at which neutron emission stops, against mass (DATA-MAX, Fig. 15) |
 
 The criterion for a blank branch field is kinematic. A double-velocity measurement yields
 pre-neutron masses and energies directly, since isotropic neutron emission leaves the mean
@@ -642,6 +643,15 @@ abscissa and ordinate alone. A dataset listed without an ordinate is rejected un
 """
 const CURATED_DATASETS = merge(
     Dict{String, Curation}(
+        "23175011" => Curation(
+            nothing,
+            "curated: coded MASS,,KE,LF+HF,MSC with DATA-MAX as its only datum column, 'Total \
+             kinetic energies, where the neutron emission stops, versus heavy and light \
+             fission-fragment masses', Fig. 15 of Budtz-Jørgensen and Knitter 1988 \
+             (doi:10.1016/0375-9474(88)90508-8): the TKE at which neutron emission ceases, \
+             against fragment mass, a bound of the TKE distribution and not its mean, and no \
+             observable of this package",
+        ),
         "14101003" => Curation(
             "total_kinetic_energy",
             "curated: a double-velocity measurement, the times of flight of both fragments \

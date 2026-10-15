@@ -243,7 +243,20 @@ function exfor_subentry_for(
     elseif length(incident) == 1
         common = (headings = ["EN"], units = ["EV"], values = [only(incident)])
     end
-    add!("DATA", unit, y)
+    # The datum of each row stands under the heading its value kind names: DATA for a value,
+    # DATA-APRX for an approximate one, DATA-MAX and DATA-MIN for the bounds (both for Min2Max),
+    # the other headings blank on that line, as the archive lays them out.
+    kinds = [first(split(row[4], '(')) for row in rows]
+    columns_of(kind) =
+        kind == "Aprx" ? ("DATA-APRX",) :
+        kind == "Max" ? ("DATA-MAX",) :
+        kind == "Min" ? ("DATA-MIN",) :
+        kind == "Min2Max" ? ("DATA-MIN", "DATA-MAX") : ("DATA",)
+    for heading in ("DATA", "DATA-APRX", "DATA-MIN", "DATA-MAX")
+        holds = [heading in columns_of(kind) for kind in kinds]
+        (heading == "DATA" || any(holds)) &&
+            add!(heading, unit, [holds[i] ? y[i] : missing for i in eachindex(rows)])
+    end
     any(!ismissing, dy) && add!("DATA-ERR", unit, dy)
     if extra !== nothing
         for (j, heading) in enumerate(extra.headings)

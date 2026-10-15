@@ -399,8 +399,8 @@ light group), `13270003` (Lisman 1970, 31) and `22985006` (Bail 2009, 30, heavy 
 group) and `13208002` to `13208004` (Bidinosti 1961). The rest are tables of one to 28 masses,
 most of a dozen or fewer. Many chain yields carry `SPA` or `MXW`, recorded as for every
 observable. Two chain yields stay out: `13067002` (Fraser 1963, 252-Cf, 89 masses), which the
-archive renders with every value marked an upper limit (`Max`) and which is refused as a limit,
-not a measurement; and `22130003` (Asghar 1981, 233-U), in arbitrary units.
+archive renders with every value marked an upper limit (`Max`) and which is refused, every row a
+bound and none a value; and `22130003` (Asghar 1981, 233-U), in arbitrary units.
 
 ### The independent yield
 
