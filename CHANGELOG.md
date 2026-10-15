@@ -6,6 +6,34 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-15
+
+The record of the prompt-γ conventions made self-contained, and the curation of Mehta 1973 made
+explicit about its source. Every table and stored subentry that 0.5.1 writes is written unchanged,
+1238 of 1238 files byte for byte; 8 of the 86 records change in the texts listed below.
+
+### Changed
+
+- The prompt-γ page of the documentation states, as conventions of this package, the five
+  decisions the records and the source had cited by date: `M_gamma_bar_vs_A` and `eps_gamma_vs_A`
+  hold quantities per fission and `M_gamma_vs_A` and `E_gamma_vs_A` those of one fragment, never
+  mixed; Skarsvåg 1970 (`23174004`) is admitted by name although the archive lists it under `MLT`
+  alone; the totals of Smith 1956 and Sokol 1991 and the mean photon energy of Krupa 2004 are kept
+  in rejection reasons, with their words and place, and never written as datasets; the ∼5 ns window
+  of Pleasonton applies to the 235-U sets from the abstract of 1972 and to the 233-U and 239-Pu
+  sets of 14214 from the abstract of 1973, the 252-Cf sets of that report staying unstated; the
+  row at A = 82 of `14197005`, −0.36 ± 1.36, is written as the archive gives it, `row_notes` saying
+  it is compatible with zero. The docstrings cite that paragraph instead of a date, and the texts
+  that enter the records state the decision alone: the `curation` of `23174004`, the `row_notes`
+  of `14197005` and the reasons of the values kept outside the tables.
+- The curation of entry 23213 says that it is the 252-Cf α-emission experiment of Mehta, Poitou,
+  Ribrag and Signarbieux 1973, "Detailed study of alpha emission in Cf-252 fission"
+  (doi:10.1103/PhysRevC.7.373), and that its total γ energy per fission against TKE (`23213018`,
+  Fig. 5), against the number of neutrons (`232130301`, Fig. 13) and against the light-fragment
+  mass (`23213010`, Fig. 1), and the single total of `232130061`, are the binary-fission
+  by-product of that comparison; the observables page says the same. With the texts above, 5
+  `curation`, 1 `row_notes` and 23 rejection `reason` entries change, in 8 records.
+
 ## [0.5.1] - 2026-10-15
 
 Prompt-γ definitions read from four publications, two range-limited sets flagged, and the incident
