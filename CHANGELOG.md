@@ -6,6 +6,55 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-15
+
+Limits handled row by row, approximate values written, and empty renderings explained from their
+subentries. Every table and stored subentry that 0.5.2 writes is written unchanged, 1238 of 1238
+files byte for byte; eight datasets enter, in eight new tables; the records change in the texts
+listed below.
+
+### Added
+
+- Rows are sorted by their value kind, and a limit is never written as a value. Rows that hold a
+  bound (`Max`, `Min`, `Min2Max`), a kind marked uncertain or no kind leave the table, counted and
+  listed with the bound in the dataset's `rows_left_out` and in `[datasets]
+  rows_left_out_warning`; the dataset is written from its value rows, which must share one unit,
+  and `rows_retrieved` counts the rows left out. A dataset left with no value row is refused with
+  the count of each kind, after its code and curation have been read, so that a curated reason
+  speaks first. Seven datasets that 0.5.2 refused on the kind of their first row enter:
+  `237630022` (Dubey 2020), `21532003` (Aumann 1977), `130400032` (McHugh 1966) and `13368003`
+  (Wahl 1952) in `U235_nth/Y_vs_Z_A_p`; `237630052` (Dubey 2020) in `Pu239_nth/Y_vs_Z_A_p`;
+  `21532002` (Aumann 1977) in `U233_nth/Y_vs_Z_A_p`; `13353002` (von Gunten 1969) in
+  `Cf252_sf/Y_vs_Z_A_p`.
+- Values the archive marks approximate (`Aprx`, `DATA-APRX`) are values: written, and listed row
+  by row in `approximate_rows` and in `[datasets] approximate_warning`. `13244004` (Erdal 1969),
+  eleven chain yields of 235-U of which five are approximate, enters `U235_nth/Y_vs_A_p`.
+- A bound on one isomeric state beside a value of the other leaves the value written as a single
+  state; `isomer_states_left_out` names the nuclide, and its entry in
+  `isomer_single_state_nuclides` names the bound in turn.
+- An empty rendering is explained from its subentry, fetched like the others: the subentry holds
+  no DATA table (the `NODATA` record of the EXFOR format), its STATUS quoted where it says why, as
+  for `30959002` ("Data are identical to those in BARC-584 ... (SPSDD,30504004)"); or it holds a
+  DATA table of so many lines, in which case the rendering and not the data is empty and a
+  retrieval without the cache may fill it, five datasets at this release. The 273 rejections
+  that read "dataset is empty" now say which.
+- `23175011` (Budtz-Jørgensen and Knitter 1988, doi:10.1016/0375-9474(88)90508-8) is curated out
+  by name as the TKE at which neutron emission ceases against fragment mass (`DATA-MAX`, its
+  Fig. 15), a bound of the TKE distribution and no observable of this package, where 0.5.2
+  refused it as a dataset of limits.
+
+### Changed
+
+- A kinetic energy whose branch field SF5 is blank, `22985002` (Bail 2009, `MASS,,KE,,MXW`), is
+  refused under the post-neutron kinetic energy for that: the code says neither PRE nor SEC, so
+  what the energy is of stays unstated and nothing is written for it, in place of the list of
+  alternatives.
+- `yield_sum` is written to fifteen significant digits; 99 values lose a binary tail, none
+  changing beyond five parts in 10^15.
+- Rejection reasons change for the empty renderings, the datasets refused as limits and the two
+  datasets above; `[datasets] accepted` and `rejected` change in the five records that gain a
+  dataset.
+
 ## [0.5.2] - 2026-10-15
 
 The record of the prompt-γ conventions made self-contained, and the curation of Mehta 1973 made
