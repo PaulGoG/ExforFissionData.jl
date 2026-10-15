@@ -521,6 +521,23 @@ one experiment in one table as Qi 2018 does, is refused with its values rather t
 one no publication states, and a dataset tabulated over bins of γ energy, as Verbinski 1973 is, is
 refused as tabulated against them.
 
+**Conventions.** Five decisions of this package that no code of the archive implies, stated here
+so that the records and the source, which refer to them, rest on nothing outside the package.
+(1) `M_gamma_bar_vs_A` and `eps_gamma_vs_A` are retrieved and hold quantities per fission, the
+photons of both fragments of the fissions in which one fragment has the mass A; `M_gamma_vs_A` and
+`E_gamma_vs_A` hold the quantities of that fragment alone; a dataset enters one of the two by what
+its entry states, never both. (2) Skarsvåg 1970 (`23174004`), the multiplicity per fission above
+100 keV, is admitted by name for `M_gamma_bar` although the archive lists it under the quantity
+`MLT` alone, which no configuration queries; nothing else comes in from `MLT`. (3) The totals of
+Smith 1956 (`14320004`) and Sokol 1991 (`415800031`) and the mean photon energy of Krupa 2004
+(`23814004`), stated in auxiliary columns with no uncertainty beside them, are never written as
+datasets; they are kept, with their words and their place, in a reason among the rejections of the
+observable they would answer. (4) The ∼5 ns window of Pleasonton applies to the 235-U sets of
+14214 and 14197 on the strength of the abstract of 1972 and to the 233-U and 239-Pu sets of 14214
+on the strength of the abstract of 1973; the 252-Cf sets of that report stay unstated. (5) The
+multiplicity of one fragment at A = 82 in `14197005`, −0.36 ± 1.36, is written as the archive gives
+it, below zero and compatible with it, and `row_notes` says so; dropping it would bias the row.
+
 **What defines a value.** The total γ energy per fission differs between experiments by up to
 about 1 MeV on its definition alone: the γ-energy range the photons were counted over, the time
 window after fission, and the corrections made for what lies outside either. Each dataset records
@@ -548,7 +565,12 @@ total lying between 3 and 15 MeV and the mean between 0.3 and 2.5 MeV, and the R
 basis where it names the same quantity ("Total gammas energy.", "Average gamma energy per gamma");
 a text naming the other refuses the dataset, and a reading on magnitude alone is named in
 `quantity_reading_warning`. Mehta 1973 (entry 23213), whose codes leave the branch blank, and the
-energy of one fragment of Krupa 2004 are read from their subentry text.
+energy of one fragment of Krupa 2004 are read from their subentry text. Entry 23213 is the 252-Cf
+α-emission experiment of Mehta, Poitou, Ribrag and Signarbieux, "Detailed study of alpha emission
+in Cf-252 fission" (doi:10.1103/PhysRevC.7.373), which compares binary with α-accompanied fission;
+its total γ energy per fission, against TKE (`23213018`) and against the number of neutrons
+(`232130301`), is the binary-fission by-product of that comparison, digitised from its Figs. 5 and
+13.
 
 **Values outside the tables.** Oberstedt 2013 (235-U), Gatera 2017 (239-Pu) and Makii 2019 state the
 total γ energy per fission with its uncertainty in the additional results of their entries and in

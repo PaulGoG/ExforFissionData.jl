@@ -539,14 +539,16 @@ const GAMMA_CURATIONS = Dict{String, Curation}(
          energies greater 100 keV, per one fission.': the prompt γ multiplicity per fission \
          above 100 keV (Skarsvag 1970, Nucl. Phys. A 153, 82, \
          doi:10.1016/0375-9474(70)90757-8, p. 93). Admitted by name under MLT for the \
-         multiplicity per fission alone (ruling of 2026-10-14)",
+         multiplicity per fission alone",
     ),
     "232130061" => Curation(
         String[],
         "gamma_energy_per_fission",
         "curated: coded 0-G-0,,KE with the branch blank, 'Binary fission.'; the value, 7 MeV, \
          is the total prompt γ energy per fission that the 4π scintillator tank measured, a \
-         mean photon energy being near 1 MeV (Mehta 1973, doi:10.1103/PhysRevC.7.373)",
+         mean photon energy being near 1 MeV. The entry is the 252-Cf α-emission experiment of \
+         Mehta et al. 1973, 'Detailed study of alpha emission in Cf-252 fission' \
+         (doi:10.1103/PhysRevC.7.373); this value is its binary-fission by-product",
     ),
     "23213010" => Curation(
         ["mass"],
@@ -555,7 +557,9 @@ const GAMMA_CURATIONS = Dict{String, Curation}(
          function of light fragment mass for binary fission.'; 6.4 to 8.8 MeV, the total prompt \
          γ energy per fission against the mass of the light fragment. The entry does not say \
          whether the masses are pre- or post-neutron, as for its nu(A) 23213012 and 23213014; \
-         digitized from Fig. 1, the masses rounded to integers",
+         digitized from Fig. 1 of Mehta et al. 1973, 'Detailed study of alpha emission in Cf-252 \
+         fission' (doi:10.1103/PhysRevC.7.373), the 252-Cf α-emission experiment whose \
+         binary-fission by-product this is, the masses rounded to integers",
     ),
     "23213018" => Curation(
         ["total_kinetic_energy"],
@@ -563,7 +567,10 @@ const GAMMA_CURATIONS = Dict{String, Curation}(
         "curated: coded 0-G-0,,KE,,MSC, 'Average prompt-gamma energy as function of total \
          kinetic energy E of both fragments in binary fission.'; 4.1 to 8.7 MeV, the total \
          prompt γ energy per fission against E, '(E,FF) Energy of both fragments.', 153 to 225 \
-         MeV, which the entry does not say is pre- or post-neutron; digitized from Fig. 5",
+         MeV, which the entry does not say is pre- or post-neutron. The entry is the 252-Cf \
+         α-emission experiment of Mehta et al. 1973, 'Detailed study of alpha emission in Cf-252 \
+         fission' (doi:10.1103/PhysRevC.7.373); the γ energy against TKE is its binary-fission \
+         by-product, digitized from the top panel of its Fig. 5",
     ),
     "232130301" => Curation(
         ["neutron_number"],
@@ -572,7 +579,10 @@ const GAMMA_CURATIONS = Dict{String, Curation}(
          total neutron emission (MISC) in binary and ternary LRA fission.', pointer 1 the \
          binary fission; 4.7 to 7.8 MeV, the total prompt γ energy per fission against the \
          number of neutrons the fission emitted, 1 to 5, which the MISC column holds ('Average \
-         total neutron emission - neutron multiplicity.'); digitized from Fig. 13",
+         total neutron emission - neutron multiplicity.'). The entry is the 252-Cf α-emission \
+         experiment of Mehta et al. 1973, 'Detailed study of alpha emission in Cf-252 fission' \
+         (doi:10.1103/PhysRevC.7.373); the γ energy against the number of neutrons is its \
+         binary-fission by-product, digitized from its Fig. 13",
     ),
     "23814006" => Curation(
         ["mass"],
@@ -599,7 +609,7 @@ const ROW_NOTES = Dict{String, Vector{String}}(
     "14197005" => [
         "A = 82: -0.36 +- 1.36 photons per fragment, below zero but consistent with it within \
          its uncertainty; written as the archive gives it, since dropping it would bias the \
-         row, and not curated (ruling of 2026-10-14)",
+         row, and not curated",
     ],
 )
 

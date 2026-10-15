@@ -528,7 +528,7 @@ end
 """
 Prompt-γ datasets refused whatever they are asked as, keyed by entry, subentry or dataset
 identifier, with the reason: K X-rays and discrete lines coded as γ rays, delayed γ rays, the γ
-field of a source without fission coincidence, and sets the survey of 2026-10-14 found to be no
+field of a source without fission coincidence, and sets the survey of the archive found to be no
 measurement of the prompt γ rays of thermal or spontaneous fission. The archive codes all of
 them `0-G-0` or `G`.
 """
@@ -567,7 +567,8 @@ const GAMMA_REFUSALS = Dict{String, String}(
 """
 Datasets of 14214 (Pleasonton, ORNL-4844, Table 1) that give the multiplicity or the energy of
 the prompt γ rays of one fragment group, light or heavy: kept in the record of the dataset
-refused, with the value, and not written as tables (ruling of 2026-10-14).
+refused, with the value, and not written as tables, as [Prompt γ rays](@ref) states among the
+refusals.
 """
 const GAMMA_FRAGMENT_GROUPS = Dict{String, String}(
     "14214010" => "light",
@@ -819,8 +820,9 @@ incident_energy_reading(identifier::AbstractString) =
     StatedValue
 
 A prompt-γ value its entry states with its uncertainty outside any DATA table — in the
-additional results (ADD-RES) of a subentry — read as a dataset of its own (ruling of
-2026-10-14). The words are looked for in the subentry text at every retrieval, and both numbers
+additional results (ADD-RES) of a subentry — read as a dataset of its own, the counterpart of
+convention 3 of [Prompt γ rays](@ref), which admits no value stated without its uncertainty. The
+words are looked for in the subentry text at every retrieval, and both numbers
 must stand in them; nothing is formed from other quantities.
 
 # Fields
@@ -889,7 +891,7 @@ _gatera(source, value, uncertainty, detector) = StatedValue(
 )
 
 """
-Values of [`StatedValue`](@ref) the survey of 2026-10-14 found: the total prompt γ energy per
+Values of [`StatedValue`](@ref) the survey of the archive found: the total prompt γ energy per
 fission of Oberstedt 2013 (235-U), Gatera 2017 (239-Pu, three detectors and their summed
 spectrum) and Makii 2019 (235-U, over 1 to 6 MeV), which their entries state in ADD-RES and in no
 DATA table.
@@ -965,7 +967,8 @@ stated_values(query) = [
 """
 Datasets listed under another quantity than their ordinate's, admitted by name, keyed by ordinate
 and abscissa: Skarsvag 1970 (23174004), the prompt γ multiplicity per fission above 100 keV, which
-the archive lists under `MLT` alone (ruling of 2026-10-14). Nothing else under that quantity
+the archive lists under `MLT` alone, convention 2 of [Prompt γ rays](@ref). Nothing else under
+that quantity
 comes in this way.
 """
 const NAMED_LISTINGS = Dict{Tuple{String, Vector{String}}, Tuple{String, Vector{String}}}(
@@ -983,7 +986,8 @@ named_listing(query) = get(NAMED_LISTINGS, (query.ordinate, query.abscissa), not
     UnadmittedValue
 
 A value an entry states in an auxiliary column of a DATA table, with no uncertainty column beside
-it, which the ruling of 2026-10-14 does not admit as a dataset: kept, with its words and its
+it, which convention 3 of [Prompt γ rays](@ref) does not admit as a dataset: kept, with its words
+and its
 place, among the reasons of the rejections of the observable it would answer.
 
 # Fields
@@ -1084,5 +1088,6 @@ function unadmitted_note(value::UnadmittedValue, text::AbstractString)
         subentry; the reading must be reviewed"
     return "$(value.identifier) states $(value.value) $(value.unit) in its column \
             $(value.heading), \"$(value.definition)\" ($(place)), with no uncertainty column \
-            beside it: no dataset under the ruling on values outside the DATA column, kept here"
+            beside it: no dataset, by the convention on values stated without their uncertainty \
+            outside the DATA column, kept here"
 end
