@@ -164,47 +164,45 @@
 end
 
 @testset "the reason of an empty rendering" begin
-    # The subentry says it holds no data.
-    nodata = exfor_subentry(;
-        entry = "30959",
-        subentry = "30959002",
-        bib = [
-            "REACTION   (94-PU-239(N,F)MASS,CHN,FY,,MXW)",
-            "STATUS     (NODATA) Data are identical to those in BARC-584.",
-        ],
-        headings = ["MASS", "DATA"],
-        units = ["NO-DIM", "PC/FIS"],
-        rows = [[100.0, 6.0]],
-    )
-    reason = ExforFissionData.empty_rendering_reason("30959002", nodata)
-    @test startswith(
-        reason,
-        "dataset is empty: the subentry holds no data, STATUS (NODATA)",
-    )
-    @test occursin("BARC-584", reason)
-    # The subentry holds a DATA table, so the rendering alone is empty.
+    # The subentry holds no DATA table, the NODATA record says so, and its STATUS says why.
     filled = exfor_subentry(;
         entry = "30959",
         subentry = "30959002",
         bib = [
             "REACTION   (94-PU-239(N,F)MASS,CHN,FY,,MXW)",
-            "STATUS     (TABLE) Table 2.",
+            "STATUS     Added by ML: Data are identical to those in BARC-584",
+            "           (1971). (SPSDD,30504004)",
         ],
         headings = ["MASS", "DATA"],
         units = ["NO-DIM", "PC/FIS"],
         rows = [[100.0, 6.0], [101.0, 7.0]],
     )
+    nodata = replace(
+        filled,
+        r"^DATA .*?^ENDDATA[^\n]*\n"ms => "NODATA               0          0\n",
+    )
+    reason = ExforFissionData.empty_rendering_reason("30959002", nodata)
+    @test startswith(reason, "dataset is empty: the subentry holds no DATA table (NODATA)")
+    @test occursin("BARC-584 (1971). (SPSDD,30504004)", reason)
+    # Without a STATUS the record alone is named.
+    silent = replace(
+        exfor_subentry(;
+            entry = "30959",
+            subentry = "30959002",
+            bib = ["REACTION   (94-PU-239(N,F)MASS,CHN,FY,,MXW)"],
+            headings = ["MASS", "DATA"],
+            units = ["NO-DIM", "PC/FIS"],
+            rows = [[100.0, 6.0]],
+        ),
+        r"^DATA .*?^ENDDATA[^\n]*\n"ms => "NODATA               0          0\n",
+    )
+    @test ExforFissionData.empty_rendering_reason("30959002", silent) ==
+          "dataset is empty: the subentry holds no DATA table (NODATA)"
+    # The subentry holds a DATA table, so the rendering alone is empty.
     @test occursin(
         "although the subentry DATA table holds 2 lines",
         ExforFissionData.empty_rendering_reason("30959002", filled),
     )
-    # The subentry holds no DATA table and does not say so.
-    bare = replace(
-        filled,
-        r"^DATA .*?^ENDDATA[^\n]*\n"ms => "NODATA               0          0\n",
-    )
-    @test ExforFissionData.empty_rendering_reason("30959002", bare) ==
-          "dataset is empty: the subentry holds no DATA table"
 end
 
 @testset "a kinetic energy with a blank branch" begin

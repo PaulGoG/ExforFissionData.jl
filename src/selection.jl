@@ -201,21 +201,22 @@ end
     empty_rendering_reason(identifier, text) -> String
 
 Why the csv rendering of `identifier` has no rows, read from its subentry text `text`: the
-subentry holds no data and says so under STATUS, `(NODATA)`, whose words are quoted; it holds no
-DATA table without saying so; or it holds a DATA table of so many lines, in which case the
-rendering is empty and the data is not, and a retrieval without the cache may fill it.
+subentry holds no DATA table and says so with the `NODATA` record of the EXFOR format, its
+STATUS, which says why (superseded, identical to another entry), quoted; or it holds a DATA table
+of so many lines, in which case the rendering is empty and the data is not, and a retrieval
+without the cache may fill it.
 """
 function empty_rendering_reason(identifier::AbstractString, text::AbstractString)
-    statuses = filter(
-        !isempty,
-        [
-            bib_text(text, first(identifier, 8), "STATUS"),
-            bib_text(text, first(identifier, 5) * "001", "STATUS"),
-        ],
-    )
-    status = join(statuses, " ")
-    occursin("(NODATA)", status) &&
-        return "$(EMPTY_RENDERING): the subentry holds no data, STATUS (NODATA) \"$(status)\""
+    subentry = first(identifier, 8)
+    block = match(Regex("^SUBENT\\s+$(subentry)\\b.*?^ENDSUBENT", "ms"), text)
+    nodata = block !== nothing && occursin(r"^NODATA\b"m, block.match)
+    if nodata
+        status = bib_text(text, subentry, "STATUS")
+        return isempty(status) ?
+               "$(EMPTY_RENDERING): the subentry holds no DATA table (NODATA)" :
+               "$(EMPTY_RENDERING): the subentry holds no DATA table (NODATA); its STATUS \
+                reads \"$(status)\""
+    end
     lines = try
         line_count(parse_subentry(text, identifier).data)
     catch exception
