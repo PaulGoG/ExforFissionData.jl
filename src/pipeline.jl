@@ -344,7 +344,7 @@ function stated_dataset(value::StatedValue, text::AbstractString, query)
          $(value.uncertainty); the reading must be reviewed",
     )
     if !query.spontaneous
-        energy = value.incident_energy_ev * EV_TO_MEV
+        energy = energy_mev_from_ev(value.incident_energy_ev)
         query.energy_min ≤ energy ≤ query.energy_max || return Rejection(
             identifier,
             "",

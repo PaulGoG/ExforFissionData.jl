@@ -313,9 +313,9 @@ function screen_dataset(
             else
                 string(
                     "incident energies ",
-                    minimum(present) * EV_TO_MEV,
+                    energy_mev_from_ev(minimum(present)),
                     " to ",
-                    maximum(present) * EV_TO_MEV,
+                    energy_mev_from_ev(maximum(present)),
                     " MeV",
                 )
             end
@@ -330,8 +330,9 @@ function screen_dataset(
             return Rejection(
                 identifier,
                 code,
-                "$(length(retained)) incident energies, $(retained[begin] * EV_TO_MEV) to \
-                 $(retained[end] * EV_TO_MEV) MeV, lie inside the window; rows at different \
+                "$(length(retained)) incident energies, $(energy_mev_from_ev(retained[begin])) \
+                 to $(energy_mev_from_ev(retained[end])) MeV, lie inside the window; rows at \
+                 different \
                  energies are different measurements and are not combined — narrow the \
                  window to one of them",
             )
@@ -960,7 +961,7 @@ function select_dataset(
         if !query.spontaneous
             energies = sort!(unique(Float64.(skipmissing(table[!, COL_INCIDENT_ENERGY]))))
             record["incident_energy_basis"] =
-                incident_energy_basis(subentry, data, energies .* EV_TO_MEV)
+                incident_energy_basis(subentry, data, energy_mev_from_ev.(energies))
             misstated = incident_energy_reading(identifier)
             misstated === nothing || (record["incident_energy_reading"] = last(misstated))
         end

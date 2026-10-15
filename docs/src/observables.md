@@ -508,6 +508,14 @@ refused for every other ordinate.
 | `Cf252_sf_E_gamma_tot_vs_TKE` | the total γ energy per fission against TKE | `TKE E_gamma_tot E_gamma_tot_uncertainty` |
 | `Cf252_sf_E_gamma_tot_vs_nu` | the total γ energy per fission against the number of neutrons the fission emitted | `nu E_gamma_tot E_gamma_tot_uncertainty` |
 
+Against a mass, two quantities are retrieved. `M_gamma_bar_vs_A` and `E_gamma_tot_vs_A` hold a
+quantity per fission, M̄_γ(A) and E_γ,tot(A): the photons of both fragments of the fissions in
+which one fragment has the mass A, as Hotzel 1996, Singer 1997 and Mehta 1973 tabulate them.
+`M_gamma_vs_A` and `E_gamma_vs_A` hold the quantity of one fragment, M_γ(A) and E_γ(A): the
+photons of the fragment of mass A alone, as Pleasonton 1972 and Krupa 2004 give them. The
+per-fission value of a pair is the sum of the per-fragment values of its two fragments, so the two
+tables do not compare row for row.
+
 A quantity per fission is written one value to a file. A dataset giving several, two detectors of
 one experiment in one table as Qi 2018 does, is refused with its values rather than combined into
 one no publication states, and a dataset tabulated over bins of γ energy, as Verbinski 1973 is, is
@@ -521,10 +529,17 @@ the entry, in its DATA table or a COMMON section, where they state one; a range,
 resolution or a correction stated in the text of the entry, or in the publication it cites, is a
 curated statement, verbatim, looked for in the text at every retrieval and recorded with the place
 it stands. `gamma_definition_warning` names the datasets whose range or window nobody states, as
-the 1972 report of Pleasonton (14214) states neither for any of its four systems. A set the
-archive codes partial, `PR/PAR` over a stated range, is written beside the full-range sets and
-named in `gamma_range_warning`: Makii 2019 counts 2.29 photons per fission over 1 to 6 MeV, a third
-of the full multiplicity.
+the 1972 report of Pleasonton (14214) states neither for any of its four systems; the abstracts
+of Pleasonton 1972 and 1973 give the ∼5 ns window of its 235-U and of its 233-U and 239-Pu
+measurements, and its 252-Cf sets stay unstated. Gatera 2017 and the four detectors of
+Oberstedt 2015 state a prompt gate of ±3 ns in their publications; the 300 ns acquisition
+trigger that the entry of Gatera states is recorded beside the gate as `acquisition_window_ns`.
+A set the archive codes partial, `PR/PAR` over a stated range, is written beside the full-range
+sets and named in `gamma_range_warning`: Makii 2019 counts 2.29 photons per fission over 1 to
+6 MeV, a third of the full multiplicity. So is a set whose stated range is a threshold or a
+ceiling of the detection, `gamma_range_limited`: Sokol 1991 counted photons of 320 to 5120 keV,
+and Wright 2024 those of 0.8 to 6.8 MeV, the threshold of its NaI detectors forced to 0.8 MeV by
+the γ-flash of n_TOF.
 
 **Which energy.** The archive codes the total energy per fission and the mean photon energy alike,
 `0-G-0,PR,KE`: 14214029 holds 0.85 MeV per photon and 143870062 9.0 MeV per fission under the same

@@ -157,6 +157,7 @@ end
     @test dataset.record["gamma_energy_max_mev"] == 7.2
     @test dataset.record["gamma_energy_range_basis"] == "entry"
     @test dataset.record["gamma_range_partial"]
+    @test !dataset.record["gamma_range_limited"]
     @test dataset.record["time_window_basis"] == "unstated"
     @test ExforFissionData.gamma_definition_unstated(dataset.record) == ["window"]
     reduced = reduce_dataset(dataset, query)
@@ -240,6 +241,9 @@ end
     @test dataset.record["quantity_reading"] == "total_energy_per_fission"
     @test dataset.record["quantity_reading_basis"] == "REACTION text"
     @test occursin("EN 0.0253 EV", dataset.record["incident_energy_basis"])
+    # The incident energy is written without a binary tail.
+    @test occursin("2.53e-8 MeV", dataset.record["incident_energy_basis"])
+    @test reduce_dataset(dataset, query).diagnostics["incident_energies_mev"] == [2.53e-8]
     # A statement the text no longer holds refuses the dataset until it is reviewed.
     gone = select_dataset("14735002", csv, text(["METHOD     Geiger counters."]), query)
     @test gone isa Rejection
@@ -386,4 +390,162 @@ end
         "A = 82",
         only(ExforFissionData._curation_record("14197005")["row_notes"]),
     )
+end
+
+@testset "prompt γ: ranges that limit the photons counted; windows of publications" begin
+    # 41580 (Sokol 1991): the 320 to 5120 keV of the DETECTOR text are a threshold and a ceiling
+    # of the detection; the set is written and named in gamma_range_warning with its range.
+    query = test_query(;
+        target_Z = 98,
+        target_A = 252,
+        channel = "sf",
+        abscissa = String[],
+        ordinate = "gamma_multiplicity_per_fission",
+    )
+    code = "98-CF-252(0,F)0-G-0,PR,FY"
+    csv = exfor_csv([
+        exfor_row(;
+            dataset_id = "41580003",
+            reaction_code = code,
+            value_kind = "Data(PART/FIS)",
+            y = 6.58,
+            dy = 0.4,
+            product_za = 0,
+        ),
+    ])
+    text = exfor_subentry(;
+        entry = "41580",
+        subentry = "41580003",
+        bib = [
+            "REACTION   ($(code))",
+            "            Average gamma multiplicity per one spontaneous fission.",
+            "DETECTOR   (GE) Gamma-quanta were registered in",
+            "           energy range of 320 - 5120 keV during 4 microsec",
+            "            after FF registration.",
+        ],
+        headings = ["DATA", "DATA-ERR"],
+        units = ["PRT/FIS", "PRT/FIS"],
+        rows = [[6.58, 0.4]],
+    )
+    dataset = select_dataset("41580003", csv, text, query)
+    @test dataset isa Dataset
+    @test dataset.record["gamma_energy_min_mev"] == 0.32
+    @test dataset.record["gamma_energy_max_mev"] == 5.12
+    @test dataset.record["gamma_energy_range_basis"] == "subentry text"
+    @test dataset.record["gamma_range_limited"]
+    @test !dataset.record["gamma_range_partial"]
+    @test dataset.record["time_window_ns"] == [0.0, 4000.0]
+    directory = mktempdir()
+    config_path = joinpath(directory, "configuration.toml")
+    write(
+        config_path,
+        """
+        [query]
+        target_Z = 98
+        target_A = 252
+        channel = "sf"
+        abscissa = []
+        ordinate = "gamma_multiplicity_per_fission"
+        """,
+    )
+    retrieved = DateTime(2026, 10, 15, 12)
+    record_path = joinpath(directory, "retrieval.toml")
+    write_metadata(
+        record_path,
+        load_configuration(config_path),
+        [
+            AcceptedDataset(
+                dataset,
+                reduce_dataset(dataset, query),
+                "41580003.dat",
+                retrieved,
+                false,
+            ),
+        ],
+        Rejection[],
+        ExforFissionData.Listing(["41580003"], retrieved, false),
+    )
+    record = TOML.parsefile(record_path)
+    @test occursin(
+        "41580003 (0.32 to 5.12 MeV, stated range)",
+        record["datasets"]["gamma_range_warning"],
+    )
+    @test only(record["accepted"])["gamma_range_limited"]
+
+    # 23659 (Wright 2024): the range of the abstract, its threshold forced by the γ-flash.
+    wright = ExforFissionData.gamma_definition(
+        "23659003",
+        "92-U-235(N,F)0-G-0,PR,KE",
+        nothing,
+        "",
+    )
+    @test wright["gamma_energy_min_mev"] == 0.8
+    @test wright["gamma_energy_max_mev"] == 6.8
+    @test wright["gamma_energy_range_basis"] == "publication"
+    @test occursin("10.1140/epja/s10050-024-01277-8", wright["gamma_energy_range_evidence"])
+    @test wright["gamma_range_limited"]
+
+    # Pleasonton 1973: the window of the 233-U and 239-Pu sets of 14214; the 252-Cf sets stay
+    # unstated, and the 235-U sets keep the abstract of 1972.
+    for identifier in
+        ("14214002", "14214003", "14214026", "14214006", "14214007", "14214028")
+        definition = ExforFissionData.gamma_definition(identifier, "", nothing, "")
+        @test definition["time_window_ns"] == [0.0, 5.0]
+        @test definition["time_window_basis"] == "publication"
+        @test occursin("10.1016/0375-9474(73)90161-9", definition["time_window_evidence"])
+    end
+    @test ExforFissionData.gamma_definition("14214008", "", nothing, "")["time_window_basis"] ==
+          "unstated"
+    @test occursin(
+        "10.1103/PhysRevC.6.1023",
+        ExforFissionData.gamma_definition("14214004", "", nothing, "")["time_window_evidence"],
+    )
+
+    # 31778 (Gatera 2017): the ±3 ns gate of the publication defines the value; the 300 ns
+    # trigger of the entry is recorded beside it.
+    gatera = ExforFissionData.gamma_definition(
+        "31778002",
+        "",
+        nothing,
+        exfor_subentry(;
+            entry = "31778",
+            subentry = "31778002",
+            bib = [
+                "DETECTOR   (SCIN) Three LaBr3:Ce. The detectors response",
+                "            functions simulated with GEANT4.",
+                "METHOD     (COINC) The system was triggered whenever a gamma ray",
+                "            was detected within a window of 300 ns following the",
+                "            fission trigger.",
+            ],
+        ),
+    )
+    @test gatera["time_window_ns"] == [-3.0, 3.0]
+    @test gatera["time_window_kind"] == "prompt gate"
+    @test gatera["time_window_basis"] == "publication"
+    @test occursin("±3 ns around zero", gatera["time_window_evidence"])
+    @test gatera["acquisition_window_ns"] == [0.0, 300.0]
+    @test occursin("subentry 31778002, METHOD", gatera["acquisition_window_evidence"])
+
+    # 23197 (Oberstedt 2015): the gate of its four detectors, not of the two of Billnert 2013
+    # nor of their average.
+    gate(identifier) = any(
+        s ->
+            s.quantity == :window &&
+            s.basis == "publication" &&
+            (s.low, s.high) == (-3.0, 3.0),
+        ExforFissionData.gamma_statements(identifier),
+    )
+    @test all(gate, ("231970051", "231970063", "231970072", "231970081"))
+    @test !any(gate, ("231970021", "231970033", "231970091"))
+
+    # Skarsvag 1970 is cited by DOI.
+    @test occursin(
+        "doi:10.1016/0375-9474(70)90757-8",
+        ExforFissionData.GAMMA_CURATIONS["23174004"].reason,
+    )
+
+    # Incident energies are written without a binary tail.
+    @test ExforFissionData.energy_mev_from_ev(0.0253) == 2.53e-8
+    @test string(ExforFissionData.energy_mev_from_ev(0.0363)) == "3.63e-8"
+    @test string(ExforFissionData.energy_mev_from_ev(8.617333262e-3)) == "8.617333262e-9"
 end

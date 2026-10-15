@@ -51,7 +51,9 @@ range, a time window, a time resolution, or a correction.
 - `quantity::Symbol`: `:range`, `:window`, `:resolution` or `:correction`.
 - `low::Float64`, `high::Float64`: the bounds, in MeV for a range and in ns for a window or a
   resolution; `NaN` for a bound the statement leaves open. A resolution is held in `high`.
-- `kind::String`: for a window, one of [`WINDOW_KINDS`](@ref); empty otherwise.
+- `kind::String`: for a window, one of [`WINDOW_KINDS`](@ref); for a range, `"limiting"` where
+  its bounds are a threshold or a ceiling of the detection that the value was not corrected
+  for, so that the dataset is named in `gamma_range_warning`; empty otherwise.
 - `basis::String`: `"subentry text"` or `"publication"`, of [`DEFINITION_BASES`](@ref).
 - `evidence::String`: the words, verbatim. Those of the subentry are looked for in its text at
   every retrieval, and the place they are found is recorded with them.
@@ -76,6 +78,9 @@ struct GammaStatement
         quantity == :window &&
             !(kind in WINDOW_KINDS) &&
             throw(ArgumentError("window kind \"$(kind)\" is not one of $(WINDOW_KINDS)"))
+        quantity == :range &&
+            !(kind in ("", "limiting")) &&
+            throw(ArgumentError("range kind \"$(kind)\" is neither empty nor \"limiting\""))
         basis == "publication" &&
             isempty(location) &&
             throw(ArgumentError("a statement of a publication needs its DOI and page"))
@@ -83,11 +88,11 @@ struct GammaStatement
     end
 end
 
-gamma_range(low, high, evidence; publication = "") = GammaStatement(
+gamma_range(low, high, evidence; publication = "", limiting = false) = GammaStatement(
     :range,
     low,
     high,
-    "",
+    limiting ? "limiting" : "",
     isempty(publication) ? "subentry text" : "publication",
     evidence,
     publication,
@@ -117,6 +122,54 @@ const _PLEASONTON_WINDOW = gamma_window(
     publication = _PLEASONTON_1972,
 )
 
+const _PLEASONTON_1973 = "Pleasonton 1973, doi:10.1016/0375-9474(73)90161-9, p. 413 (abstract)"
+
+const _PLEASONTON_1973_WINDOW = gamma_window(
+    0.0,
+    5.0,
+    "prompt gate",
+    "within ≈ 5 nsec after fission",
+    publication = _PLEASONTON_1973,
+)
+
+const _GATERA_2017 = "Gatera et al. 2017, doi:10.1103/PhysRevC.95.064609, p. 064609-3 (Sec. II B); \
+    Table I, p. 064609-4, gives the selected time window Δt = ±3 ns for each detector and for \
+    the summed spectra"
+
+const _GATERA_WINDOW = gamma_window(
+    -3.0,
+    3.0,
+    "prompt gate",
+    "The same ratio gives in our case a time cut set to ±3 ns around zero.",
+    publication = _GATERA_2017,
+)
+
+const _OBERSTEDT_2015 = "Oberstedt, Billnert, Hambsch and Oberstedt 2015, \
+    doi:10.1103/PhysRevC.92.014618, p. 014618-2"
+
+const _OBERSTEDT_2015_WINDOW = gamma_window(
+    -3.0,
+    3.0,
+    "prompt gate",
+    "Fission γ-rays were selected within ±3 ns relative to the prompt peak in the time-of-flight \
+     spectrum",
+    publication = _OBERSTEDT_2015,
+)
+
+const _WRIGHT_2024 = "Wright et al. 2024, doi:10.1140/epja/s10050-024-01277-8, p. 1 (abstract); \
+    the threshold is that of the NaI detectors after the γ-flash, Sec. 4, p. 4: \"a minimum \
+    threshold for γ-ray detection of E min = 0.8 MeV and an upper neutron energy cut of 8 meV \
+    were adopted. These thresholds are both due to the response of the NaI detectors to the \
+    γ-flash.\""
+
+const _WRIGHT_RANGE = gamma_range(
+    0.8,
+    6.8,
+    "considering γ-rays emitted within the energy range 0.8–6.8 MeV",
+    publication = _WRIGHT_2024,
+    limiting = true,
+)
+
 """
 Statements defining prompt-γ measurements that no heading of their entries carries, keyed by
 entry (five characters), subentry (eight) or dataset identifier; a dataset takes those of all
@@ -125,14 +178,25 @@ recorded; one the text no longer holds refuses the dataset until the statement i
 
 A window of the publication applies only to the measurement it describes: the abstract of
 Pleasonton 1972 is that of the 235-U measurement, whose values 14214 gives (6.51 photons, 6.43 MeV
-and 0.99 MeV per photon, the numbers of the abstract), and not that of the other systems of the
-same report.
+and 0.99 MeV per photon, the numbers of the abstract), and that of Pleasonton 1973 is that of the
+233-U and 239-Pu measurements of the same report; its 252-Cf sets have no publication read for
+them. The ±3 ns gate of Oberstedt 2015 is that of the four detectors of that work (23197005 to
+23197008), not of the two measurements of Billnert 2013 it reprints (23197002, 23197003) nor of
+their average over all six (23197009); the 2013 rapid communication on 235-U (31729) states no
+width for its gate. Where the publication states the prompt gate and the entry the acquisition
+trigger, as for Gatera 2017, the gate defines the value and the trigger is recorded beside it.
 """
 const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
     "14214004" => [_PLEASONTON_WINDOW],
     "14214005" => [_PLEASONTON_WINDOW],
     "14214027" => [_PLEASONTON_WINDOW],
     "14197" => [_PLEASONTON_WINDOW],
+    "14214002" => [_PLEASONTON_1973_WINDOW],
+    "14214003" => [_PLEASONTON_1973_WINDOW],
+    "14214026" => [_PLEASONTON_1973_WINDOW],
+    "14214006" => [_PLEASONTON_1973_WINDOW],
+    "14214007" => [_PLEASONTON_1973_WINDOW],
+    "14214028" => [_PLEASONTON_1973_WINDOW],
     "14735" => [
         gamma_window(
             0.0,
@@ -146,6 +210,10 @@ const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
         gamma_correction("Fitting detector response"),
     ],
     "23197009" => [gamma_range(0.1, NaN, "Energy range > 0.1 MeV .")],
+    "23197005" => [_OBERSTEDT_2015_WINDOW],
+    "23197006" => [_OBERSTEDT_2015_WINDOW],
+    "23197007" => [_OBERSTEDT_2015_WINDOW],
+    "23197008" => [_OBERSTEDT_2015_WINDOW],
     "23174004" => [
         gamma_correction(
             "Attenuation of gamma-rays in air was taken into account by extrapolating the \
@@ -164,6 +232,7 @@ const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
              spectra was determined by detailed GEANT4 simulations.",
         ),
     ],
+    "23659" => [_WRIGHT_RANGE],
     "23783" => [
         gamma_correction(
             "A deficit in the low-energy gamma rays was observed in the 252Cf benchmark \
@@ -205,6 +274,7 @@ const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
         ),
     ],
     "31778" => [
+        _GATERA_WINDOW,
         gamma_window(
             0.0,
             300.0,
@@ -228,6 +298,7 @@ const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
             5.12,
             "Gamma-quanta were registered in energy range of 320 - 5120 keV during 4 microsec \
              after FF registration.",
+            limiting = true,
         ),
         gamma_window(
             0.0,
@@ -605,10 +676,13 @@ end
 
 The definition of a prompt-γ measurement, as the keys of its run record: the γ-energy range,
 the time window and the time resolution, each with its basis and evidence; the corrections
-stated; whether the archive codes the set as partial (`PAR`). The range is that of the
-headings of the entry, `range`, where they state one ([`structured_range`](@ref)), else that of the statements of
-[`GAMMA_STATEMENTS`](@ref), which also give the window, the resolution and the corrections. The
-CORRECTION text of the entry and of the subentry is recorded as it stands.
+stated; whether the archive codes the set as partial (`PAR`), and whether a stated range limits
+the photons counted (`gamma_range_limited`, a statement marked limiting). The range is that of
+the headings of the entry, `range`, where they state one ([`structured_range`](@ref)), else that
+of the statements of [`GAMMA_STATEMENTS`](@ref), which also give the window, the resolution and
+the corrections. The window is the prompt gate where one is stated, else the acquisition
+trigger; a trigger stated beside a gate is recorded as `acquisition_window_ns` with its
+evidence. The CORRECTION text of the entry and of the subentry is recorded as it stands.
 
 Returns the reason the dataset is refused where a statement of the subentry text is no longer
 found in it.
@@ -637,6 +711,7 @@ function gamma_definition(
     of(kind) = findfirst(s -> s.quantity == kind, statements)
 
     stated = of(:range)
+    record["gamma_range_limited"] = false
     if range !== nothing
         isnan(range[1]) || (record["gamma_energy_min_mev"] = range[1])
         isnan(range[2]) || (record["gamma_energy_max_mev"] = range[2])
@@ -648,11 +723,16 @@ function gamma_definition(
         isnan(statement.high) || (record["gamma_energy_max_mev"] = statement.high)
         record["gamma_energy_range_basis"] = statement.basis
         record["gamma_energy_range_evidence"] = described(stated)
+        record["gamma_range_limited"] = statement.kind == "limiting"
     else
         record["gamma_energy_range_basis"] = "unstated"
     end
 
-    window = of(:window)
+    # The prompt gate defines the value where one is stated; an acquisition trigger stated
+    # beside it is recorded as such.
+    windows = findall(s -> s.quantity == :window, statements)
+    gate = findfirst(i -> statements[i].kind == "prompt gate", windows)
+    window = isempty(windows) ? nothing : gate === nothing ? first(windows) : windows[gate]
     if window === nothing
         record["time_window_basis"] = "unstated"
     else
@@ -661,6 +741,15 @@ function gamma_definition(
         record["time_window_kind"] = statement.kind
         record["time_window_basis"] = statement.basis
         record["time_window_evidence"] = described(window)
+        trigger = findfirst(
+            i -> i != window && statements[i].kind == "acquisition trigger",
+            windows,
+        )
+        if trigger !== nothing
+            statement = statements[windows[trigger]]
+            record["acquisition_window_ns"] = [statement.low, statement.high]
+            record["acquisition_window_evidence"] = described(windows[trigger])
+        end
     end
     resolution = of(:resolution)
     if resolution !== nothing

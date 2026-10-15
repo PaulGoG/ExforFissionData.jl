@@ -874,7 +874,7 @@ function reduce_dataset(
         "uncertainty_source" => uncertainty_source,
         "uncertainty_zero_rows" => uncertainty_zero_rows,
         "uncertainty_absent_rows" => uncertainty_absent_rows,
-        "incident_energies_mev" => retained_energies .* EV_TO_MEV,
+        "incident_energies_mev" => energy_mev_from_ev.(retained_energies),
         "unit_reported" => unit_reported,
         "unit_written" => unit_written,
         "ordinate_factor" => factor,

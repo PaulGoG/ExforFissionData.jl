@@ -525,7 +525,8 @@ function write_metadata(
             own = entry.dataset.record
             unstated = gamma_definition_unstated(own)
             isempty(unstated) || push!(undefined, "$(identifier) ($(join(unstated, ", ")))")
-            if get(own, "gamma_range_partial", false)
+            coded_partial = get(own, "gamma_range_partial", false)
+            if coded_partial || get(own, "gamma_range_limited", false)
                 bounds = [
                     get(own, key, NaN) for
                     key in ("gamma_energy_min_mev", "gamma_energy_max_mev")
@@ -533,7 +534,8 @@ function write_metadata(
                 push!(
                     partial,
                     "$(identifier) ($(isnan(bounds[1]) ? "?" : bounds[1]) to \
-                     $(isnan(bounds[2]) ? "?" : bounds[2]) MeV)",
+                     $(isnan(bounds[2]) ? "?" : bounds[2]) MeV, \
+                     $(coded_partial ? "PAR" : "stated range"))",
                 )
             end
             get(own, "quantity_reading_basis", "") == "magnitude" &&
@@ -548,8 +550,9 @@ function write_metadata(
         )
         isempty(partial) || (
             record["datasets"]["gamma_range_warning"] =
-                "the archive codes these datasets partial (PAR), over the γ-energy range \
-                 given; they are written beside the full-range sets, not filtered: " *
+                "the archive codes these datasets partial (PAR), or a threshold or a ceiling of \
+                 their stated range limits the photons counted; each is given with its γ-energy \
+                 range and written beside the full-range sets, not filtered: " *
                 join(partial, ", ")
         )
         isempty(magnitude) || (

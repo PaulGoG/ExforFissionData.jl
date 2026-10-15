@@ -97,6 +97,15 @@ const ENERGY_UNIT_FACTORS = Dict(
 const EV_TO_MEV = ENERGY_UNIT_FACTORS["EV"]
 
 """
+    energy_mev_from_ev(value) -> Float64
+
+`value`, an energy in eV as the csv rendering reports every energy, in MeV, rounded to fifteen
+significant digits so that the product with [`EV_TO_MEV`](@ref) carries no binary tail into a
+record: 0.0253 eV is written 2.53e-8 MeV, not 2.5299999999999998e-8.
+"""
+energy_mev_from_ev(value::Real) = round(Float64(value) * EV_TO_MEV; sigdigits = 15)
+
+"""
     energy_factor(unit) -> Union{Float64,Nothing}
 
 Factor converting an energy in `unit` to MeV, or `nothing` when the unit is not among

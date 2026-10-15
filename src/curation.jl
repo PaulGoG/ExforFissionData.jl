@@ -537,8 +537,9 @@ const GAMMA_CURATIONS = Dict{String, Curation}(
         "gamma_multiplicity_per_fission",
         "curated: coded ,PAR,MLT,G and listed under the quantity MLT, 'Yield of gamma-rays with \
          energies greater 100 keV, per one fission.': the prompt γ multiplicity per fission \
-         above 100 keV (Skarsvag 1970, Nucl. Phys. A 153, 82, p. 93). Admitted by name under \
-         MLT for the multiplicity per fission alone (ruling of 2026-10-14)",
+         above 100 keV (Skarsvag 1970, Nucl. Phys. A 153, 82, \
+         doi:10.1016/0375-9474(70)90757-8, p. 93). Admitted by name under MLT for the \
+         multiplicity per fission alone (ruling of 2026-10-14)",
     ),
     "232130061" => Curation(
         String[],

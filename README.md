@@ -190,7 +190,7 @@ neutrons. A prompt-γ value is
 defined by the γ-energy range its photons were counted over, the time window after fission and
 the corrections made, which differ between experiments by up to about 1 MeV of total energy; each
 record states them as the entry or its publication does, and names the datasets for which nobody
-states them. Nothing is cut on them: a set over a partial range is written and flagged.
+states them. Nothing is cut on them: a set over a partial or a limited range is written and flagged.
 
 A system is an element symbol, a mass number and an **entrance channel** — `sf` spontaneous, `nth`
 thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel decides the EXFOR
