@@ -6,6 +6,46 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-15
+
+Prompt-γ definitions read from four publications, two range-limited sets flagged, and the incident
+energies of the records written without binary tails. Every table and stored subentry that 0.5.0
+writes is written unchanged, 1238 of 1238 files byte for byte; 60 of the 86 records change in the
+keys listed below.
+
+### Added
+
+- Windows of publications. The abstract of Pleasonton 1973 (doi:10.1016/0375-9474(73)90161-9),
+  "within ≈ 5 nsec after fission", gives the window of the 233-U and 239-Pu sets of 14214
+  (`14214002`, `14214003`, `14214026`; `14214006`, `14214007`, `14214028`); the 252-Cf sets of
+  that report stay unstated. Gatera 2017 (doi:10.1103/PhysRevC.95.064609, p. 064609-3) states a
+  prompt gate of ±3 ns for every dataset of entry 31778, and Oberstedt 2015
+  (doi:10.1103/PhysRevC.92.014618, p. 014618-2) for the four detectors of that work (`23197005` to
+  `23197008`); the two measurements of Billnert 2013 that the entry reprints, their average, and
+  entry 31729 (Oberstedt 2013 states no width for its gate) stay unstated. Thirty datasets gain a
+  window, and `gamma_definition_warning` shrinks accordingly in eleven records.
+- `acquisition_window_ns` and `acquisition_window_evidence`: the acquisition trigger the entry
+  states beside a prompt gate of the publication. The 300 ns trigger of Gatera 2017, which 0.5.0
+  recorded as the time window, is recorded there, and the ±3 ns gate as the window.
+- `gamma_range_limited`: whether the stated γ-energy range is a threshold or a ceiling of the
+  detection, written for every prompt-γ dataset. Sokol 1991 (`415800031`, `415800032`), photons of
+  320 to 5120 keV, and Wright 2024 (`23659003`, `23659004`), photons of 0.8 to 6.8 MeV with the
+  threshold of the NaI detectors forced to 0.8 MeV by the γ-flash of n_TOF
+  (doi:10.1140/epja/s10050-024-01277-8, abstract and Sec. 4), are named in `gamma_range_warning`
+  beside the sets coded `PAR`, and each entry of the warning says which of the two it is. The
+  range of Wright 2024 is read from the publication, where 0.5.0 had none.
+- The curation of Skarsvåg 1970 (`23174004`) cites doi:10.1016/0375-9474(70)90757-8.
+
+### Changed
+
+- `incident_energies_mev`, `incident_energy_basis` and the rejection reasons that quote incident
+  energies are written to fifteen significant digits: 0.0253 eV is 2.53e-8 MeV, no longer
+  2.5299999999999998e-8. 392 accepted entries change in the first key, 37 in the second and 76
+  rejections in their reason; the values differ only in the binary tail.
+- The observables page says which prompt-γ configurations hold a quantity per fission against the
+  mass of one fragment (`M_gamma_bar_vs_A`, `E_gamma_tot_vs_A`) and which the quantity of that
+  fragment (`M_gamma_vs_A`, `E_gamma_vs_A`).
+
 ## [0.5.0] - 2026-10-14
 
 The prompt γ rays of 252-Cf(sf) and thermal 235-U, 239-Pu and 233-U: the multiplicity, the total
