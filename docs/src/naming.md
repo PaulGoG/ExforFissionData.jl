@@ -4,26 +4,25 @@ CurrentModule = ExforFissionData
 
 # Naming
 
-A quantity has exactly one name, and that name is used everywhere it appears: Julia identifier,
-struct field, configuration key, directory name, file name, column header, figure label, prose.
-The spelling changes register between contexts — `multiplicity` in a configuration, `nu` in a
-path — but the *quantity* does not, and the mapping between the two registers is a table in
-`src/reaction_codes.jl` rather than a convention anyone has to remember.
+A quantity has one name in each of two registers, a word and a symbol, and keeps it everywhere it
+appears: Julia identifier, struct field, configuration key, directory name, file name, column
+header, figure label, prose. `multiplicity` in a configuration is `nu` in a path; the mapping
+between the two registers is a table in `src/reaction_codes.jl`.
 
 The corollary is the rule that decides the hard cases: **a name says what the thing is, not what
 is convenient to type.** `Y_A_TKE` names three symbols and no relation between them; `Y_vs_A_TKE`
 is a statement. `Data` as a suffix carries nothing. `err` names the wrong concept for an
 uncertainty column — an error is not an uncertainty.
 
-This page is the vocabulary as this package applies it: the source, the configurations, the output
-layout and the figures. Anything reading the retrieved data meets the same names, because the
-directory names, the file names and the column headers are written from the table below.
+The vocabulary below governs the source, the configurations, the output layout and the figures.
+Directory names, file names and column headers are written from its table, so anything reading
+the retrieved data meets the same names.
 
 ## Two registers
 
 | Register | Spelling | Where |
 | :--- | :--- | :--- |
-| word | `total_kinetic_energy` | configuration keys and values, prose, and every Julia identifier here |
+| word | `total_kinetic_energy` | configuration keys and values, prose, and the exported Julia names, fields and keywords |
 | symbol | `TKE` | directory names, file names, column headers, figure labels |
 
 A configuration is edited by hand and has to explain itself, so it spells a quantity out. A path
@@ -31,9 +30,9 @@ and a header are read at a glance and are the field's own nomenclature, so they 
 `nu_vs_A_TKE` says exactly what `multiplicity_vs_mass_total_kinetic_energy` says, and a directory
 listing stays readable.
 
-Every Julia identifier in this package is word-register. The package retrieves tabulated
-measurements and reduces them; it evaluates nothing, so no identifier here stands for a symbol in
-an equation and none is spelled as one.
+Exported names, struct fields and configuration keys are word-register. A local variable or
+internal argument that stands for a symbol of an equation is spelled as that symbol, `A₀` or `σ`
+for instance.
 
 ## The quantities
 
@@ -107,8 +106,8 @@ reduced dataset is `ReducedDataset`, and one holding an accepted dataset is `Acc
 The result type of a package is `<Verb>Result`, one per package: here,
 [`RetrievalResult`](@ref).
 
-Abbreviations are permitted only where the field itself uses them — `TKE`, `TXE`, `EXFOR`,
-`AME`, `PFNS`, `sf` — and never as `err`, `param`, `calc`, `val`, `idx`, `num`, `cfg`, `pts`.
+Abbreviations are permitted only where the field itself uses them (`TKE`, `EXFOR`, `sf`), and
+never as `err`, `param`, `calc`, `val`, `idx`, `num`, `cfg`, `pts`.
 
 ## Configuration files
 
@@ -116,10 +115,9 @@ A configuration is named `<system>_<observable>.toml`, the two tokens that name 
 its data is written to. Sections are `[query]`, `[retrieval]` and `[output]`, and **a key is never
 prefixed with its section's name**.
 
-A key's comment states three things and nothing else: what the key is, in one short line; the
-enumerated choices where it is constrained; and the bounds and the unit. No physics narrative, no
-run rationale. The loader enforces exactly what the comment declares, so a retrieval cannot start
-from a configuration it cannot honour.
+A key's comment states what the key is, in one short line, the enumerated choices where it is
+constrained, and the bounds and the unit; it carries no physics narrative or run rationale. The
+loader enforces exactly what the comment declares; see [Configurations](configurations.md).
 
 **A key that can only be redundant or wrong is not in the file.** The EXFOR reaction code follows
 from the entrance channel and the quantity code from the ordinate, so neither is written down; the
@@ -139,10 +137,9 @@ with the channel spelled as the field spells it and not as EXFOR codes it: `Cf25
 not a name, and the run record already carries the reaction code the archive returned for each
 dataset it accepted.
 
-The channel is what distinguishes a thermal from a resonance run of one observable, and it gives
-each run a directory of its own under the same rule. Nothing else in the record can draw that
-line: `n,f` is the reaction code of a thermal run and of a resonance run alike, which is why the
-channel, and not the code, is what a figure label is keyed on.
+The channel distinguishes a thermal from a resonance run of one observable and gives each run a
+directory of its own under the same rule. The reaction code cannot: it is `n,f` for both, so a
+figure label is keyed on the channel.
 
 ## Directories, files and headers
 
@@ -160,9 +157,9 @@ data/
 One directory per system, one subdirectory per observable, one file per measurement, named by
 the dataset's identifier: the first eight characters of an identifier are the subentry accession
 number; a ninth character marks a pointer into it. The directory carries the quantity and the file
-carries the provenance, which is what makes the identifier recoverable from a figure legend.
+name the provenance, so the identifier can be recovered from a figure legend.
 
-`vs` is what makes an observable name a statement rather than a list of symbols. An abscissa is a
+The `vs` makes an observable name a statement, not a list of symbols. An abscissa is a
 **list** of quantities, because it is a joint index, so `["mass", "total_kinetic_energy"]` needs
 no composite token of its own and the directory follows from the same rule as every other:
 `nu_vs_A_TKE`. A quantity per fission is tabulated against nothing, its abscissa the empty list,
@@ -182,8 +179,8 @@ nu P P_uncertainty
 E_gamma_tot E_gamma_tot_uncertainty
 ```
 
-**No column is named `value`.** Naming the column for its quantity is what frees the reader from
-having to know the file name to know what it is holding.
+**No column is named `value`.** A column named for its quantity can be read without knowing the
+file name.
 
-Readers take columns **by position**, not by header text. That is what makes a header rename a
-no-op for code, and it must stay that way: nothing downstream may be coupled to the header text.
+Readers take columns **by position**, not by header text, so renaming a header changes nothing
+for code. Nothing downstream may depend on the header text.

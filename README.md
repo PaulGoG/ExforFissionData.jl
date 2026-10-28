@@ -37,8 +37,8 @@ runs on Linux and macOS in CI.
 
 ## Installation
 
-This is **not a registered package** — `Pkg.add("ExforFissionData")` will not find it. Either
-clone it and work in the repository, which is what the configurations and scripts assume,
+This is **not a registered package**: `Pkg.add("ExforFissionData")` will not find it. Either
+clone it and work in the repository, as the configurations and scripts assume,
 
 ```bash
 git clone https://github.com/PaulGoG/ExforFissionData.jl
@@ -60,19 +60,21 @@ Documentation: <https://PaulGoG.github.io/ExforFissionData.jl/stable/>
 ```bash
 julia scripts/retrieve.jl config/Cf252_sf_nu_vs_A.toml             # retrieve one observable
 julia scripts/retrieve.jl config/U233_nth_Y_vs_A.toml ~/data       # elsewhere
-julia plotting/survey.jl data/Cf252_sf/nu_vs_A --format png        # check what it returned
+julia plotting/survey.jl data/Cf252_sf/nu_vs_A --format png        # figure to plots/Cf252_sf/nu_vs_A.png
 julia plotting/coverage.jl data/{Cf252_sf,U235_nth,U233_nth,Pu239_nth}/nu_vs_A   # the animation
 julia -e 'include("activate.jl"); Pkg.test()'                      # test suite
 julia plotting/runtests.jl                                         # figure-helper tests
 julia check.jl                                                     # format, then test
 EXFORFISSIONDATA_TREE=~/data julia check.jl                        # also check a tree's tables
 julia check.jl --check                                             # fail on formatting diffs
+julia check.jl --docs                                              # also build the documentation
+julia formatter/format.jl --check                                  # formatting check alone
 julia docs/make.jl                                                 # build the documentation
 julia -i activate.jl                                               # REPL in the environment
 ```
 
-Every environment — the package, `test/`, `docs/`, `formatter/` and `plotting/` — carries an
-`activate.jl` that activates and instantiates it silently, so a fresh clone needs no preparation.
+The package, `test/`, `docs/`, `formatter/` and `plotting/` each carry an `activate.jl` that
+activates and instantiates the environment silently, so a fresh clone needs no preparation.
 `test/` and `docs/` take the package by path, so they always run against the local source;
 `plotting/` and `formatter/` do not depend on it. No invocation needs `--project`: every script
 activates the environment it belongs to as its first statement.
@@ -90,20 +92,19 @@ length(result.accepted), length(result.rejected)
 | Column contract, tag grammar, selection | tested; every abscissa and ordinate exercised against the live archive for 252-Cf(sf), 235-U(n,f), 233-U(n,f) and 239-Pu(n,f), and two observables for 240-Pu(sf). Reaction codes are compared code by code in their subfields |
 | Curated readings, compilation defects, width columns | tested; every dataset read from its subentry text, every defect and every width conversion carries a test built from that subentry |
 | Reduction: isomers, energy windows, other independent variables | tested on fixtures; the rejections checked against the live datasets that prompted them. The abscissa and the other variables are read from the subentry DATA table, aligned with the rendering row by row |
-| Retrieval: cache, backoff, bounded concurrency | in use; result order independent of completion order, and the concurrency bound verified at limits 1, 3 and 4 |
+| Retrieval: cache, backoff, bounded concurrency | in use; result order independent of completion order, and the concurrency bound verified at limits 1 and 3 |
 | Export and run record | in use; the pair sums recorded for ν(A) are formed again from the written tables by `test/written_tables.jl` whenever a retrieval tree is present |
 | `plotting/survey.jl`, `plotting/coverage.jl` | in use; figures inspected |
-| Static QA | Aqua, JET and ExplicitImports in the suite; formatting gated against a JuliaFormatter pinned in `formatter/Project.toml`; line coverage of `src/` from every test job, merged and reported by Codecov |
+| Static QA | Aqua, JET and ExplicitImports in the suite; formatting gated against a JuliaFormatter pinned in `formatter/Project.toml`; line coverage of `src/` from the Linux job on current stable, reported by Codecov |
 
-Not every abscissa and ordinate pairing exists in the archive. Prompt multiplicity against
-`["total_kinetic_energy"]` is reported as a pair quantity, so it needs
-`multiplicity_per_fission`; 252-Cf carries no mass-resolved post-neutron kinetic energy; and of
-the four systems only 252-Cf has a joint `Y(A, TKE)`, `23268002`, whose code names no TKE and
-whose csv rendering drops the TKE column, so it is read from its subentry — see the
-[observables](https://PaulGoG.github.io/ExforFissionData.jl/stable/observables/#The-joint-yield-Y(A,-TKE)).
-For 240-Pu, the compound nucleus of 239-Pu(n_th,f), the archive holds one of spontaneous fission
-in raw counts, `22413013`. The width of the TKE distribution has no EXFOR code at all, and is
-read only from the columns a configuration names.
+The archive does not hold every pairing of abscissa and ordinate. Prompt multiplicity against
+`["total_kinetic_energy"]` is reported as a pair quantity and needs `multiplicity_per_fission`.
+252-Cf has no mass-resolved post-neutron kinetic energy. Of the four systems only 252-Cf has a
+joint `Y(A, TKE)`, `23268002`; its code names no TKE and its csv rendering drops the TKE column,
+so it is read from its subentry (see
+[observables](https://PaulGoG.github.io/ExforFissionData.jl/stable/observables/#The-joint-yield-Y(A,-TKE))).
+240-Pu, the compound nucleus of 239-Pu(n_th,f), has one of spontaneous fission in raw counts,
+`22413013`.
 
 ## What it is for
 
@@ -112,25 +113,26 @@ observable wanted as an abscissa and an ordinate. The package finds the datasets
 reduces each to one row per abscissa value, and writes them beside a run record naming every
 dataset it kept or excluded, with the reason.
 
-It is a data-preparation step rather than an analysis code: a consumer reads the files it writes
-rather than calling it at run time. That is why the output layout is plain whitespace-separated
-text with one header line, why nothing is normalised or filtered on the way out, and why the
-reasoning behind every exclusion is written down. Two fission-model analyses of mine consume it
-in exactly that way, and where the documentation says "consumers" it means those, or yours.
+It is a data-preparation step: a consumer reads the files it writes and does not call it at run
+time. The output is therefore plain whitespace-separated text with one header line, nothing is
+normalised or filtered on the way out, and every exclusion is written down with its reason. Two
+fission-model analyses of mine consume it in exactly that way, and where the documentation says
+"consumers" it means those, or yours.
 
 ![Prompt neutron multiplicity against fragment mass for four fissioning systems, dataset by dataset as each retrieval is worked through](docs/src/assets/coverage.gif)
 
 Prompt neutron multiplicity against fragment mass, one panel per fissioning system, as the
 `*_nu_vs_A` configurations return it. Each frame advances through the datasets the archive offers
 for that query in the order the pipeline processes them; a dataset enters the axes only where its
-reaction code answers the query, and otherwise advances the tally alone. Thirty-seven datasets
-kept of 824 considered — the remainder are other quantities filed under the same target and
-reaction, and the run record names every one of them with the reason it was left out.
+reaction code answers the query, and otherwise advances the tally alone. Of the 824 datasets
+considered, 37 are kept; the rest are other quantities filed under the same target and reaction,
+and the run record gives the reason each was left out.
 
 ## Configurations
 
-A configuration is named for what it retrieves: `<system>_<observable>.toml`, the same two tokens
-that name the directories its data is written to.
+A configuration is named for what it retrieves, `<system>_<observable>.toml`
+(`config/U235_nth_TKE_vs_A.toml`, for instance), the same two tokens that name the directories
+its data is written to.
 
 | Observable | ²⁵²Cf(sf) | ²³⁵U(n,f) | ²³³U(n,f) | ²³⁹Pu(n,f) | ²⁴⁰Pu(sf) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -163,14 +165,13 @@ that name the directories its data is written to.
 | E_γ,tot(TKE), `E_gamma_tot_vs_TKE` | `Cf252_sf` | | | | |
 | E_γ,tot(ν), `E_gamma_tot_vs_nu` | `Cf252_sf` | | | | |
 
-The file of a cell is `<system>_<observable>.toml`, `config/U235_nth_TKE_vs_A.toml` for instance.
 The first four rows are what a pre-neutron Y(A, TKE) is built from: the mass yield, the mean TKE
 and its width against mass, or the joint matrix. Each is retrieved measurement by measurement,
 so that the marginals of one experiment can be taken together; the joint matrix exists for
-252-Cf, and for 240-Pu(sf) in raw counts. 240-Pu(sf) fissions the compound nucleus of
-239-Pu(n_th,f) about 6.5 MeV lower in excitation energy; its two configurations are the nearest
-substitute for a 239-Pu(n_th,f) system that has no joint matrix in the archive and a width whose
-two columns disagree. The width has no EXFOR code, so its configurations name, dataset by
+252-Cf, and for 240-Pu(sf) in raw counts. Spontaneous fission of 240-Pu is fission of the
+compound nucleus of 239-Pu(n_th,f) at about 6.5 MeV less excitation energy; its two
+configurations stand in for 239-Pu(n_th,f), which has no joint matrix in the archive and a width
+whose two columns disagree. The width has no EXFOR code, so its configurations name, dataset by
 dataset, the column that holds it, what it holds and whose energy it is.
 
 The three rows after Y(A, TKE) are the products after neutron emission: the post-neutron mass
@@ -183,29 +184,27 @@ written once, with what was done recorded per dataset. Fractional yields, yields
 fragment pairs and partial yields at one product kinetic energy are refused. The archive holds no
 mass-resolved post-neutron kinetic energy for 252-Cf, so `Cf252_sf_E_K_p_vs_A_p` writes nothing.
 
-The last eleven rows are the prompt γ rays: the multiplicity, the total energy and the mean photon
-energy per fission, one value to a file, and, for 252-Cf and 235-U, the values of one fragment
-and those per fission against fragment mass, and those per fission against TKE and the number of
-neutrons. A prompt-γ value is
-defined by the γ-energy range its photons were counted over, the time window after fission and
-the corrections made, which differ between experiments by up to about 1 MeV of total energy; each
-record states them as the entry or its publication does, and names the datasets for which nobody
-states them. Nothing is cut on them: a set over a partial or a limited range is written and flagged.
+The last eleven rows are the prompt γ rays. The multiplicity, the total energy and the mean
+photon energy per fission are written one value to a file. Against fragment mass the archive
+holds values of one fragment and values per fission for 252-Cf and 235-U; against TKE and the
+number of neutrons, for 252-Cf alone. A prompt-γ value is defined by the γ-energy range its
+photons were counted over, the time window after fission and the corrections made, and these
+move the total energy by up to about 1 MeV between experiments. Each record states them as the
+entry or its publication does and names the datasets for which nobody states them. A set over a
+partial or a limited range is written and flagged, not cut.
 
-A system is an element symbol, a mass number and an **entrance channel** — `sf` spontaneous, `nth`
-thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel decides the EXFOR
-reaction code, so the configuration names the channel and never the code: the two can disagree
-only if both are written down. The window that selects datasets is `energy_min` and
-`energy_max`; it defaults to the channel's interval — `nth` up to 0.1 eV, `nres` 0.1 eV to
-100 keV, `nfast` 100 keV to 20 MeV — and is refused outside it, so that a thermal directory
+A system is an element symbol, a mass number and an **entrance channel**: `sf` spontaneous, `nth`
+thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel fixes the EXFOR
+reaction code, so the configuration names only the channel. The incident-energy window,
+`energy_min` and `energy_max`, defaults to the channel's interval (`nth` up to 0.1 eV, `nres`
+0.1 eV to 100 keV, `nfast` 100 keV to 20 MeV) and may not leave it, so that a thermal directory
 cannot hold a fast measurement. The physics behind the bounds is in
 [the documentation](https://PaulGoG.github.io/ExforFissionData.jl/stable/channels/).
 
-`U235_nres_nu_vs_A`, `U235_nres_nu_vs_A_TKE` and `U235_nres_eps_vs_A` span 0.1 eV to 1 keV, which
-is what the resonance-beam measurements need — a thermal window excludes them on their incident
-energy alone, and the resonance window holds them alone, the thermal datasets belonging to the
-`nth` runs. They are a different system by name, `U235_nres` against `U235_nth`, so they land in a
-directory of their own without any special provision.
+`U235_nres_nu_vs_A`, `U235_nres_nu_vs_A_TKE` and `U235_nres_eps_vs_A` span 0.1 eV to 1 keV for
+the resonance-beam measurements, which a thermal window excludes on their incident energy; the
+thermal datasets stay with the `nth` runs. `U235_nres` is a system of its own, so these land in
+a directory of their own under the ordinary rule.
 
 The mean centre-of-mass energy of the prompt neutrons of a fragment, ⟨ε⟩, is headed `DATA-CM`
 rather than `DATA` in most subentries, and for this observable alone that column is read as the
@@ -234,9 +233,9 @@ record gives. The `spectrum_cf252_ratio_vs_E` configurations retrieve the ratio 
 spectrum to that of 252-Cf(sf), the one observable read from a combination of two reaction codes,
 written in whichever orientation the archive tabulates it.
 
-Spectra are the one observable the archive holds more of for 252-Cf than for 235-U — 156 datasets
-against 125, the spontaneous-fission spectrum being a reference standard — and none of it is
-narrowed by an incident-energy window.
+Spectra are the one quantity the archive lists more of for 252-Cf than for 235-U, 156 datasets
+against 125, the spontaneous-fission spectrum being a reference standard, and no incident-energy
+window narrows the 252-Cf set.
 
 Every configuration, key by key, is in [the documentation](https://PaulGoG.github.io/ExforFissionData.jl/stable/configurations/).
 
@@ -246,9 +245,9 @@ The experimental data belongs to the [IAEA Nuclear Data Section](https://nds.iae
 to the groups that measured it. This package only automates queries against it; it neither
 redistributes EXFOR data nor claims any rights over what it retrieves.
 
-**Cite the original measurements.** Every retrieval writes the EXFOR accession
-number of each dataset into both the file name and the run record, which is what makes those
-citations recoverable. A reference for the archive itself is in `CITATION.cff`.
+**Cite the original measurements.** Every retrieval writes the EXFOR accession number of each
+dataset into the file name and the run record, so each measurement can be traced to its
+publication.
 
 EXFOR is a shared public service. Dataset responses are cached on disk, so a re-run costs the
 archive one listing request. Leave that caching enabled and keep the configured concurrency
@@ -256,9 +255,8 @@ modest.
 
 ## How to cite
 
-The data comes from the measurements the run record names, and those are what a result built on
-it cites, together with the archive (`CITATION.cff` carries the reference). If the retrieval
-itself is referred to, cite the software:
+A result built on the data cites the measurements the run record names and the archive, whose
+reference is in `CITATION.cff`. If the retrieval itself is referred to, cite the software:
 
 ```bibtex
 @software{gogita2026exforfissiondata,
@@ -285,11 +283,6 @@ data/Cf252_sf/nu_vs_A/
     └── 41425014_A.S.Vorobiev_2001.txt    # the original EXFOR subentry
 ```
 
-A dataset identifier with a ninth character, such as `400170021`, is a pointer into a subentry
-shared by several datasets, and the text stored beside it is that whole subentry. The pointer is
-the one the subentry codes, a digit or a letter: `30666002I` (Hsu 1981) is the independent yield
-of subentry 30666002, whose pointer `C` codes the cumulative one.
-
 Data files are space-separated with a single header line — `A nu nu_uncertainty`, or `A nu` where
 the archive quotes no uncertainty. Where it quotes one on some rows only, the others hold `NaN`,
 never zero:
@@ -300,16 +293,14 @@ A nu nu_uncertainty
 82 0.905 0.08244
 ```
 
-Every column is named for the quantity it holds, as the literature writes it, and an uncertainty
-is the quantity's own name suffixed with `_uncertainty`. A reader is nonetheless expected to take
-columns by **position**: the header says what is there, and renaming a quantity must not be able
-to break anything that reads these files.
+Columns are named for the quantities they hold, an uncertainty as `<quantity>_uncertainty`, but a
+reader takes them by **position**; see
+[Naming](https://PaulGoG.github.io/ExforFissionData.jl/stable/naming/).
 
-Nothing is overwritten. A retrieval never writes into an existing observable directory: where
-`<root>/<directory>/<system>/<observable>` exists (`directory` of `[output]`, `data` by default), it writes to `<observable>_1`, then `_2`, and so on,
-the system directory and the root left as they are. A consumer restaging a tree writes to a fresh
-root, or removes the old observable directory first; otherwise the new data lands beside the old
-under a suffixed name and the old directory is still the one under the plain name.
+A retrieval never writes into an existing observable directory; it writes beside it, to
+`<observable>_1`, then `_2`, and so on. To restage a tree, write to a fresh root or remove the old
+observable directory first; see
+[Retrieval](https://PaulGoG.github.io/ExforFissionData.jl/stable/retrieval/#Output-layout).
 
 ## Further reading
 
@@ -355,6 +346,7 @@ ExforFissionData.jl/
 │       └── assets/coverage.gif  #   the figure above, as plotting/coverage.jl writes it
 ├── formatter/                   # pinned JuliaFormatter environment
 │   ├── activate.jl
+│   ├── format.jl                #   the target list; `--check` names what differs
 │   └── Project.toml             #   the pin, as an equality bound
 ├── plotting/                    # detached figures; not a dependency of retrieval
 │   ├── activate.jl              #   silent activation of the plotting environment
@@ -385,11 +377,24 @@ ExforFissionData.jl/
 ├── test/
 │   ├── activate.jl
 │   ├── Project.toml
-│   ├── runtests.jl
-│   ├── fixtures.jl              # synthetic responses in the layout of the csv rendering
-│   ├── gamma_tests.jl           # the prompt-γ observables
+│   ├── runtests.jl              # the preamble; includes the topic files below
+│   ├── fixtures.jl              # synthetic responses in the layout of the csv rendering; helpers
+│   ├── core_tests.jl            # column layout, value kinds, tag rules, repeats, isomers, reduction
+│   ├── export_tests.jl          # file names, written tables, the run record
+│   ├── configuration_tests.jl   # validation, the shipped configurations, Query, width columns
+│   ├── client_tests.jl          # bounded concurrency, the response cache, a seeded retrieval
+│   ├── kinetic_energy_tests.jl  # TKE against mass, curated readings, the width of the distribution
+│   ├── yield_tests.jl           # pre-neutron masses, Y(A, TKE), independent yields, projections
+│   ├── multiplicity_tests.jl    # blank uncertainties, PC/FIS, the complement test, P(ν)
+│   ├── abscissa_tests.jl        # the subentry settles the abscissa
 │   ├── subentry_tests.jl        # the subentry parser
-│   └── written_tables.jl        # a retrieval tree's tables against its records, when present
+│   ├── written_tables.jl        # a retrieval tree's tables against its records, when present
+│   ├── gamma_tests.jl           # the prompt-γ observables
+│   ├── limits_tests.jl          # bounds, approximate values, empty renderings
+│   ├── neutron_energy_tests.jl  # the mean neutron energy of a fragment, its frame and formation
+│   ├── spectrum_tests.jl        # spectra, the two ratios, the fitted-spectrum parameters
+│   ├── curation_tests.jl        # correlation groups, preliminary and superseded datasets
+│   └── quality_tests.jl         # Aqua, JET, ExplicitImports
 └── .github/
     ├── dependabot.yml           # weekly updates for the julia and github-actions ecosystems
     └── workflows/

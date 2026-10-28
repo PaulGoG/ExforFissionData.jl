@@ -6,6 +6,42 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+An audit of the code, the tooling and the prose. No table, stored subentry or record value
+changes; every retrieval regenerated offline from the cache is byte-identical to 0.6.0.
+
+### Added
+
+- `Query(target_Z, target_A, channel, abscissa, ordinate, energy_min, energy_max)` derives the
+  reaction code, the quantity code and spontaneity from the channel and the ordinate; the
+  ten-argument constructor validates them, so a query cannot disagree with itself.
+- `formatter/format.jl` holds the formatting target list once, for `check.jl` and the Format
+  workflow alike, and names every target that differs under `--check`. `check.jl --docs` builds
+  the documentation after the tests, as CI does.
+- The run record refuses, as a defect, a key that two stages of the pipeline both set; today none
+  does.
+- Tests that the ordinate tables agree, that the curated tables are disjoint, and that the 86
+  configurations carry one and the same comment block and enumerate exactly the abscissae and
+  ordinates the package knows.
+
+### Changed
+
+- `scripts/retrieve.jl` exits 2 on a usage error and 3 when the retrieval accepted no dataset;
+  an uncaught error still exits 1. The old code returned 1 for an empty result as well.
+- `plotting/survey.jl` writes its figure to `plots/<system>/<observable>.<format>` under the
+  repository, not into the retrieval directory, where a release comparison would meet it;
+  `--output` names another path and `--format` is validated.
+- `retrieve` is split into its stages; `write_metadata` into the conventions and the warnings.
+  A distribution P(ν) whose probabilities sum to zero or less is refused with a reason where it
+  aborted the run before.
+- The test suite is split by topic under `test/` and its duplicated helpers consolidated in
+  `fixtures.jl`.
+- Coverage is uploaded from the Linux job on current stable alone; the documentation job no longer
+  builds the package twice.
+- README and documentation: the counts of the independent-yield and post-neutron tables brought to
+  0.6.0, the key table of the configurations page completed with the prompt-γ ordinates and the
+  empty abscissa, the `NODATA` reason documented, `test/limits_tests.jl` listed, and the prose
+  tightened throughout.
+
 ## [0.6.0] - 2026-10-15
 
 Limits handled row by row, approximate values written, and empty renderings explained from their
@@ -15,17 +51,13 @@ listed below.
 
 ### Added
 
-- Rows are sorted by their value kind, and a limit is never written as a value. Rows that hold a
-  bound (`Max`, `Min`, `Min2Max`), a kind marked uncertain or no kind leave the table, counted and
-  listed with the bound in the dataset's `rows_left_out` and in `[datasets]
-  rows_left_out_warning`; the dataset is written from its value rows, which must share one unit,
-  and `rows_retrieved` counts the rows left out. A dataset left with no value row is refused with
-  the count of each kind, after its code and curation have been read, so that a curated reason
-  speaks first. Seven datasets that 0.5.2 refused on the kind of their first row enter:
-  `237630022` (Dubey 2020), `21532003` (Aumann 1977), `130400032` (McHugh 1966) and `13368003`
-  (Wahl 1952) in `U235_nth/Y_vs_Z_A_p`; `237630052` (Dubey 2020) in `Pu239_nth/Y_vs_Z_A_p`;
-  `21532002` (Aumann 1977) in `U233_nth/Y_vs_Z_A_p`; `13353002` (von Gunten 1969) in
-  `Cf252_sf/Y_vs_Z_A_p`.
+- A limit is never written as a value. Bounds (`Max`, `Min`, `Min2Max`), kinds marked uncertain
+  and rows without a kind leave the table and are listed in `rows_left_out` and
+  `[datasets] rows_left_out_warning`; the value rows must share one unit. A dataset with no value
+  row left is refused with the count of each kind, once its curation has been read. Seven
+  datasets refused by 0.5.2 on the kind of their first row enter `Y_vs_Z_A_p`: `237630022`,
+  `21532003`, `130400032` and `13368003` for 235-U, `237630052` for 239-Pu, `21532002` for 233-U
+  and `13353002` for 252-Cf.
 - Values the archive marks approximate (`Aprx`, `DATA-APRX`) are values: written, and listed row
   by row in `approximate_rows` and in `[datasets] approximate_warning`. `13244004` (Erdal 1969),
   eleven chain yields of 235-U of which five are approximate, enters `U235_nth/Y_vs_A_p`.
@@ -63,18 +95,12 @@ explicit about its source. Every table and stored subentry that 0.5.1 writes is 
 
 ### Changed
 
-- The prompt-γ page of the documentation states, as conventions of this package, the five
-  decisions the records and the source had cited by date: `M_gamma_bar_vs_A` and `eps_gamma_vs_A`
-  hold quantities per fission and `M_gamma_vs_A` and `E_gamma_vs_A` those of one fragment, never
-  mixed; Skarsvåg 1970 (`23174004`) is admitted by name although the archive lists it under `MLT`
-  alone; the totals of Smith 1956 and Sokol 1991 and the mean photon energy of Krupa 2004 are kept
-  in rejection reasons, with their words and place, and never written as datasets; the ∼5 ns window
-  of Pleasonton applies to the 235-U sets from the abstract of 1972 and to the 233-U and 239-Pu
-  sets of 14214 from the abstract of 1973, the 252-Cf sets of that report staying unstated; the
-  row at A = 82 of `14197005`, −0.36 ± 1.36, is written as the archive gives it, `row_notes` saying
-  it is compatible with zero. The docstrings cite that paragraph instead of a date, and the texts
-  that enter the records state the decision alone: the `curation` of `23174004`, the `row_notes`
-  of `14197005` and the reasons of the values kept outside the tables.
+- The observables page states as numbered conventions the five prompt-γ decisions that the
+  records and the source had cited by date: per-fission and per-fragment values against mass
+  kept apart, Skarsvåg 1970 admitted by name, values without an uncertainty kept in rejection
+  reasons, the Pleasonton windows, and the row at A = 82 of `14197005`. The docstrings cite the
+  conventions by number; the `curation` of `23174004`, the `row_notes` of `14197005` and the
+  reasons of the values kept outside the tables state the decision alone.
 - The curation of entry 23213 says that it is the 252-Cf α-emission experiment of Mehta, Poitou,
   Ribrag and Signarbieux 1973, "Detailed study of alpha emission in Cf-252 fission"
   (doi:10.1103/PhysRevC.7.373), and that its total γ energy per fission against TKE (`23213018`,
@@ -203,14 +229,9 @@ table and stored subentry that 0.4.0 writes is written unchanged but one, which 
 
 ### Fixed
 
-- `40535004` (Blinov 1980, 252-Cf(sf), ratio to a Maxwellian, 25 cm flight path) gives 0.059 ±
-  0.037 at 220.9 keV among neighbours of 0.93 to 0.98. The uncertainty is that of a value near
-  0.95, and the 50 cm flight path of the same measurement (`40535005`) gives 0.936 ± 0.047 at
-  220.3 keV. The line is a transcription defect of the archive and is left out of
-  `Cf252_sf/spectrum_maxwellian_ratio_vs_E/40535004_M.V.Blinov_1980.dat`, which loses that one
-  row; the evidence is in the dataset's `archive_defects`, and its `rows_retrieved` and
-  `rows_written` go from 77 to 76. Every other table and stored subentry that 0.4.0 writes is
-  written unchanged.
+- `40535004` (Blinov 1980, 252-Cf(sf) ratio to a Maxwellian at 25 cm): the line at 220.9 keV,
+  0.059 ± 0.037 among neighbours of 0.93 to 0.98, is a transcription defect and is left out;
+  `rows_retrieved` and `rows_written` go from 77 to 76, and `archive_defects` gives the evidence.
 - The documentation said the archive holds no prompt-γ multiplicity or energy per fission or
   against mass. It holds both, coded `0-G-0` and returned under `FY` and `E`; the earlier survey
   had looked for `MLT` and `GAM` only. The "Not covered" section of the observables page now says
@@ -1044,7 +1065,13 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.5.2...v0.6.0
+[0.5.2]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.9...v0.3.0
 [0.2.9]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.2.7...v0.2.8

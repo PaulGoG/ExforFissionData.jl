@@ -5,9 +5,7 @@ CurrentModule = ExforFissionData
 # Observables
 
 A quantity has one name in a configuration and one symbol in a path, a file name and a column
-header. The configuration spells it out, so a file a user edits explains itself; the path and the
-header carry the symbol, which is the field's own nomenclature. The convention in full, including
-the identifier and configuration rules, is on the [Naming](naming.md) page.
+header; the [Naming](naming.md) page gives the convention in full.
 
 | Abscissa | Symbol | Meaning |
 | :--- | :--- | :--- |
@@ -44,12 +42,12 @@ The eight abscissae the archive can be asked for are `["mass"]`, `["product_mass
 per fission, which only the prompt-γ ordinates take and whose directory is the ordinate symbol
 alone: `M_gamma_bar`, `E_gamma_tot`, `eps_gamma`.
 
-Each ordinate belongs to one EXFOR quantity code — `yield` to `FY`, the multiplicities to `NU`,
+Each ordinate belongs to one EXFOR quantity code: `yield` to `FY`, the multiplicities to `NU`,
 the kinetic energies to `E`, the spectra to `MFQ`, the prompt-γ multiplicities to `FY` and the
-prompt-γ energies to `E` — and the configuration does not name it: the
-code is read from the ordinate. The quantity decides which datasets the archive offers at all, and
-several ordinates impose no tags of their own, so a pairing that could be written down could be
-written down wrong and would retrieve a different observable under the requested name.
+prompt-γ energies to `E`. The configuration does not name the code; it is read from the
+ordinate. The quantity decides which datasets the archive offers at all, and several ordinates
+impose no tags of their own, so a wrongly paired quantity would retrieve a different observable
+under the requested name.
 
 Not every combination exists in the archive. ν(TKE), for instance, is reported as a pair quantity,
 so `multiplicity_per_fission` against `["total_kinetic_energy"]` returns data where
@@ -127,12 +125,12 @@ Most subentries head the value `DATA-CM` rather than `DATA`. For this ordinate a
 is the datum, read with its uncertainty columns, and the csv rendering is compared with it row by
 row, to a relative 10⁻⁵ since the rendering writes six significant digits; see
 [`CENTRE_OF_MASS_ORDINATES`](@ref). The frame is recorded per dataset as `ordinate_frame`, with
-`ordinate_frame_basis` and `ordinate_frame_evidence` ([`ordinate_frame`](@ref)), and the basis
-is one of three: `heading` where the subentry heads the value `DATA-CM`; `subentry` where its
-text names the frame, as the `REACTION` text of `41502009` (Batenkov 2004) does; and
-`publication` where the subentry is silent and the publication names the frame: the one the
-subentry cites or, where that article was not obtained, the authors' paper of the same title and
-data, quoted in the evidence with its DOI ([`ORDINATE_FRAMES`](@ref)). Four datasets headed
+`ordinate_frame_basis` and `ordinate_frame_evidence` ([`ordinate_frame`](@ref)). The basis is one
+of three: `heading` where the subentry heads the value `DATA-CM`; `subentry` where its text names
+the frame, as the `REACTION` text of `41502009` (Batenkov 2004) does; and `publication` where the
+subentry is silent and the publication names the frame. That publication is the one the subentry
+cites or, where that article was not obtained, the authors' paper of the same title and data,
+quoted in the evidence with its DOI ([`ORDINATE_FRAMES`](@ref)). Four datasets headed
 `DATA` are read from the publication, and all four are in the centre of mass:
 
 - `23175012` (Budtz-Jørgensen 1988, 252-Cf), by its article
@@ -185,15 +183,15 @@ whether the range below the limit enters the mean, the dataset carries a qualifi
 | `22660003` (Nishio 1998, 233-U) | `measured_spectrum`, "calculated from the experimental data" | 0.3 MeV, laboratory; the EXFOR entry says 0.2 | [doi:10.1080/18811248.1998.9733919](https://doi.org/10.1080/18811248.1998.9733919) |
 | `22660004` (Nishio 1998, 233-U, A and TKE) | `unstated` for Fig. 5 | 0.3 MeV, laboratory | the same |
 
-The rule does not forbid `PRE` in SF5. With `N` required in SF7 the code is none of the fragment
-energies, whose rules forbid `N`, and `PRE` beside `PR` marks the pre-neutron mass of the
-abscissa, as in `MASS,PRE/PR/FRG,NU`. `41689005` (Piksaykin 1977,
+The tag rule of `neutron_kinetic_energy` admits `PRE` in SF5. With `N` required in SF7 the code
+is none of the fragment energies, whose rules forbid `N`, and `PRE` beside `PR` marks the
+pre-neutron mass of the abscissa, as in `MASS,PRE/PR/FRG,NU`. `41689005` (Piksaykin 1977,
 `98-CF-252(0,F)MASS,PRE/PR,KE,N`) is coded so: a mean neutron energy of 1.08 to 1.84 MeV against
 pre-neutron masses 92 to 160 on a 4-u grid, 18 lines of which 9 carry a statistical uncertainty,
 digitised from Fig. 2 of Yad. Fiz. 25, 723 (1977).
 
-A fragment kinetic energy coded `KE,N` is something no reaction-code test can tell from a neutron
-energy, and is told by its magnitude: a dataset holding more than
+No reaction-code test can tell a fragment kinetic energy coded `KE,N` from a neutron energy; its
+magnitude can. A dataset holding more than
 [`MAXIMUM_NEUTRON_KINETIC_ENERGY`](@ref), 5 MeV, on any row is refused, the reason giving the
 number of rows above the bound and the largest value. An evaporation spectrum ε exp(−ε/T) has the
 mean energy 2T (Weisskopf, [doi:10.1103/PhysRev.52.295](https://doi.org/10.1103/PhysRev.52.295)),
@@ -284,9 +282,8 @@ tabulated against `["neutron_number"]` and written under `P_vs_nu/` as `nu P P_u
 two go together and with nothing else, and the loader refuses any other pairing. The quantity
 code is `NU`, and the archive marks the distribution with the branch `NUM`: `,NUM,NU`,
 `,PR/NUM,NU`, once `NPART,NUM,NU`. The subentry tabulates it against `PART-OUT`, the number of
-outgoing particles, which the csv rendering does not carry, and the documentation of earlier
-versions called it unwritable for that reason. The rows of the subentry and of the rendering are
-aligned by order and the probabilities compared line by line.
+outgoing particles, which the csv rendering does not carry. The rows of the subentry and of the
+rendering are aligned by order and the probabilities compared line by line.
 
 The rule asks for `NUM` in SF5 and `NU` in SF6, and refuses a distribution for a fragment mass
 or charge (`MASS`, `ELEM`) and one derived from a model (`DERIV`: `30544002`, a simulated
@@ -375,7 +372,7 @@ alone, A_p 125 to 155, and is written as the archive gives it.
 
 For 252-Cf the archive holds 18, 6 coded `SEC` and 12 `CHN`. The six are `13081002` (Schmitt
 1965), `14259009` (Romano 2010), `14420002` (Meierbachtol 2015), `14652002` and `14652003` (Britt
-1964) and `14790002` (Gastis 2022). For 235-U it holds 36, 7 `SEC` and 29 `CHN`; the seven are
+1964) and `14790002` (Gastis 2022). For 235-U it holds 37, 7 `SEC` and 30 `CHN`; the seven are
 `14208003` (Derengowski 1970), `14259005` (Romano 2010), `21752016` (Wagemans 1981), `21981012`
 (Geltenbort 1985), `23594002` (Shiraishi 1968), `31738002` (Koblik 2014) and `32888002` (Liu
 2022). For 239-Pu 26, 10 `SEC` and 16 `CHN`; the ten are `21981013` (Geltenbort 1985);
@@ -399,8 +396,8 @@ light group), `13270003` (Lisman 1970, 31) and `22985006` (Bail 2009, 30, heavy 
 group) and `13208002` to `13208004` (Bidinosti 1961). The rest are tables of one to 28 masses,
 most of a dozen or fewer. Many chain yields carry `SPA` or `MXW`, recorded as for every
 observable. Two chain yields stay out: `13067002` (Fraser 1963, 252-Cf, 89 masses), which the
-archive renders with every value marked an upper limit (`Max`) and which is refused, every row a
-bound and none a value; and `22130003` (Asghar 1981, 233-U), in arbitrary units.
+archive renders with every value marked an upper limit (`Max`) and which is refused for having no
+value row; and `22130003` (Asghar 1981, 233-U), in arbitrary units.
 
 ### The independent yield
 
@@ -411,15 +408,14 @@ bound and none a value; and `22130003` (Asghar 1981, 233-U), in arbitrary units.
 `ELEM` is a code of the product subfield of the reaction code and never a heading of the DATA
 table, which heads the atomic number of a nuclide `ELEMENT` (EXFOR Dictionary 24), its mass
 number `MASS` and its isomeric state `ISOMER`. The csv rendering codes the product as 1000·Z + A,
-`ProdZA`, and the isomer as `ProdM`, and the two tables are aligned row by row. Earlier versions
-looked for an `ELEM` heading, and every independent yield failed that alignment.
+`ProdZA`, and the isomer as `ProdM`, and the two tables are aligned row by row.
 
 A subentry of one element may hold `ELEMENT`, and at times `MASS` or `ISOMER`, as a constant of
 its COMMON section or of the COMMON section of subentry 001 of the entry. With the charge in the
 abscissa such a constant is placed beside the lines of the DATA table before the tables are
 compared, and a rendering that then codes the product as a bare mass is accepted. The record lists
-the constants used as `common_constants`, `ELEMENT = 51.0 [NO-DIM]` for instance. Twenty datasets
-of 235-U, eight of 239-Pu, five of 233-U and one of 252-Cf are read so, among them `12740002`
+the constants used as `common_constants`, `ELEMENT = 51.0 [NO-DIM]` for instance. Twenty-one datasets
+of 235-U, nine of 239-Pu, five of 233-U and one of 252-Cf are read so, among them `12740002`
 (Rengan 1982), `20848003` (Fujiwara 1982), `21218004` (Kaiser 1978), `21641002` (Balestrini 1979),
 `23709002` (Strom 1965), `30912002` (Engler 1983), `30953004` (Ehrenberg 1972), `30960002` (Shmid
 1981) and `21706004` (Zwicky 1980).
@@ -458,7 +454,7 @@ each hold the yields at one product kinetic energy, a constant `E` of their COMM
 the independent yield as `21689019`, which is written. The pre-neutron yield against mass is not
 concerned. `CUM`, the cumulative yield, is refused for every observable.
 
-The archive holds 8 for 252-Cf, 48 for 235-U, 23 for 239-Pu and 17 for 233-U. The large tables
+The archive holds 9 for 252-Cf, 52 for 235-U, 24 for 239-Pu and 18 for 233-U. The large tables
 are, for 235-U, `10722003` (Strittmatter 1977, 100 nuclides, A_p 82 to 106), `21689019` (Lang
 1980, 113 nuclides, 80 to 107), `221610021` (Rudstam 1990, 92 nuclides written, about a quarter
 of them summed over isomeric states), `22151003` (Sida 1989, 70 to 84), `23586004` (Armbruster
@@ -521,14 +517,15 @@ one experiment in one table as Qi 2018 does, is refused with its values rather t
 one no publication states, and a dataset tabulated over bins of γ energy, as Verbinski 1973 is, is
 refused as tabulated against them.
 
-**Conventions.** Five decisions of this package that no code of the archive implies, stated here
-so that the records and the source, which refer to them, rest on nothing outside the package.
+**Conventions.** Five decisions that no code of the archive implies; the source and the records
+cite them by number.
 (1) `M_gamma_bar_vs_A` and `eps_gamma_vs_A` are retrieved and hold quantities per fission, the
 photons of both fragments of the fissions in which one fragment has the mass A; `M_gamma_vs_A` and
 `E_gamma_vs_A` hold the quantities of that fragment alone; a dataset enters one of the two by what
 its entry states, never both. (2) Skarsvåg 1970 (`23174004`), the multiplicity per fission above
-100 keV, is admitted by name for `M_gamma_bar` although the archive lists it under the quantity
-`MLT` alone, which no configuration queries; nothing else comes in from `MLT`. (3) The totals of
+100 keV, is admitted by name for `M_gamma_bar`, with `listed_under = "MLT"`, although the archive
+lists it under the quantity `MLT` alone, which no configuration queries; nothing else comes in
+from `MLT`. (3) The totals of
 Smith 1956 (`14320004`) and Sokol 1991 (`415800031`) and the mean photon energy of Krupa 2004
 (`23814004`), stated in auxiliary columns with no uncertainty beside them, are never written as
 datasets; they are kept, with their words and their place, in a reason among the rejections of the
@@ -546,9 +543,8 @@ the entry, in its DATA table or a COMMON section, where they state one; a range,
 resolution or a correction stated in the text of the entry, or in the publication it cites, is a
 curated statement, verbatim, looked for in the text at every retrieval and recorded with the place
 it stands. `gamma_definition_warning` names the datasets whose range or window nobody states, as
-the 1972 report of Pleasonton (14214) states neither for any of its four systems; the abstracts
-of Pleasonton 1972 and 1973 give the ∼5 ns window of its 235-U and of its 233-U and 239-Pu
-measurements, and its 252-Cf sets stay unstated. Gatera 2017 and the four detectors of
+the 1972 report of Pleasonton (14214) states neither for any of its four systems; convention (4)
+gives the windows its abstracts supply. Gatera 2017 and the four detectors of
 Oberstedt 2015 state a prompt gate of ±3 ns in their publications; the 300 ns acquisition
 trigger that the entry of Gatera states is recorded beside the gate as `acquisition_window_ns`.
 A set the archive codes partial, `PR/PAR` over a stated range, is written beside the full-range
@@ -576,18 +572,8 @@ its total γ energy per fission, against TKE (`23213018`) and against the number
 total γ energy per fission with its uncertainty in the additional results of their entries and in
 no DATA table. These are written as datasets named after the subentry that states them, once the
 words are found in its text and both numbers stand in them; nothing is formed from the
-multiplicity and the mean energy. `stated_value_warning` names them. A total stated in an
-auxiliary column with no uncertainty beside it, as Smith 1956 and Sokol 1991 give theirs in MISC,
-is no dataset; the value, its words and their place are kept in a reason among the rejections of
-the observable it would answer, and so is the mean photon energy of Krupa 2004.
-
-**By name.** Skarsvåg 1970 (23174004), the multiplicity per fission above 100 keV, is listed by the
-archive under the quantity `MLT` alone. The multiplicity per fission admits it by name, records
-`listed_under = "MLT"`, and takes nothing else from that quantity.
-
-**A row as it stands.** Pleasonton's multiplicity of one fragment at A = 82, −0.36 ± 1.36, is
-below zero and consistent with it; it is written as the archive gives it, since dropping it would
-bias the row, and `row_notes` says so.
+multiplicity and the mean energy. `stated_value_warning` names them. Values stated in an
+auxiliary column without an uncertainty are not datasets; see convention (3).
 
 **What is refused.** K X-rays (Kapoor 1968 and 1969, Popeko 1975), discrete lines of individual
 products, delayed γ rays, the γ field of a source measured without fission coincidence, and the
@@ -625,17 +611,18 @@ last are kept in the record of the dataset that gives them; see [Prompt γ rays]
 P(ν) of the fission is retrieved, as `multiplicity_distribution`; P(ν) per fragment and the
 variance of ν against mass or TKE are not.
 
-Ratios of the spectra of two neutron-induced systems — the `(A(n,f),PR,NU/DE)/(B(n,f),PR,NU/DE)`
-form the archive holds a good deal of — are a distinct observable and remain excluded. The ratio
-to the spectrum of 252-Cf(sf) is not: that is `spectrum_cf252_ratio`, and the ratio to a
-Maxwellian is `spectrum_maxwellian_ratio`.
+Ratios of the spectra of two neutron-induced systems, `(A(n,f),PR,NU/DE)/(B(n,f),PR,NU/DE)`, of
+which the archive holds many, are a distinct observable and are not retrieved. The ratios to the
+spectrum of 252-Cf(sf) and to a Maxwellian are retrieved, as `spectrum_cf252_ratio` and
+`spectrum_maxwellian_ratio`.
 
 ## Relative data
 
 A prompt fission neutron spectrum is conventionally measured relative and normalised afterwards,
 so for 235-U(n,f) most of what the archive holds is in arbitrary units: of the 125 datasets
 offered under `MFQ`, 42 answer the query in arbitrary units against 15 in absolute ones, and a
-thermal window narrows both to 11 and 6. Those datasets are retrieved, and **written under
+thermal window narrows both to 11 and 6, of which `23764007` is refused for its centre-of-mass
+frame. The rest are retrieved, and **written under
 `relative/` rather than beside the absolute ones**:
 
 ```
@@ -646,15 +633,15 @@ data/U235_nth/spectrum_vs_E/
 └── retrieval.toml
 ```
 
-The separation is the point. A relative dataset cannot be put on a common scale with anything,
-not even another relative dataset: each has to be normalised on its own before it is compared
-with anything, and none may be averaged with absolute data. A reader that takes a whole directory
-therefore cannot pick one up by accident. The run record marks each accepted dataset
+A relative dataset cannot be put on a common scale with any other, relative or absolute: each has
+to be normalised on its own before it is compared, and none may be averaged with absolute data.
+Because they are kept apart, a reader that takes a whole directory cannot pick one up by
+accident. The run record marks each accepted dataset
 `relative = true` or `false` and names them all in one warning.
 
 This applies to the spectrum ordinates and to the joint yield Y(A, TKE) alone. A joint yield is
 recorded event by event and published as counts on a grid, and what it carries is the TKE
-distribution at each mass, which a consumer normalises to a mass yield. For every other
-observable arbitrary units are still fatal, because a relative value there is not interpretable —
-a one-dimensional Y(A) in counts has no scale to be read off, a kinetic energy in arbitrary units
-is not an energy, and a multiplicity is a count whose scale is the whole quantity.
+distribution at each mass, which a consumer normalises to a mass yield. Every other observable
+refuses arbitrary units, since a relative value there cannot be interpreted: a one-dimensional
+Y(A) in counts has no scale to read off, a kinetic energy in arbitrary units is not an energy,
+and the scale of a multiplicity is the whole quantity.

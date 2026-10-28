@@ -4,9 +4,9 @@ CurrentModule = ExforFissionData
 
 # Conventions and selection
 
-**Energies are restated in MeV** — both an energy abscissa and an ordinate that is itself an
-energy. These are exact conversions of a value with the factor recorded in the run record, which
-is a different thing from a normalisation.
+**Energies are restated in MeV**, both an energy abscissa and an ordinate that is itself an
+energy. The conversion is exact and its factor is recorded in the run record; it is not a
+normalisation.
 
 **Values carry seven significant digits**, set by `significant_digits` under `[output]`.
 Significant digits rather than decimal places, because the ordinates span many orders of
@@ -24,9 +24,9 @@ are written unchanged, with their uncertainties.
 
 **The uncertainty column is omitted** when no row of a dataset carries one, rather than written
 as a column of zeros. **A missing uncertainty is `NaN`, never zero.** Where some rows of a
-dataset carry an uncertainty and others leave it blank — `41397004` (Apalin 1965) has it on 22 of
-its 52 lines — a row without one is written `NaN`, and so is a row interpolated next to such a
-row, or combined only from such rows; a zero is written only where EXFOR states one, as the empty
+dataset carry an uncertainty and others leave it blank (`41397004`, Apalin 1965, has it on 22 of
+its 52 lines), a row without one is written `NaN`, and so is a row interpolated next to such a
+row or combined only from such rows. A zero is written only where EXFOR states one, as the empty
 cells of `23268002` do. The run record counts, per dataset, the lines stating a zero uncertainty
 as `uncertainty_zero_rows` and those stating none as `uncertainty_absent_rows`. Where the csv
 rendering carries no uncertainty at all but the subentry does, in `DATA-ERR`, `ERR-T` or `ERR-S`
@@ -103,9 +103,9 @@ Where no code can tell two datasets apart, a dataset is read from its subentry t
 (`src/curation.jl`), and the run record carries the evidence as `curation`. An observable against
 pre-neutron mass takes only pre-neutron masses: an entry that states its masses were not
 corrected for neutron emission has every dataset against such a mass rejected, with the
-subentry that states it as the reason — entries 40232 and 40420 (Zakharova 1973 and 1979), whose
-ν(A) and ν(A, TKE) share that mass determination. A blank branch field
-is decided kinematically: a double-velocity measurement gives pre-neutron masses and energies
+subentry that states it as the reason. Entries 40232 and 40420 (Zakharova 1973 and 1979) are two
+such; their ν(A) and ν(A, TKE) share that mass determination. A blank branch field is decided
+kinematically: a double-velocity measurement gives pre-neutron masses and energies
 directly, since isotropic neutron emission leaves the mean fragment velocity unchanged, while a
 double-energy measurement gives provisional masses until they are corrected with ν(A), and is
 admitted only where its entry states that correction.
@@ -142,10 +142,8 @@ The checks easiest to get wrong:
 - the incident-energy window is applied **per row**, not to the dataset as a whole. An EXFOR
   dataset frequently reports one product at several energies, and admitting all of them collapses
   an excitation function into a single number;
-- what a dataset is tabulated against is read from its **subentry DATA table**, which is
-  aligned with the csv rendering row by row — the truncated product against `MASS` and
-  `ELEMENT`, the secondary energy against `E` or `TKE` — and a dataset on which the two disagree
-  is rejected. With the charge in the abscissa, `ELEMENT`, `MASS` or `ISOMER` held as a constant
+- what a dataset is tabulated against is read from its **subentry DATA table** and aligned with
+  the csv rendering row by row, as described above. With the charge in the abscissa, `ELEMENT`, `MASS` or `ISOMER` held as a constant
   of the COMMON section of the subentry or of the entry is placed beside the lines first, and the
   constants used are recorded as `common_constants`. For the mean neutron energy the value itself
   is compared with `DATA-CM`, to a relative 10⁻⁵;
@@ -158,9 +156,9 @@ The checks easiest to get wrong:
   spectrum and is rejected. The mean neutron energy is the one ordinate read from `DATA-CM`, and
   its frame is read from that heading, from the text of the subentry, or from the publication
   the subentry cites, and recorded per dataset as `ordinate_frame` with `ordinate_frame_basis`;
-- a **mean neutron energy above 5 MeV** on any row is no mean neutron energy: `23164022`
-  (Al-Adili 2016), coded `KE,N`, holds fragment kinetic energies of 43.6 to 101.9 MeV and is
-  refused on that bound ([`MAXIMUM_NEUTRON_KINETIC_ENERGY`](@ref));
+- a **mean neutron energy above 5 MeV** on any row is refused: no mean neutron energy reaches
+  that, and a fragment kinetic energy coded `KE,N`, as `23164022` (Al-Adili 2016) holds, exceeds
+  it by far ([`MAXIMUM_NEUTRON_KINETIC_ENERGY`](@ref));
 - a **ratio to a Maxwellian** must state the temperature it was formed with, in `KT-NRM`, and is
   refused without it; `14278003` (Poenitz 1982) holds the mean energy 3T/2 there, and T is
   recorded as two thirds of it;
@@ -207,14 +205,13 @@ a prefix of their own and named in a warning, the dataset being written as the a
 (`spectrum_form_warning`), and `evaluation:` for a dataset coded `EVAL` (`evaluation_warning`).
 
 A dataset its subentry marks superseded (`STATUS`, code `SPSDD`) is written beside the dataset
-that supersedes it, and neither is refused. The two are one measurement, a group of relation
-`republication`, or `dependent` where a third dataset formed from the same data joins them, as for
-`40418006`, `40418007` and `40418008`, or where the later is formed from the earlier, as `41198002`
-from `41179002`, and name each other as `correlated_with`, which does not
-say which of them the authors withdrew; the superseded one carries among its `qualifiers` an
-entry beginning `superseded: by` followed by the accession of the other, and `superseded_warning`
-under `[datasets]` lists the pairs. A consumer wanting one of the two takes the superseding
-dataset on that entry.
+that supersedes it, and neither is refused. The two are one measurement and name each other as
+`correlated_with`. Their group is of relation `republication`, or `dependent` where a third
+dataset formed from the same data joins them (`40418006`, `40418007` and `40418008`) or where the
+later is formed from the earlier (`41198002` from `41179002`). `correlated_with` does not say
+which of the two the authors withdrew; the superseded one carries among its `qualifiers` an entry
+beginning `superseded: by` and the accession of the other, and `superseded_warning` under
+`[datasets]` lists the pairs. A consumer wanting one of the two takes the superseding dataset.
 
 Datasets of one experiment are written separately and grouped ([`CORRELATION_GROUPS`](@ref)):
 each names the others as `correlated_with`, with the reason as `correlation` and the relation as

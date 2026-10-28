@@ -46,8 +46,7 @@ thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel deci
 reaction code, so the configuration names the channel and never the code: the two can disagree
 only if both are written down. The window that selects datasets is `energy_min` and
 `energy_max`; it defaults to the channel's interval in the table above and is refused outside it,
-so that a thermal directory cannot hold a fast measurement. The bounds follow from the physics
-set out above.
+so that a thermal directory cannot hold a fast measurement.
 
 ## Spectrum qualifiers
 

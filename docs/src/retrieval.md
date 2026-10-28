@@ -10,16 +10,18 @@ backoff, and responses are cached on disk: in the package's `Scratch.jl` space, 
 `[retrieval]` points. The cache is a convenience, not a record: `Pkg.gc()` may remove a scratch
 space, and a run against an empty cache fetches every response again.
 
-EXFOR revises entries — the `HISTORY` of a subentry records each alteration, and many of those
-retrieved here carry one — and adds new ones. The listing of datasets is therefore requested on
+EXFOR revises entries, recording each alteration in the `HISTORY` of the subentry (many of those
+retrieved here carry one), and adds new ones. The listing of datasets is therefore requested on
 every run, since a cached listing never discovers an added entry, while dataset responses are
 served from the cache. `max_age_days` under `[retrieval]` expires cached dataset responses older
 than that many days, and `refresh = true` refetches everything a run touches and replaces the
 cached copies. A request the archive cannot serve falls back to the cached copy, with a warning
 naming its date. `offline = true` never contacts the archive and serves the cache alone. An
-empty csv rendering, a header with no row, is never served from the cache: the archive has
-answered so for datasets it holds, so such a dataset is asked for again on every later run until
-the archive answers with data, and a run that meets an empty answer rejects it as empty.
+empty csv rendering, a header with no row, is never served from the cache, because the archive
+has returned such renderings for datasets it holds. The dataset is requested again on every later
+run until data arrive. A run that receives an empty rendering rejects the dataset and gives the
+reason from its subentry: a `NODATA` record, with the `STATUS` that says why, or a DATA table the
+rendering left empty.
 
 The run record carries the date of the listing, `listing_retrieved_utc`, and of every dataset,
 `retrieved_utc`, with whether each came from the cache. Those dates are what a consumer cites as
@@ -30,16 +32,15 @@ reproduces its output exactly.
 
 ## The run record
 
-`retrieval.toml` holds the query, the conventions applied, the package version and — where the
-package runs from a working copy — its commit, the platform, and both dataset lists — accepted,
-with what the reduction did to each, and rejected, with the reason. The rejection list is the
-point: a dataset missing from the output is otherwise indistinguishable from one the archive does
-not hold.
+`retrieval.toml` holds the query, the conventions applied, the package version and, for a
+working copy, its commit, the platform, and two dataset lists: those accepted, with what the
+reduction did to each, and those rejected, with the reason. Without the rejection list a dataset
+missing from the output could not be told from one the archive does not hold.
 
-It is written to be committed alongside the data, so it deliberately says nothing about who ran
-it: the configuration appears by file name rather than by the path it was read from, and the
-machine name is omitted. The platform fingerprint still attributes a run to its hardware — CPU
-model, core counts, memory, Julia version. Set `record_hostname = true` under `[output]` to name
+The record is meant to be committed beside the data and does not say who ran it: the
+configuration appears by file name, not by the path it was read from, and the machine name is
+omitted. The platform fingerprint still attributes a run to its hardware: CPU model, core counts,
+memory, Julia version. Set `record_hostname = true` under `[output]` to name
 the machine as well, which is useful when the records stay yours.
 
 ### Fields
@@ -150,8 +151,9 @@ is the quantity's own name suffixed with `_uncertainty`. A reader is nonetheless
 columns by **position**: the header says what is there, and renaming a quantity must not be able
 to break anything that reads these files.
 
-Nothing is overwritten. A retrieval never writes into an existing observable directory: where
-`<root>/<directory>/<system>/<observable>` exists (`directory` of `[output]`, `data` by default), it writes to `<observable>_1`, then `_2`, and so on,
-the system directory and the root left as they are. A consumer restaging a tree writes to a fresh
+A retrieval never writes into an existing observable directory. Where
+`<root>/<directory>/<system>/<observable>` exists (`directory` of `[output]`, `data` by default),
+it writes to `<observable>_1`, then `_2`, and so on, leaving the system directory and the root as
+they are. A consumer restaging a tree writes to a fresh
 root, or removes the old observable directory first; otherwise the new data lands beside the old
 under a suffixed name and the old directory is still the one under the plain name.
