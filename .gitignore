@@ -1,9 +1,9 @@
-# retrieval outputs (never version-controlled)
-data/
-plots/
+# retrieval outputs and survey figures at the repository root (never version-controlled)
+/data/
+/plots/
 *.log
 
-# retrieved and generated data formats
+# retrieved and generated data formats; documentation assets are the exception
 *.csv
 *.dat
 *.h5
@@ -11,6 +11,7 @@ plots/
 *.pdf
 *.png
 *.svg
+!docs/src/assets/**
 
 # manifests are resolved per machine and Julia version, never version-controlled;
 # reproducibility rests on Project.toml and [compat]

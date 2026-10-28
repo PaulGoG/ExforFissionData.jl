@@ -1,9 +1,9 @@
 # Survey figures for a retrieval.
 #
-# This module is detached from the retrieval package on purpose. Retrieval is headless and carries
-# no plotting dependency: a consumer has its own figure standards and should not inherit a plotting
-# stack through its data source. The figure here answers one question only — what did this query
-# actually return — and is a check on a retrieval, not a publication figure.
+# The script stands apart from the retrieval package, which is headless and carries no plotting
+# dependency: a consumer has its own figure standards and should not inherit a plotting stack
+# through its data source. The figure shows what one query returned; it is a check on a
+# retrieval, not a publication figure.
 #
 #     julia plotting/survey.jl data/Cf252_sf/nu_vs_A
 #
@@ -38,6 +38,9 @@ const DENSE_MARKERSIZE = 7
     survey(directory; format, output) -> String
 
 Draw every dataset of one retrieval on shared axes and write the figure.
+
+The figure goes to `output` when one is given, and otherwise to
+`plots/<system>/<observable>.<format>` under the repository root; the path is returned.
 
 Labels come from the run record, so the legend names the same datasets the record does. The figure
 takes the standard 900×600 canvas and grows by one panel height when relative data adds a second
@@ -193,11 +196,11 @@ function survey(
         rowgap!(figure.layout, 10)
     end
 
+    # The default lies outside the retrieval directory: a figure there would join the data tree
+    # that a release comparison walks file by file.
     path = if isempty(output)
-        joinpath(
-            directory,
-            string(record["run"]["system"], "_", record["run"]["observable"], ".", format),
-        )
+        folder = mkpath(joinpath(dirname(@__DIR__), "plots", record["run"]["system"]))
+        joinpath(folder, string(record["run"]["observable"], ".", format))
     else
         output
     end
@@ -270,22 +273,46 @@ function _panel_label(ordinate, selected::AbstractVector)
     return LaTeXString(string(base, " [", join(units, ", "), "]"))
 end
 
+"""Figure formats accepted by `--format`."""
+const FORMATS = ("pdf", "png", "svg")
+
 function main(arguments::Vector{String})
     if isempty(arguments) || arguments[1] in ("-h", "--help")
         println(
             """
             usage: julia plotting/survey.jl <retrieval-directory> [--format pdf|png|svg]
+                                            [--output path]
 
             Draws every dataset of one retrieval on shared axes, as a check on what the query
             returned. Publication figures belong with the analysis that consumes the data.
+            The figure is written to plots/<system>/<observable>.<format> under the
+            repository root, outside the data tree, unless --output names a path; the
+            extension of that path then sets the format.
             """,
         )
         return 0
     end
-    format = "pdf"
-    index = findfirst(==("--format"), arguments)
-    index === nothing || (format = arguments[index + 1])
-    path = survey(arguments[1]; format)
+    options = Dict("--format" => "pdf", "--output" => "")
+    index = 2
+    while index ≤ length(arguments)
+        option = arguments[index]
+        if !haskey(options, option)
+            println(stderr, "unknown argument $(option); see --help")
+            return 2
+        end
+        if index == length(arguments)
+            println(stderr, "option $(option) needs a value")
+            return 2
+        end
+        options[option] = arguments[index + 1]
+        index += 2
+    end
+    format = options["--format"]
+    if !(format in FORMATS)
+        println(stderr, "unknown format $(format); one of: $(join(FORMATS, ", "))")
+        return 2
+    end
+    path = survey(arguments[1]; format, output = options["--output"])
     @info "figure written" path
     return 0
 end

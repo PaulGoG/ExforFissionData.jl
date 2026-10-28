@@ -8,6 +8,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+permissions:
+  contents: read
+  actions: write # lets julia-actions/cache delete the caches it created
 jobs:
   format:
     name: JuliaFormatter
@@ -19,13 +22,4 @@ jobs:
           version: '1'
       - uses: julia-actions/cache@v3
       - name: Check formatting against .JuliaFormatter.toml
-        shell: julia --color=yes {0}
-        run: |
-          include(joinpath(pwd(), "formatter", "activate.jl"))
-          using JuliaFormatter
-          formatted = all(format(target; overwrite = false)
-                          for target in ("src", "test", "scripts", "plotting", "docs", "check.jl"))
-          if !formatted
-              @error "Formatting differs from .JuliaFormatter.toml. Run `julia check.jl` locally."
-              exit(1)
-          end
+        run: julia --color=yes formatter/format.jl --check

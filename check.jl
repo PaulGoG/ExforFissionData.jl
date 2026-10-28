@@ -1,23 +1,17 @@
-# Pre-commit: format against .JuliaFormatter.toml with the pinned formatter, then run the tests —
-# the package suite, then the figure helpers, which carry an environment of their own.
+# Pre-commit: format against .JuliaFormatter.toml with the pinned formatter, then run the
+# package tests and those of the figure helpers, which carry an environment of their own.
+# That is the formatting and test gate CI applies. CI also builds the documentation,
+# doctests and cross-references included, and that build runs here only with `--docs`.
 #
-#     julia check.jl            format in place, then test
-#     julia check.jl --check    fail on formatting differences, do not rewrite
-#
-# Mirrors the gate that CI applies, so a failure is reproducible locally.
+#     julia check.jl                  format in place, then test
+#     julia check.jl --check          check formatting without rewriting, then test
+#     julia check.jl --docs           format in place, test, then build the documentation
+#     julia check.jl --check --docs   check formatting, test, then build the documentation
 
-const TARGETS = ("src", "test", "scripts", "plotting", "docs", "check.jl")
+include(joinpath(@__DIR__, "formatter", "format.jl"))
 
 let overwrite = !("--check" in ARGS)
-    include(joinpath(@__DIR__, "formatter", "activate.jl"))
-    using JuliaFormatter: format
-
-    formatted = true
-    for target in TARGETS
-        formatted &= format(joinpath(@__DIR__, target); overwrite = overwrite)
-    end
-
-    if !formatted
+    if !format_repository(; overwrite = overwrite)
         if overwrite
             @info "formatting applied"
         else
@@ -35,4 +29,11 @@ let overwrite = !("--check" in ARGS)
     run(
         `$(Base.julia_cmd()) --startup-file=no $(joinpath(@__DIR__, "plotting", "runtests.jl"))`,
     )
+
+    # The documentation has its own environment too. `deploydocs` does nothing outside CI.
+    if "--docs" in ARGS
+        run(
+            `$(Base.julia_cmd()) --startup-file=no $(joinpath(@__DIR__, "docs", "make.jl"))`,
+        )
+    end
 end

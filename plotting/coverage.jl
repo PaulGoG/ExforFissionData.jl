@@ -54,8 +54,8 @@ end
 Read one retrieval and place its written datasets in the order the pipeline processed them.
 
 Identifiers are sorted on retrieval, so merging the accepted and rejected lists of the run record
-and sorting reproduces that order exactly. A dataset's arrival is its position in that merged
-stream, which is what makes the tally of datasets considered meaningful rather than decorative.
+and sorting reproduces that order exactly. A dataset arrives at its position in that merged
+stream, and the tally counts the datasets considered up to it.
 """
 function panel(directory::AbstractString)
     record = read_record(directory)
@@ -91,7 +91,7 @@ Every panel plots the same observable of a different fissioning system, so the a
 the layout is identical across panels. Limits follow the $(LIMIT_QUANTILE) quantile of the
 accumulated values rather than their extremes: the far-asymmetric mass tails carry uncertainties
 larger than the values themselves, and letting them set the scale flattens the physics everywhere
-else. Nothing is dropped from the written data on that account — this is a figure, not a filter.
+else. Points beyond the limits fall outside the axes; the written data are untouched.
 """
 function coverage(
     directories::AbstractVector{<:AbstractString};
