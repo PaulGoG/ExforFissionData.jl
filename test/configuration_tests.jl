@@ -108,6 +108,13 @@
             """))
         end
 
+        # The endpoint defaults to the IAEA archive and must be an http or https URL.
+        @test configuration.retrieval.base_url == ExforFissionData.EXFOR_BASE
+        @test_throws "base_url" load_configuration_text(u233_yield_toml("""
+        [retrieval]
+        base_url = "ftp://example/"
+        """))
+
         # Spontaneous fission has no incident particle, so a window on it cannot be honoured.
         @test_throws ArgumentError load_configuration_text("""
         [query]

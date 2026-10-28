@@ -298,6 +298,24 @@ function _subentry_uncertainties(dataset::Dataset, datum::AbstractString = "DATA
     )
 end
 
+"""
+    _sidecar_uncertainties(dataset, column) -> (errors, source)
+
+The uncertainties of the DATA column `column`, read from the column `<column>-ERR` when the
+subentry heads it in the unit of `column` and missing otherwise, and where they came from:
+`"subentry <column>-ERR"`, or `"none"` when no row carries one.
+"""
+function _sidecar_uncertainties(dataset::Dataset, column::AbstractString)
+    values = dataset.columns[!, column]
+    unit = dataset.units[column]
+    error_heading = column * "-ERR"
+    has_errors =
+        error_heading in names(dataset.columns) && dataset.units[error_heading] == unit
+    errors = has_errors ? dataset.columns[!, error_heading] : fill(missing, length(values))
+    source = all(ismissing, errors) ? "none" : "subentry $(error_heading)"
+    return errors, source
+end
+
 # The width of each row as the standard deviation of the TKE in MeV, its uncertainty, and where
 # the uncertainty came from: the column `<column>-ERR` in the width's own unit, or none. `masses`
 # are the tabulated masses of the rows, which a width of one fragment's energy is converted with.
@@ -309,11 +327,7 @@ function _width_values(
 )
     values = dataset.columns[!, width.column]
     unit = dataset.units[width.column]
-    error_heading = width.column * "-ERR"
-    has_errors =
-        error_heading in names(dataset.columns) && dataset.units[error_heading] == unit
-    errors = has_errors ? dataset.columns[!, error_heading] : fill(missing, length(values))
-    source = all(ismissing, errors) ? "none" : "subentry $(error_heading)"
+    errors, source = _sidecar_uncertainties(dataset, width.column)
     σ = Vector{Union{Missing, Float64}}(missing, length(values))
     δ = Vector{Union{Missing, Float64}}(missing, length(values))
     excluded =
@@ -330,11 +344,7 @@ function _width_values(
             s = sqrt(variance)
             d = s > 0 ? e * VARIANCE_UNIT_FACTORS[unit] / (2 * s) : NaN
         else
-            per_sigma = Dict(
-                "standard_deviation" => 1.0,
-                "fwhm" => FWHM_PER_SIGMA,
-                "hwhm" => FWHM_PER_SIGMA / 2,
-            )[width.holds]
+            per_sigma = WIDTH_PER_SIGMA[width.holds]
             s = v * energy_factor(unit) / per_sigma
             d = e * energy_factor(unit) / per_sigma
         end
@@ -356,11 +366,7 @@ function _parameter_values(dataset::Dataset, parameter::ParameterColumn)
     values = dataset.columns[!, parameter.column]
     unit = dataset.units[parameter.column]
     factor = something(energy_factor(unit), 1.0)
-    error_heading = parameter.column * "-ERR"
-    has_errors =
-        error_heading in names(dataset.columns) && dataset.units[error_heading] == unit
-    errors = has_errors ? dataset.columns[!, error_heading] : fill(missing, length(values))
-    source = all(ismissing, errors) ? "none" : "subentry $(error_heading)"
+    errors, source = _sidecar_uncertainties(dataset, parameter.column)
     return (
         Union{Missing, Float64}[ismissing(v) ? missing : v * factor for v in values],
         Union{Missing, Float64}[ismissing(e) ? missing : abs(e) * factor for e in errors],

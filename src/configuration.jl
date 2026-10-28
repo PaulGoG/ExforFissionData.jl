@@ -225,6 +225,7 @@ const RETRIEVAL_KEYS = (
     "use_cache",
     "refresh",
     "cache_directory",
+    "base_url",
     "offline",
     "max_age_days",
     "save_subentries",
@@ -589,6 +590,21 @@ function load_configuration(path::AbstractString)
         "retrieval",
         source,
     )
+    base_url = _optional(
+        retrieval_section,
+        "base_url",
+        DEFAULT_RETRIEVAL.base_url,
+        "retrieval",
+        source,
+    )
+    # Every query is appended to the endpoint, so the separating slash belongs to it.
+    web_scheme = startswith(base_url, "http://") || startswith(base_url, "https://")
+    (web_scheme && endswith(base_url, "/")) || throw(
+        ArgumentError(
+            "$(source): [retrieval].base_url must be an http or https URL ending in \"/\", \
+             got $(repr(base_url))",
+        ),
+    )
     save_subentries =
         _optional(retrieval_section, "save_subentries", true, "retrieval", source)
 
@@ -640,6 +656,7 @@ function load_configuration(path::AbstractString)
             cache_directory = cache_directory,
             offline = offline,
             max_age_days = Float64(max_age_days),
+            base_url = base_url,
         ),
         save_subentries,
         directory,
@@ -651,51 +668,94 @@ function load_configuration(path::AbstractString)
     )
 end
 
+"""
+    _column_tables(table, key, ordinates, reading, ordinate, abscissa, source) -> Vector
+
+The `[[key]]` tables of the configuration `table`, validated for the ordinate `ordinate`.
+For an ordinate outside `ordinates` they are refused, and an empty vector is returned when
+there are none; otherwise the abscissa must be mass alone and the tables a non-empty array.
+`reading` is how the ordinate is read in the refusal of an empty array, `"reads widths"` or
+`"is read"`.
+"""
+function _column_tables(
+    table::AbstractDict,
+    key,
+    ordinates,
+    reading,
+    ordinate,
+    abscissa,
+    source,
+)
+    entries = get(table, key, Any[])
+    if !(ordinate in ordinates)
+        isempty(entries) && return Any[]
+        scope =
+            length(ordinates) == 1 ? "ordinate \"$(only(ordinates))\"" :
+            "ordinates $(join(sort!(collect(ordinates)), ", "))"
+        throw(ArgumentError("$(source): [[$(key)]] applies to the $(scope) alone, not to \
+                 \"$(ordinate)\""))
+    end
+    abscissa == ["mass"] || throw(
+        ArgumentError(
+            "$(source): the ordinate \"$(ordinate)\" is tabulated against [\"mass\"] alone, \
+             not $(abscissa)",
+        ),
+    )
+    (entries isa AbstractVector && all(entry -> entry isa AbstractDict, entries)) ||
+        throw(ArgumentError("$(source): [[$(key)]] must be an array of tables"))
+    isempty(entries) && throw(
+        ArgumentError(
+            "$(source): the ordinate \"$(ordinate)\" $(reading) only from the columns \
+             [[$(key)]] names, and the configuration names none",
+        ),
+    )
+    return entries
+end
+
+"""
+    _column_entry(entry, index, key, allowed, role, named, source) -> (subentry, column)
+
+The dataset identifier and the stripped DATA heading of `entry`, the `index`-th `[[key]]`
+table. Refused are a key outside `allowed`, an identifier of other than 8 or 9 characters or
+one already in `named`, the columns read so far, and a heading
+[`width_column_refusal`](@ref) refuses as `role`, `"a width"` or `"a parameter"`.
+"""
+function _column_entry(entry::AbstractDict, index, key, allowed, role, named, source)
+    path = "$(key)[$(index)]"
+    _reject_unknown(entry, allowed, "[[$(key)]] $(index)", source)
+    subentry = _require(entry, "subentry", String, path, source)
+    length(subentry) in (8, 9) || throw(
+        ArgumentError(
+            "$(source): [$(path)].subentry must have 8 characters, or 9 with a pointer, \
+             got $(repr(subentry))",
+        ),
+    )
+    mapped_column(named, subentry) === nothing ||
+        throw(ArgumentError("$(source): [$(path)].subentry $(subentry) is named twice"))
+    column = _require(entry, "column", String, path, source)
+    refusal = width_column_refusal(column; role = role)
+    refusal === nothing || throw(ArgumentError("$(source): [$(path)].column: $(refusal)"))
+    return subentry, String(strip(column))
+end
+
 # The `[[width]]` tables, validated: present exactly for the width ordinate, against mass alone,
 # each naming a dataset identifier once, a column that can hold a width, and one of the documented
 # kinds and energies.
 function _widths(table::AbstractDict, ordinate, abscissa, source)
-    entries = get(table, "width", Any[])
-    if ordinate != WIDTH_ORDINATE
-        isempty(entries) || throw(
-            ArgumentError(
-                "$(source): [[width]] applies to the ordinate \"$(WIDTH_ORDINATE)\" alone, not \
-                 to \"$(ordinate)\"",
-            ),
-        )
-        return WidthColumn[]
-    end
-    abscissa == ["mass"] || throw(
-        ArgumentError(
-            "$(source): the ordinate \"$(WIDTH_ORDINATE)\" is tabulated against [\"mass\"] \
-             alone, not $(abscissa)",
-        ),
-    )
-    (entries isa AbstractVector && all(entry -> entry isa AbstractDict, entries)) ||
-        throw(ArgumentError("$(source): [[width]] must be an array of tables"))
-    isempty(entries) && throw(
-        ArgumentError(
-            "$(source): the ordinate \"$(WIDTH_ORDINATE)\" reads widths only from the columns \
-             [[width]] names, and the configuration names none",
-        ),
+    entries = _column_tables(
+        table,
+        "width",
+        (WIDTH_ORDINATE,),
+        "reads widths",
+        ordinate,
+        abscissa,
+        source,
     )
     widths = WidthColumn[]
     for (index, entry) in enumerate(entries)
         path = "width[$(index)]"
-        _reject_unknown(entry, WIDTH_KEYS, "[[width]] $(index)", source)
-        subentry = _require(entry, "subentry", String, path, source)
-        length(subentry) in (8, 9) || throw(
-            ArgumentError(
-                "$(source): [$(path)].subentry must have 8 characters, or 9 with a pointer, \
-                 got $(repr(subentry))",
-            ),
-        )
-        any(w -> w.subentry == subentry, widths) &&
-            throw(ArgumentError("$(source): [$(path)].subentry $(subentry) is named twice"))
-        column = _require(entry, "column", String, path, source)
-        refusal = width_column_refusal(column)
-        refusal === nothing ||
-            throw(ArgumentError("$(source): [$(path)].column: $(refusal)"))
+        subentry, column =
+            _column_entry(entry, index, "width", WIDTH_KEYS, "a width", widths, source)
         holds = _one_of(
             _require(entry, "holds", String, path, source),
             WIDTH_KINDS,
@@ -710,7 +770,7 @@ function _widths(table::AbstractDict, ordinate, abscissa, source)
             path,
             source,
         )
-        push!(widths, WidthColumn(subentry, String(strip(column)), holds, of))
+        push!(widths, WidthColumn(subentry, column, holds, of))
     end
     return widths
 end
@@ -719,53 +779,27 @@ end
 # PARAMETER_ORDINATES, against mass alone, each naming a dataset identifier once and a column
 # that can hold a parameter.
 function _parameters(table::AbstractDict, ordinate, abscissa, source)
-    entries = get(table, "fit_parameter", Any[])
-    if !haskey(PARAMETER_ORDINATES, ordinate)
-        isempty(entries) || throw(
-            ArgumentError(
-                "$(source): [[fit_parameter]] applies to the ordinates \
-                 $(join(sort!(collect(keys(PARAMETER_ORDINATES))), ", ")) alone, not to \
-                 \"$(ordinate)\"",
-            ),
-        )
-        return ParameterColumn[]
-    end
-    abscissa == ["mass"] || throw(
-        ArgumentError(
-            "$(source): the ordinate \"$(ordinate)\" is tabulated against [\"mass\"] alone, \
-             not $(abscissa)",
-        ),
-    )
-    (entries isa AbstractVector && all(entry -> entry isa AbstractDict, entries)) ||
-        throw(ArgumentError("$(source): [[fit_parameter]] must be an array of tables"))
-    isempty(entries) && throw(
-        ArgumentError(
-            "$(source): the ordinate \"$(ordinate)\" is read only from the columns \
-             [[fit_parameter]] names, and the configuration names none",
-        ),
+    entries = _column_tables(
+        table,
+        "fit_parameter",
+        keys(PARAMETER_ORDINATES),
+        "is read",
+        ordinate,
+        abscissa,
+        source,
     )
     parameters = ParameterColumn[]
     for (index, entry) in enumerate(entries)
-        path = "fit_parameter[$(index)]"
-        _reject_unknown(entry, PARAMETER_KEYS, "[[fit_parameter]] $(index)", source)
-        subentry = _require(entry, "subentry", String, path, source)
-        length(subentry) in (8, 9) || throw(
-            ArgumentError(
-                "$(source): [$(path)].subentry must have 8 characters, or 9 with a pointer, \
-                 got $(repr(subentry))",
-            ),
+        subentry, column = _column_entry(
+            entry,
+            index,
+            "fit_parameter",
+            PARAMETER_KEYS,
+            "a parameter",
+            parameters,
+            source,
         )
-        any(p -> p.subentry == subentry, parameters) &&
-            throw(ArgumentError("$(source): [$(path)].subentry $(subentry) is named twice"))
-        column = _require(entry, "column", String, path, source)
-        refusal = width_column_refusal(column)
-        refusal === nothing || throw(
-            ArgumentError(
-                "$(source): [$(path)].column: " *
-                replace(refusal, "a width" => "a parameter"),
-            ),
-        )
-        push!(parameters, ParameterColumn(subentry, String(strip(column))))
+        push!(parameters, ParameterColumn(subentry, column))
     end
     return parameters
 end

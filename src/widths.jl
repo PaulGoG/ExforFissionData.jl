@@ -46,23 +46,35 @@ const WIDTH_OF = ("total_kinetic_energy", "fragment_kinetic_energy")
 const FWHM_PER_SIGMA = 2 * sqrt(2 * log(2))
 
 """
+What a width column holds per standard deviation, for each kind of
+[`WIDTH_KINDS`](@ref) but the variance: the column is divided by it to give the standard
+deviation.
+"""
+const WIDTH_PER_SIGMA = Dict{String, Float64}(
+    "standard_deviation" => 1.0,
+    "fwhm" => FWHM_PER_SIGMA,
+    "hwhm" => FWHM_PER_SIGMA / 2,
+)
+
+"""
 Factors from the units EXFOR heads a variance with to MeV². A variance under an energy unit is
 not accepted: its unit then contradicts what the column is said to hold.
 """
 const VARIANCE_UNIT_FACTORS = Dict("MEV-SQ" => 1.0, "KEV-SQ" => 1.0e-6, "EV-SQ" => 1.0e-12)
 
 """
-    width_column_refusal(column) -> Union{String,Nothing}
+    width_column_refusal(column; role = "a width") -> Union{String,Nothing}
 
 Why a DATA heading cannot be a width column, or `nothing`. The datum, its uncertainties and
-every independent variable are refused: a mean is never read as a width.
+every independent variable are refused: a mean is never read as a width. `role` names what
+the column was to hold in the reason, `"a parameter"` for a column of `[[fit_parameter]]`.
 """
-function width_column_refusal(column::AbstractString)
+function width_column_refusal(column::AbstractString; role::AbstractString = "a width")
     heading = strip(column)
     (occursin("DATA", heading) || occursin("ERR", heading)) &&
-        return "$(heading) holds the datum or an uncertainty, not a width"
+        return "$(heading) holds the datum or an uncertainty, not $(role)"
     heading_class(heading) == :auxiliary ||
-        return "$(heading) is an independent variable, not a width"
+        return "$(heading) is an independent variable, not $(role)"
     return nothing
 end
 
@@ -154,14 +166,23 @@ function width_conversion(width::WidthColumn, A₀::Integer)
 end
 
 """
+    mapped_column(columns, identifier) -> Union{eltype(columns),Nothing}
+
+The element of `columns` whose `subentry` field is the dataset `identifier`, or
+`nothing`; the lookup of both [`mapped_width`](@ref) and [`mapped_parameter`](@ref).
+"""
+function mapped_column(columns::AbstractVector, identifier::AbstractString)
+    index = findfirst(column -> column.subentry == identifier, columns)
+    return index === nothing ? nothing : columns[index]
+end
+
+"""
     mapped_width(widths, identifier) -> Union{WidthColumn,Nothing}
 
 The width column `widths` names for the dataset `identifier`, or `nothing`.
 """
-function mapped_width(widths::AbstractVector{WidthColumn}, identifier::AbstractString)
-    index = findfirst(width -> width.subentry == identifier, widths)
-    return index === nothing ? nothing : widths[index]
-end
+mapped_width(widths::AbstractVector{WidthColumn}, identifier::AbstractString) =
+    mapped_column(widths, identifier)
 
 """
     WidthRowExclusion(mass, value, reason)

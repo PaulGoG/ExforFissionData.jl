@@ -36,6 +36,7 @@ offline = false         # serve every response from the cache; needs use_cache, 
 save_subentries = true  # store the original EXFOR subentry text beside the data
 # max_age_days = 30    # refetch cached dataset responses older than this many days, positive
 # cache_directory = "" # response cache location; empty for the default scratch space
+# base_url = "https://nds.iaea.org/exfor/" # archive endpoint; a mirror may be named instead
 
 [output]
 directory = "data"      # root for retrieved data, relative to the output root

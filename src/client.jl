@@ -55,6 +55,8 @@ Transport settings for EXFOR retrieval.
   response that is not cached is an error.
 - `max_age_days::Float64 = Inf`: a cached dataset response older than this is requested again,
   the cached copy being kept only as the fallback; `Inf` never expires a response.
+- `base_url::String = EXFOR_BASE`: the archive endpoint every request is made relative to; a
+  mirror may be named instead. The cache is keyed on the query alone, not on the endpoint.
 """
 Base.@kwdef struct RetrievalOptions
     concurrency::Int = 4
@@ -66,6 +68,7 @@ Base.@kwdef struct RetrievalOptions
     cache_directory::String = ""
     offline::Bool = false
     max_age_days::Float64 = Inf
+    base_url::String = EXFOR_BASE
 end
 
 """
@@ -192,7 +195,8 @@ end
 """
     fetch_response(query, options; listing = false) -> Response
 
-Retrieve `query` relative to [`EXFOR_BASE`](@ref) under the cache policy.
+Retrieve `query` relative to `options.base_url`, [`EXFOR_BASE`](@ref) by default, under the
+cache policy.
 
 A dataset response is served from the cache while it is usable, not refreshed, and younger than
 `options.max_age_days`. A listing (`listing = true`) is always requested, because the archive adds
@@ -230,7 +234,7 @@ function fetch_response(
         age_days ≤ options.max_age_days && return Response(cached, cached_at, true)
     end
 
-    url = string(EXFOR_BASE, query)
+    url = string(options.base_url, query)
     for attempt in 1:(options.retries + 1)
         try
             response = HTTP.get(

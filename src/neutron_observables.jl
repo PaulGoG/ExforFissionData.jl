@@ -58,13 +58,8 @@ selection_ordinate(ordinate::AbstractString) =
 
 The parameter column `parameters` names for the dataset `identifier`, or `nothing`.
 """
-function mapped_parameter(
-    parameters::AbstractVector{ParameterColumn},
-    identifier::AbstractString,
-)
-    index = findfirst(parameter -> parameter.subentry == identifier, parameters)
-    return index === nothing ? nothing : parameters[index]
-end
+mapped_parameter(parameters::AbstractVector{ParameterColumn}, identifier::AbstractString) =
+    mapped_column(parameters, identifier)
 
 """
     parameter_unit_refusal(ordinate, column, unit) -> Union{String,Nothing}

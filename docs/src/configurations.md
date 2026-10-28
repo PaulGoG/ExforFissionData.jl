@@ -33,6 +33,7 @@ to every incident energy — and so is an energy window on `sf`, which has no in
 | `[retrieval]` | `refresh` | refetch every response and replace the cached copy; needs `use_cache` | boolean | `false` |
 | `[retrieval]` | `save_subentries` | store the original EXFOR subentry text beside the data | boolean | `true` |
 | `[retrieval]` | `cache_directory` | where responses are cached | string; empty selects the default | the `Scratch.jl` space |
+| `[retrieval]` | `base_url` | archive endpoint every request is made relative to; a mirror may be named instead | an http or https URL ending in `/` | `"https://nds.iaea.org/exfor/"` |
 | `[retrieval]` | `offline` | serve every response from the cache and never contact the archive; needs `use_cache`, excludes `refresh` | boolean | `false` |
 | `[retrieval]` | `max_age_days` | a cached dataset response older than this is requested again, the cached copy kept as the fallback | positive number | none (never expires) |
 | `[output]` | `directory` | root for retrieved data, relative to the output root | string | `"data"` |

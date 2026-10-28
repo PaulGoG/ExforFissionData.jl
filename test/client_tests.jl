@@ -62,8 +62,12 @@
         header = join(EXFOR_HEADER, ',') * "\n"
         empty_query = "x4get?DatasetID=22413013&op=csv&plus=2"
         write(joinpath(directory, ExforFissionData._cache_key(empty_query)), header)
-        unreachable_dataset =
-            RetrievalOptions(; cache_directory = directory, retries = 0, timeout = 0.001)
+        unreachable_dataset = RetrievalOptions(;
+            cache_directory = directory,
+            retries = 0,
+            timeout = 0.001,
+            base_url = "http://127.0.0.1:9/",
+        )
         response = @test_logs (:warn, r"cached") match_mode = :any begin
             ExforFissionData.fetch_response(empty_query, unreachable_dataset)
         end
@@ -89,8 +93,12 @@
         # archive adds; when the archive cannot be reached, the cached copy stands in.
         listing_query = "x4list?Target=U-233&Reaction=n,f&Quantity=FY&txt"
         write(joinpath(directory, ExforFissionData._cache_key(listing_query)), "10000002\n")
-        unreachable =
-            RetrievalOptions(; cache_directory = directory, retries = 0, timeout = 0.001)
+        unreachable = RetrievalOptions(;
+            cache_directory = directory,
+            retries = 0,
+            timeout = 0.001,
+            base_url = "http://127.0.0.1:9/",
+        )
         response = @test_logs (:warn, r"cached") match_mode = :any begin
             ExforFissionData.fetch_response(listing_query, unreachable; listing = true)
         end
@@ -105,6 +113,7 @@
             retries = 0,
             timeout = 0.001,
             max_age_days = 1e-9,
+            base_url = "http://127.0.0.1:9/",
         )
         response = @test_logs (:warn, r"cached") match_mode = :any begin
             ExforFissionData.fetch_response(dataset_query, expiring)
@@ -165,6 +174,7 @@
                     cache_directory = directory,
                     retries = 0,
                     timeout = 0.001,
+                    base_url = "http://127.0.0.1:9/",
                 ),
             )
         end
