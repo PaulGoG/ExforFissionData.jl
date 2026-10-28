@@ -37,22 +37,14 @@
 end
 
 @testset "prompt γ: configurations" begin
-    function configuration(abscissa, ordinate)
-        local directory = mktempdir()
-        local path = joinpath(directory, "configuration.toml")
-        write(
-            path,
-            """
-            [query]
-            target_Z = 98
-            target_A = 252
-            channel = "sf"
-            abscissa = $(abscissa)
-            ordinate = "$(ordinate)"
-            """,
-        )
-        return load_configuration(path)
-    end
+    configuration(abscissa, ordinate) = load_configuration_text("""
+        [query]
+        target_Z = 98
+        target_A = 252
+        channel = "sf"
+        abscissa = $(abscissa)
+        ordinate = "$(ordinate)"
+        """)
     @test observable_label(configuration("[]", "gamma_multiplicity_per_fission").query) ==
           "M_gamma_bar"
     @test observable_label(configuration("[]", "gamma_mean_energy").query) == "eps_gamma"
@@ -117,13 +109,7 @@ end
 end
 
 @testset "prompt γ: a quantity per fission and its definition" begin
-    query = test_query(;
-        target_Z = 98,
-        target_A = 252,
-        channel = "sf",
-        abscissa = String[],
-        ordinate = "gamma_multiplicity_per_fission",
-    )
+    query = cf252_query(; abscissa = String[], ordinate = "gamma_multiplicity_per_fission")
     code = "98-CF-252(0,F)0-G-0,PR/PAR,FY"
     row(y, dy) = exfor_row(;
         reaction_code = code,
@@ -286,8 +272,8 @@ end
     @test dataset.record["gamma_range_partial"]
     @test dataset.record["gamma_energy_range_basis"] == "entry"
     reduced = reduce_dataset(dataset, query)
-    @test reduced.table.E_gamma_tot ≈ [4.07]
-    @test reduced.table.E_gamma_tot_uncertainty ≈ [0.07]
+    @test reduced.table.E_gamma_tot ≈ [4.07] rtol = 1.0e-9
+    @test reduced.table.E_gamma_tot_uncertainty ≈ [0.07] rtol = 1.0e-9
     # Words the text no longer holds, or that do not state the value, refuse it.
     @test ExforFissionData.stated_dataset(value, text(["ADD-RES    none"]), query) isa
           Rejection
@@ -320,7 +306,11 @@ end
     ])
     screened = ExforFissionData.screen_dataset("317290071", csv, query)
     @test screened isa ExforFissionData.Screened
-    @test only(screened.table[!, ExforFissionData.COL_INCIDENT_ENERGY]) ≈ 8.617333262e-3
+    @test isapprox(
+        only(screened.table[!, ExforFissionData.COL_INCIDENT_ENERGY]),
+        8.617333262e-3;
+        rtol = 1.0e-9,
+    )
     other = ExforFissionData.screen_dataset(
         "10000002",
         replace(csv, "317290071" => "10000002"),
@@ -343,30 +333,16 @@ end
         "92-U-235(N,F)MASS,PR,FY,G,MXW",
     )
     # Skarsvag 1970 comes in by name under MLT, for the multiplicity per fission alone.
-    per_fission = test_query(;
-        target_Z = 98,
-        target_A = 252,
-        channel = "sf",
-        abscissa = String[],
-        ordinate = "gamma_multiplicity_per_fission",
-    )
+    per_fission =
+        cf252_query(; abscissa = String[], ordinate = "gamma_multiplicity_per_fission")
     @test ExforFissionData.named_listing(per_fission) == ("MLT", ["23174004"])
-    against_tke = test_query(;
-        target_Z = 98,
-        target_A = 252,
-        channel = "sf",
+    against_tke = cf252_query(;
         abscissa = ["total_kinetic_energy"],
         ordinate = "gamma_multiplicity_per_fission",
     )
     @test ExforFissionData.named_listing(against_tke) === nothing
     # A value in a MISC column without an uncertainty is kept in a reason, with its words.
-    energy = test_query(;
-        target_Z = 98,
-        target_A = 252,
-        channel = "sf",
-        abscissa = String[],
-        ordinate = "gamma_energy_per_fission",
-    )
+    energy = cf252_query(; abscissa = String[], ordinate = "gamma_energy_per_fission")
     smith = only(
         v for v in ExforFissionData.unadmitted_values(energy) if v.identifier == "14320004"
     )
@@ -395,13 +371,7 @@ end
 @testset "prompt γ: ranges that limit the photons counted; windows of publications" begin
     # 41580 (Sokol 1991): the 320 to 5120 keV of the DETECTOR text are a threshold and a ceiling
     # of the detection; the set is written and named in gamma_range_warning with its range.
-    query = test_query(;
-        target_Z = 98,
-        target_A = 252,
-        channel = "sf",
-        abscissa = String[],
-        ordinate = "gamma_multiplicity_per_fission",
-    )
+    query = cf252_query(; abscissa = String[], ordinate = "gamma_multiplicity_per_fission")
     code = "98-CF-252(0,F)0-G-0,PR,FY"
     csv = exfor_csv([
         exfor_row(;

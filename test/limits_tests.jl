@@ -30,7 +30,7 @@
             reaction_code = code,
         ),
     ]
-    dataset = select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
+    dataset = select_rows("10000002", rows, query)
     @test dataset isa Dataset
     @test dataset.record["rows_left_out"] ==
           ["Max(PART/FIS) 0.5, row 2 (ProdZA 101, incident 0.0253 eV)"]
@@ -43,17 +43,7 @@
     # The record names the datasets concerned, with their counts.
     directory = mktempdir()
     config_path = joinpath(directory, "configuration.toml")
-    write(
-        config_path,
-        """
-        [query]
-        target_Z = 92
-        target_A = 233
-        channel = "nth"
-        abscissa = ["mass"]
-        ordinate = "yield"
-        """,
-    )
+    write(config_path, u233_yield_toml())
     retrieved = DateTime(2026, 10, 15, 12)
     record_path = joinpath(directory, "retrieval.toml")
     write_metadata(
@@ -78,7 +68,7 @@
             reaction_code = code,
         ),
     ]
-    dataset = select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
+    dataset = select_rows("10000002", rows, query)
     @test dataset isa Dataset
     @test startswith(only(dataset.record["rows_left_out"]), "Min2Max(PART/FIS) 0.5")
 
@@ -92,7 +82,7 @@
             reaction_code = code,
         ) for p in (100, 101)
     ]
-    refused = select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
+    refused = select_rows("10000002", rows, query)
     @test refused isa Rejection
     @test occursin("every row is a bound", refused.reason)
     @test occursin("2 Max(PART/FIS)", refused.reason)
@@ -109,7 +99,7 @@
             reaction_code = code,
         ),
     ]
-    refused = select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
+    refused = select_rows("10000002", rows, query)
     @test refused isa Rejection
     @test occursin("different units", refused.reason)
     rows = [
@@ -120,7 +110,7 @@
             reaction_code = code,
         ),
     ]
-    refused = select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
+    refused = select_rows("10000002", rows, query)
     @test refused isa Rejection
     @test occursin("none this package reads", refused.reason)
 
@@ -153,8 +143,7 @@
             reaction_code = code,
         ),
     ]
-    dataset =
-        select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), charge_query)
+    dataset = select_rows("10000002", rows, charge_query)
     @test dataset isa Dataset
     @test dataset.record["isomer_states_left_out"] == ["Xe-130"]
     @test occursin("ProdZA 54130, ProdM 1", only(dataset.record["rows_left_out"]))
@@ -238,13 +227,7 @@ end
 @testset "the TKE at which neutron emission stops is curated out" begin
     # 23175011 (Budtz-Jørgensen 1988): DATA-MAX alone, the bound of the TKE distribution per
     # mass, refused for what it is rather than as a dataset of limits.
-    query = test_query(;
-        target_Z = 98,
-        target_A = 252,
-        channel = "sf",
-        abscissa = ["mass"],
-        ordinate = "total_kinetic_energy",
-    )
+    query = cf252_query(; abscissa = ["mass"], ordinate = "total_kinetic_energy")
     rows = [
         exfor_row(;
             dataset_id = "23175011",
@@ -271,7 +254,7 @@ end
             reaction_code = "92-U-233(N,F)MASS,PRE,FY",
         ) for (i, v) in enumerate((0.1, 0.2, 0.7))
     ]
-    dataset = select_dataset("10000002", exfor_csv(rows), exfor_subentry_for(rows), query)
+    dataset = select_rows("10000002", rows, query)
     @test dataset isa Dataset
     @test reduce_dataset(dataset, query).diagnostics["yield_sum"] == 1.0
 end

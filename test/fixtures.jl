@@ -59,8 +59,9 @@ end
 
 A query with thermal defaults, for selection and reduction tests.
 
-The reaction code and the EXFOR quantity code are derived, as `load_configuration` derives them,
-so a fixture cannot pair an ordinate with a quantity the loader would refuse.
+The reaction code, the EXFOR quantity code and spontaneity are derived by the constructor, as
+`load_configuration` derives them, so a fixture cannot pair an ordinate with a quantity the
+loader would refuse.
 """
 function test_query(;
     target_Z = 92,
@@ -75,15 +76,29 @@ function test_query(;
         target_Z,
         target_A,
         channel,
-        ExforFissionData.CHANNEL_REACTION[channel],
-        ExforFissionData.ORDINATE_QUANTITY[ordinate],
         abscissa,
         ordinate,
         energy_min,
         energy_max,
-        channel == "sf",
     )
 end
+
+"""
+    cf252_query(; kwargs...) -> Query
+
+[`test_query`](@ref) for the spontaneous fission of 252-Cf; `kwargs` pass through.
+"""
+cf252_query(; kwargs...) =
+    test_query(; target_Z = 98, target_A = 252, channel = "sf", kwargs...)
+
+"""
+    select_rows(identifier, rows, query; kwargs...) -> Union{Dataset,Rejection}
+
+`select_dataset` over the csv rendering of `rows` and the subentry text `exfor_subentry_for`
+builds from them; `kwargs` pass to `select_dataset`.
+"""
+select_rows(identifier, rows, query; kwargs...) =
+    select_dataset(identifier, exfor_csv(rows), exfor_subentry_for(rows), query; kwargs...)
 
 """
     exfor_subentry(; kwargs...) -> String
@@ -305,4 +320,111 @@ function kinetic_energy_dataset(
     bib_records = isempty(bib) ? ["REACTION   ($(code))"] : bib
     return exfor_csv(rows),
     exfor_subentry_for(rows; unit = "MEV", bib = bib_records, extra = extra)
+end
+
+"""
+    neutron_energies(identifier, code, points; thermal = false) -> (body, text)
+
+The csv rendering and the subentry text of one dataset of mean neutron energies headed `DATA`
+against fragment mass, `points` holding `(mass, value)` pairs in eV: the rendering in eV, the
+subentry in MeV. `thermal` places every row at 0.0253 eV, stated in the COMMON section; without
+it the rows carry no incident energy, as for spontaneous fission.
+"""
+function neutron_energies(identifier, code, points; thermal = false)
+    rows = [
+        exfor_row(;
+            dataset_id = identifier,
+            reaction_code = code,
+            value_kind = "Data(EV)",
+            product_za = mass,
+            y = value,
+            incident_ev = thermal ? 0.0253 : missing,
+        ) for (mass, value) in points
+    ]
+    common = if thermal
+        (headings = ["EN"], units = ["EV"], values = [0.0253])
+    else
+        (headings = String[], units = String[], values = Float64[])
+    end
+    text = exfor_subentry(;
+        entry = first(identifier, 5),
+        subentry = identifier,
+        bib = ["REACTION   ($(code))"],
+        common,
+        headings = ["MASS", "DATA"],
+        units = ["NO-DIM", "MEV"],
+        rows = [[Float64(mass), value / 1.0e6] for (mass, value) in points],
+    )
+    return exfor_csv(rows), text
+end
+
+"""
+    write_config(content; directory = mktempdir()) -> String
+
+Write the configuration text `content` to a file of `directory` named by its hash, and return
+the path.
+"""
+function write_config(content; directory = mktempdir())
+    path = joinpath(directory, string("c", hash(content), ".toml"))
+    write(path, content)
+    return path
+end
+
+"""
+    load_configuration_text(text) -> Configuration
+
+`load_configuration` of the configuration text `text`, through [`write_config`](@ref).
+"""
+load_configuration_text(text) = load_configuration(write_config(text))
+
+"""
+    u233_yield_toml(extra = "") -> String
+
+The `[query]` section of a pre-neutron mass yield of 233-U(n_th,f), with no energy window,
+followed by `extra`.
+"""
+u233_yield_toml(extra = "") = """
+    [query]
+    target_Z = 92
+    target_A = 233
+    channel = "nth"
+    abscissa = ["mass"]
+    ordinate = "yield"
+    """ * extra
+
+"""
+    run_record(content, datasets, query) -> Dict{String,Any}
+
+The run record of `datasets`, accepted under the configuration text `content`, each reduced
+under `query` with the `[[width]]` and `[[fit_parameter]]` columns the configuration names.
+"""
+function run_record(content, datasets, query)
+    directory = mktempdir()
+    config_path = joinpath(directory, "configuration.toml")
+    write(config_path, content)
+    configuration = load_configuration(config_path)
+    retrieved = DateTime(2026, 10, 1, 12)
+    accepted = [
+        AcceptedDataset(
+            dataset,
+            reduce_dataset(
+                dataset,
+                query;
+                widths = configuration.widths,
+                parameters = configuration.parameters,
+            ),
+            "$(dataset.identifier).dat",
+            retrieved,
+            false,
+        ) for dataset in datasets
+    ]
+    record_path = joinpath(directory, "retrieval.toml")
+    write_metadata(
+        record_path,
+        configuration,
+        accepted,
+        Rejection[],
+        ExforFissionData.Listing(["10"], retrieved, false),
+    )
+    return TOML.parsefile(record_path)
 end

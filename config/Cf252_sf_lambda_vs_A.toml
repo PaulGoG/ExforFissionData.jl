@@ -39,7 +39,6 @@ directory = "data"      # root for retrieved data, relative to the output root
 significant_digits = 7  # significant digits in tabulated output, 1 to 15
 # record_hostname = false # name the machine in the run record
 
-# Columns holding the parameter, one table per dataset.
-[[fit_parameter]]
+[[fit_parameter]]        # a column holding the parameter, one table per dataset
 subentry = "23175012"   # EXFOR dataset identifier, 8 characters, or 9 with its pointer
 column = "MISC2"        # DATA heading of the parameter, a MISC-type heading
