@@ -139,13 +139,16 @@ struct DistributionMoments
 end
 
 """
-    distribution_moments(numbers, probabilities, uncertainties) -> DistributionMoments
+    distribution_moments(numbers, probabilities, uncertainties)
+        -> Union{DistributionMoments,Nothing}
 
 The sum and the mean of a distribution tabulated as `probabilities` at the neutron `numbers`,
 with the uncertainty of the mean from `uncertainties`, a `missing` among which leaves it `NaN`.
 Lines without a number or a probability are left out.
 
-Throws an `ArgumentError` when the probabilities sum to zero or less.
+# Returns
+The [`DistributionMoments`](@ref), or `nothing` when the probabilities sum to zero or less and
+the distribution has no mean.
 """
 function distribution_moments(
     numbers::AbstractVector,
@@ -157,7 +160,7 @@ function distribution_moments(
         !ismissing(numbers[i]) && !ismissing(probabilities[i])
     ]
     total = sum(Float64(probabilities[i]) for i in lines; init = 0.0)
-    total > 0 || throw(ArgumentError("a distribution summing to $(total) has no mean"))
+    total > 0 || return nothing
     mean = sum(numbers[i] * probabilities[i] for i in lines) / total
     variance = 0.0
     for i in lines

@@ -7,9 +7,8 @@
 """
 Chemical symbols indexed by atomic number, Z = 1 to 118.
 
-Written as one string in periodic-table order, ten to a row, because a table that can be read
-across is a table whose entries can be checked; indexing by Z is what the code needs and is what
-splitting it gives.
+Written as one string in periodic-table order, ten to a row, so that the entries can be checked
+by reading across; splitting the string gives the vector indexed by Z.
 """
 const ELEMENT_SYMBOLS = Tuple(String.(split("H  He Li Be B  C  N  O  F  Ne \
              Na Mg Al Si P  S  Cl Ar K  Ca \

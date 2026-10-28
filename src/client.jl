@@ -23,10 +23,9 @@ const EXFOR_BASE = "https://nds.iaea.org/exfor/"
 """
 Value of the `User-Agent` header sent with every request.
 
-Identifying the client is the courtesy owed a shared public service: it lets whoever runs the
-archive see what its automated traffic actually is, and gives them somebody to contact if a
-client misbehaves. The version is read from the project file, so a report names something that
-can be looked up rather than "some Julia script".
+The archive is a shared public service, and an identified client lets its operators see what the
+automated traffic is and whom to contact if a client misbehaves. The version is read from the
+project file, so a report names a release that can be looked up.
 """
 const USER_AGENT = let version = pkgversion(@__MODULE__)
     string(
@@ -118,7 +117,7 @@ response to cache: an entry is otherwise fetched at most once, so storing one si
 that dataset from every later run.
 
 The archive also answers a request for an identifier it does not know with a message beginning
-`-?-` (`-?-No such data in the database-`), which was cached and written out as subentry text.
+`-?-` (`-?-No such data in the database-`); that body is not usable either.
 """
 function is_usable_response(body::AbstractString)
     trimmed = strip(body)
@@ -243,10 +242,10 @@ function fetch_response(
                 status_exception = true,
             )
             body = String(response.body)
-            # Retried rather than accepted: every instance of this observed so far has been
-            # transient, with the archive serving the same identifier correctly moments later.
-            # After the last attempt the body is returned anyway, so that one unlucky dataset
-            # is rejected with a reason rather than aborting the whole retrieval.
+            # Retried rather than accepted: every instance observed so far has been transient,
+            # the archive serving the same identifier correctly moments later. After the last
+            # attempt the body is returned anyway, so that the dataset is rejected with a reason
+            # and the retrieval goes on.
             if !is_usable_response(body) && attempt ≤ options.retries
                 sleep(options.backoff * 2.0^(attempt - 1))
                 continue

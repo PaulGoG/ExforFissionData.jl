@@ -5,22 +5,40 @@
 # offending key.
 
 """
-    Query
+    Query(target_Z, target_A, channel, abscissa, ordinate, energy_min, energy_max)
+    Query(target_Z, target_A, channel, reaction, quantity, abscissa, ordinate, energy_min,
+          energy_max, spontaneous)
 
 What to retrieve: a fissioning system, an observable, and the incident-energy window.
+
+The seven-argument form derives `reaction`, `quantity` and `spontaneous`; the ten-argument form
+takes them as given and checks that they agree with `channel` and `ordinate`. Either way a
+`Query` cannot disagree with itself.
 
 # Fields
 - `target_Z::Int`, `target_A::Int`: charge and mass numbers of the fissioning target.
 - `channel::String`: entrance channel, one of [`CHANNELS`](@ref).
-- `reaction::String`: EXFOR reaction code parameter, from [`CHANNEL_REACTION`](@ref).
-- `quantity::String`: EXFOR quantity code, from [`ORDINATE_QUANTITY`](@ref).
+- `reaction::String`: EXFOR reaction code parameter, `CHANNEL_REACTION[channel]` (see
+  [`CHANNEL_REACTION`](@ref)); derived.
+- `quantity::String`: EXFOR quantity code, `ORDINATE_QUANTITY[ordinate]` (see
+  [`ORDINATE_QUANTITY`](@ref)); derived.
 - `abscissa::Vector{String}`: the quantities the observable is tabulated against, one of
   [`ABSCISSAE`](@ref).
 - `ordinate::String`: one of [`ORDINATES`](@ref).
-- `energy_min::Float64`, `energy_max::Float64`: incident-energy window in MeV, defaulting to
-  the channel's interval of [`CHANNEL_ENERGY_BOUNDS`](@ref) and lying inside it. Ignored for
-  spontaneous fission, which has no incident particle.
-- `spontaneous::Bool`: derived from `channel`.
+- `energy_min::Float64`, `energy_max::Float64`: incident-energy window in MeV. A configuration
+  defaults it to the channel's interval of [`CHANNEL_ENERGY_BOUNDS`](@ref) and keeps it inside;
+  the constructor requires only `0 ≤ energy_min ≤ energy_max`. Ignored for spontaneous fission,
+  which has no incident particle.
+- `spontaneous::Bool`: `channel == "sf"`; derived.
+
+# Throws
+- `ArgumentError` naming the offending field when `target_Z` lies outside 1 to
+  `MAXIMUM_CHARGE`, `target_A` outside `target_Z` to `MAXIMUM_TARGET_MASS`, `channel`,
+  `abscissa` or `ordinate` is not among its choices, `reaction`, `quantity` or `spontaneous`
+  disagrees with the value derived from `channel` or `ordinate`, or the energy window violates
+  `0 ≤ energy_min ≤ energy_max`.
+- `ArgumentError` from [`tag_rule`](@ref) when the abscissa and the ordinate both impose
+  alternative tags, a combination no selection can express.
 """
 struct Query
     target_Z::Int
@@ -33,6 +51,115 @@ struct Query
     energy_min::Float64
     energy_max::Float64
     spontaneous::Bool
+
+    function Query(
+        target_Z::Integer,
+        target_A::Integer,
+        channel::AbstractString,
+        reaction::AbstractString,
+        quantity::AbstractString,
+        abscissa::AbstractVector,
+        ordinate::AbstractString,
+        energy_min::Real,
+        energy_max::Real,
+        spontaneous::Bool,
+    )
+        # An empty `[]` arrives as a Vector{Any}; every check below wants strings.
+        abscissa = String[string(a) for a in abscissa]
+        1 ≤ target_Z ≤ MAXIMUM_CHARGE || throw(
+            ArgumentError(
+                "Query: target_Z must lie in [1, $(MAXIMUM_CHARGE)], got $(target_Z)",
+            ),
+        )
+        target_Z ≤ target_A ≤ MAXIMUM_TARGET_MASS || throw(
+            ArgumentError(
+                "Query: target_A must lie in [$(target_Z), $(MAXIMUM_TARGET_MASS)], got \
+                 $(target_A)",
+            ),
+        )
+        channel in CHANNELS || throw(
+            ArgumentError(
+                "Query: channel must be one of $(join(map(repr, CHANNELS), ", ")), got \
+                 $(repr(channel))",
+            ),
+        )
+        abscissa in ABSCISSAE || throw(
+            ArgumentError(
+                "Query: abscissa must be one of $(join(map(repr, ABSCISSAE), ", ")), got \
+                 $(repr(abscissa))",
+            ),
+        )
+        ordinate in ORDINATES || throw(
+            ArgumentError(
+                "Query: ordinate must be one of $(join(map(repr, ORDINATES), ", ")), got \
+                 $(repr(ordinate))",
+            ),
+        )
+        reaction == CHANNEL_REACTION[channel] || throw(
+            ArgumentError(
+                "Query: reaction must be $(repr(CHANNEL_REACTION[channel])), the reaction of \
+                 channel $(repr(channel)), got $(repr(reaction))",
+            ),
+        )
+        quantity == ORDINATE_QUANTITY[ordinate] || throw(
+            ArgumentError(
+                "Query: quantity must be $(repr(ORDINATE_QUANTITY[ordinate])), the quantity \
+                 code of ordinate $(repr(ordinate)), got $(repr(quantity))",
+            ),
+        )
+        spontaneous == (channel == "sf") || throw(
+            ArgumentError("Query: spontaneous must be $(channel == "sf") for channel \
+                 $(repr(channel)), got $(spontaneous)"),
+        )
+        0 ≤ energy_min || throw(
+            ArgumentError("Query: energy_min must be non-negative, got $(energy_min)"),
+        )
+        energy_min ≤ energy_max || throw(
+            ArgumentError(
+                "Query: energy_max must not lie below energy_min ($(energy_min)), got \
+                 $(energy_max)",
+            ),
+        )
+        # Rejects an abscissa and ordinate that cannot both impose alternative tags.
+        tag_rule(abscissa, ordinate)
+        return new(
+            target_Z,
+            target_A,
+            channel,
+            reaction,
+            quantity,
+            abscissa,
+            ordinate,
+            energy_min,
+            energy_max,
+            spontaneous,
+        )
+    end
+end
+
+# The reaction, the quantity and spontaneity follow from the channel and the ordinate. An
+# unknown channel or ordinate maps to "" so that the inner constructor names it.
+function Query(
+    target_Z::Integer,
+    target_A::Integer,
+    channel::AbstractString,
+    abscissa::AbstractVector,
+    ordinate::AbstractString,
+    energy_min::Real,
+    energy_max::Real,
+)
+    return Query(
+        target_Z,
+        target_A,
+        channel,
+        get(CHANNEL_REACTION, channel, ""),
+        get(ORDINATE_QUANTITY, ordinate, ""),
+        abscissa,
+        ordinate,
+        energy_min,
+        energy_max,
+        channel == "sf",
+    )
 end
 
 """
@@ -296,7 +423,8 @@ function load_configuration(path::AbstractString)
         )
     end
 
-    # Rejects an abscissa and ordinate that cannot both impose alternative tags.
+    # Rejects an abscissa and ordinate that cannot both impose alternative tags. `Query` checks
+    # this as well; it is kept here so that the faults of a file are reported in this order.
     tag_rule(abscissa, ordinate)
 
     # One symbol names one column, so an ordinate may not repeat a quantity it is tabulated
@@ -497,13 +625,10 @@ function load_configuration(path::AbstractString)
             target_Z,
             target_A,
             channel,
-            CHANNEL_REACTION[channel],
-            ORDINATE_QUANTITY[ordinate],
             abscissa,
             ordinate,
             Float64(energy_min),
             Float64(energy_max),
-            spontaneous,
         ),
         RetrievalOptions(;
             concurrency = concurrency,
@@ -680,9 +805,8 @@ end
 The fissioning system as one token, e.g. `"Cf252_sf"`, `"U235_nth"`, `"U235_nres"`.
 
 Element symbol, mass number and entrance channel. It names the directory a system's data is
-written under, and a consumer keys its stored data on it, so it must stay stable as long as the
-system does — which is why the energy window, which varies between runs of one system, is not in
-it and the channel is.
+written under and is the key a consumer stores the data by, so it changes only with the system.
+The channel is part of it; the energy window, which varies between runs of one system, is not.
 """
 function system_label(query::Query)
     return string(element_symbol(query.target_Z), query.target_A, '_', query.channel)

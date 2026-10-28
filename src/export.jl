@@ -46,7 +46,7 @@ Values are rounded to `significant_digits` significant digits, which is scale-in
 number of decimals would keep a multiplicity of order 1 and destroy a spectrum of order 1e-7.
 
 The uncertainty column is written only when at least one row carries one; a dataset quoting none
-yields a two-column file, which a reader accepts and which is honest about what the archive
+yields a two-column file, which a reader accepts and which claims no more than the archive
 holds. Where the column is written, a row without an uncertainty holds `NaN`, so that it cannot
 be read as a stated zero. Line endings are `\\n`.
 
@@ -67,10 +67,7 @@ function write_dataset(
     reduced.has_uncertainties &&
         push!(header, String(uncertainty_column(reduced.ordinate_column)))
 
-    # Significant digits, never decimal places. Rounding to a fixed number of decimals is a
-    # statement about the scale of the quantity, and the ordinates here span many: an absolute
-    # prompt fission neutron spectrum is of order 1e-7 PC/FIS/MEV, which seven decimal places
-    # reduce to one significant digit and eight erase entirely.
+    # Significant digits, never decimal places; see the docstring.
     round_written(value) = string(round(value; sigdigits = significant_digits))
 
     open(path, "w") do io
@@ -222,14 +219,487 @@ function _complement_record(complement::ComplementReading)
 end
 
 """
+    _warn!(datasets, key, prose, identifiers) -> Nothing
+
+Set the warning `datasets[key]` to `prose` followed by `identifiers` joined with `", "`, when
+there are any; leave `datasets` as it is when `identifiers` is empty.
+"""
+function _warn!(
+    datasets::AbstractDict,
+    key::AbstractString,
+    prose::AbstractString,
+    identifiers::AbstractVector,
+)
+    isempty(identifiers) || (datasets[key] = prose * join(identifiers, ", "))
+    return nothing
+end
+
+"""
+    _merge_record(identifier, parts...) -> Dict{String,Any}
+
+The entry of the dataset `identifier` under `accepted` in the run record: the keys of every
+dictionary in `parts`, copied into one.
+
+A key that two parts both set would otherwise hold whichever part came last, silently, so a
+repeated key is an error naming the dataset and the key.
+"""
+function _merge_record(identifier::AbstractString, parts::AbstractDict...)
+    merged = Dict{String, Any}()
+    for part in parts, (key, value) in part
+        haskey(merged, key) &&
+            error("run record of dataset $(identifier) sets key \"$(key)\" twice")
+        merged[key] = value
+    end
+    return merged
+end
+
+"""
+    _conventions(query) -> Dict{String,Any}
+
+The `[conventions]` table of the run record: how the written tables of `query` are to be read,
+the general conventions and those of its abscissa and ordinate.
+"""
+function _conventions(query::Query)
+    conventions = Dict{String, Any}(
+        "energies" => "MeV; converted from the electronvolts EXFOR reports",
+        "ordinate_normalisation" => "none applied; the unit token of each dataset is \
+                 recorded below",
+        "absent_uncertainty" => "the uncertainty column is omitted when no row of a \
+                 dataset carries one. Where it is written, a row without one is NaN, never 0, \
+                 and so is a row interpolated next to such a row or combined only from such \
+                 rows; a 0 is written only where EXFOR states it. Per dataset, \
+                 `uncertainty_zero_rows` counts the subentry lines stating a zero uncertainty \
+                 and `uncertainty_absent_rows` those stating none",
+        "duplicate_abscissa" => "isomers resolved first (archive total preferred; else the \
+                 rows of each marked state combined as repeats and the states summed in \
+                 quadrature), then rows still sharing an abscissa value combined by an \
+                 inverse-variance weighted mean; `abscissae_combined` counts the combinations \
+                 per dataset and `combined_over` names the auxiliary columns that varied among \
+                 the rows combined",
+        "abscissa_resolution" => "masses are never rounded: integer subentry masses are \
+                 written as they are; a mass bin with integer edges is written at each of its \
+                 masses with the bin's value and uncertainty, except for a yield, whose bin is \
+                 a sum; non-integer masses are interpolated linearly onto the integer masses \
+                 within their range, value and uncertainty alike, at each value of any other \
+                 abscissa quantity and never across more than mass_interpolation_span_u. \
+                 Charges are ELEMENT; energies are the subentry columns in MeV, a bin pair \
+                 contributing its midpoint. mass_treatment and the mass_ keys record what was \
+                 done per dataset",
+        "archive_state" => "EXFOR as of the retrieval date recorded per dataset \
+                 (retrieved_utc, UTC); the listing date is when the archive was last asked \
+                 which datasets exist",
+    )
+    if selection_ordinate(query.ordinate) in CENTRE_OF_MASS_ORDINATES
+        conventions["ordinate_frame"] = "the frame of the neutron energy, per dataset: centre_of_mass where the subentry \
+             heads the value $(CENTRE_OF_MASS_DATUM), its text says so, or the publication \
+             it cites does; unstated where none of them says; a value stated to be in the \
+             laboratory frame is refused. `ordinate_frame_basis` names which of the three \
+             the reading rests on, heading, subentry or publication, and \
+             `ordinate_frame_evidence` gives the heading or the words read, with the DOI of \
+             a publication"
+        conventions["ordinate_bound"] = "a dataset holding more than $(MAXIMUM_NEUTRON_KINETIC_ENERGY) MeV on any row is \
+             refused as no mean neutron energy"
+        conventions["mean_formation"] = "how each mean was formed, as its publication states it: `mean_formed_from` is \
+             measured_spectrum, the first moment of the measured centre-of-mass spectrum, \
+             fitted_spectrum, the first moment of the form in `mean_fitted_form` fitted to \
+             it, completed_spectrum, that of the measured spectrum completed beyond its \
+             range by that form, or unstated; `mean_threshold_mev` and \
+             `mean_threshold_frame` give the low-energy limit of the neutrons that enter \
+             the mean, where a publication read states one, and the frame it is stated in, \
+             and `mean_evidence` the sentence or equation read"
+    end
+    if "charge" in query.abscissa
+        conventions["isomers"] = "a nuclide the archive reports in several isomeric rows is written once: the \
+             archive's own total, the row without an isomer mark, where it gives one, else the \
+             sum of the marked states with their uncertainties in quadrature, the rows of one \
+             state being repeat measurements and combined as such first; \
+             `isomer_summed_nuclides` names the nuclides summed. A nuclide given in one marked \
+             state alone is written as it stands and is the yield of that state, not of the \
+             nuclide; `isomer_single_state_nuclides` names them. Several rows without a mark are \
+             totals that cannot be told apart and are combined as repeats; \
+             `isomer_ambiguous_nuclides` names them"
+    end
+    if query.ordinate in GAMMA_ORDINATES
+        conventions["gamma_definition"] = "a prompt-γ quantity is defined by the γ-energy range of the photons counted, \
+             the time window after fission they were counted in and the corrections made for \
+             what lies outside either; each dataset records them as read, never as a cut. \
+             `gamma_energy_min_mev` and `gamma_energy_max_mev` give the range where it is \
+             stated, `gamma_energy_range_basis` whether a heading of the entry (entry), its \
+             text (subentry text) or its publication states it, or nobody (unstated), and \
+             `gamma_energy_range_evidence` the headings or the words; `time_window_ns`, \
+             `time_window_kind`, `time_window_basis` and `time_window_evidence` the same of \
+             the window, prompt gate or acquisition trigger; `time_resolution_ns` a \
+             resolution stated where no window is; `corrections_stated` the corrections the entry states, whatever quantity they concern, \
+             verbatim with their place. `gamma_range_partial` is true where the archive codes \
+             the set PAR, over a stated range, and such a set is written beside the full-range \
+             ones"
+        if !query.spontaneous
+            conventions["incident_energy_basis"] = "the archive lists datasets without an incident-energy window, so each dataset \
+                 records in `incident_energy_basis` the incident energy that put it in the \
+                 window and the heading of its entry it comes from; `incident_energy_reading` \
+                 states where the csv rendering misstates it and what the entry states"
+        end
+        if query.ordinate in ("gamma_energy_per_fission", "gamma_mean_energy")
+            conventions["quantity_reading"] = "the archive codes the total γ energy per fission and the mean photon energy \
+                 alike, 0-G-0,PR,KE. `quantity_reading` says which a dataset holds: the \
+                 magnitude decides, $(TOTAL_GAMMA_ENERGY_INTERVAL[1]) to \
+                 $(TOTAL_GAMMA_ENERGY_INTERVAL[2]) MeV for the total and \
+                 $(MEAN_PHOTON_ENERGY_INTERVAL[1]) to $(MEAN_PHOTON_ENERGY_INTERVAL[2]) MeV \
+                 for the mean; `quantity_reading_basis` is REACTION text where the words of \
+                 the reaction name the same quantity, a dataset whose words name the other \
+                 being refused, curation or subentry text where the entry has been read, and \
+                 magnitude where nothing else says it"
+        end
+        if isempty(query.abscissa)
+            conventions["per_fission"] = "one value per dataset file, the quantity per fission; a dataset giving several \
+                 values is refused with them rather than combined into a value no \
+                 publication states. A value an entry states outside its DATA tables, with its \
+                 uncertainty, is written as a dataset named after the subentry stating it, \
+                 `stated_value_evidence` giving the words and their place"
+        end
+    end
+    if query.ordinate == "yield"
+        conventions["yield_sum"] = "`yield_sum` is the sum of the written yields of each dataset, in the unit the file \
+             is written in: a mass yield in PART/FIS sums to 2 over both fragments and to \
+             about 1 over one side. It is recorded, never a cut; a table whose sum its \
+             coverage does not explain is to be read with its publication"
+    end
+    if query.ordinate == "yield" && query.abscissa == ["product_mass"]
+        conventions["chain_yield"] = "a chain yield, CHN in its reaction code, is written as a post-neutron mass yield: \
+             beta decay conserves A, so the yield of a mass chain is the post-neutron mass \
+             yield up to the delayed-neutron transfer between neighbouring chains, below a \
+             per cent. Such a dataset carries the qualifier among its `qualifiers` and is \
+             named in `scale_warning`"
+    end
+    if haskey(PARAMETER_ORDINATES, query.ordinate)
+        conventions["fit_parameter"] = "each table is a column of the dataset of the mean neutron energy, named in the \
+             configuration ([[fit_parameter]]): $(PARAMETER_MEANINGS[query.ordinate]). \
+             `parameter_column` and `parameter_unit` give the column, `fit_form` the form \
+             fitted and `fit_evidence` the equation of the publication; the uncertainty is \
+             the column <column>-ERR"
+    elseif query.ordinate == DISTRIBUTION_ORDINATE
+        conventions["distribution"] = "P(nu), the probability of emitting nu neutrons in a fission, written as \
+             tabulated and never renormalised. Per dataset: `distribution_sum` is the sum \
+             of the P(nu) and `distribution_normalised` whether it lies within \
+             $(NORMALISATION_TOLERANCE) of one; `mean_multiplicity` is sum(nu P)/sum(P), \
+             with its uncertainty where every line states one, the lines taken as \
+             uncorrelated; `mean_deviation` is mean_multiplicity/mean_nubar - 1 against the \
+             total nubar of the IAEA neutron data standards 2017 \
+             (doi:10.1016/j.nds.2018.02.002), which includes the delayed neutrons, and \
+             `mean_consistent` whether it lies within $(PAIR_SUM_TOLERANCE_SIGMAS) standard \
+             deviations of zero. A distribution whose mean lies further than \
+             $(MEAN_MULTIPLICITY_BAND) of nubar from it is refused as not that of the \
+             neutrons emitted"
+    elseif query.ordinate == REFERENCE_RATIO_ORDINATE
+        conventions["ratio"] = "each dataset is the ratio of the spectrum of $(system_reaction(query)) and that \
+             of $(REFERENCE_SPECTRUM), both at the outgoing neutron energy E, written as \
+             tabulated: `ratio_orientation` says which is the numerator, system_over_reference \
+             or reference_over_system, and `ratio_numerator` and `ratio_denominator` give the \
+             two reaction codes. Nothing is inverted or normalised"
+    elseif query.ordinate == MAXWELLIAN_RATIO_ORDINATE
+        conventions["maxwellian_temperature"] = "the temperature T, in MeV, of the Maxwellian sqrt(E) exp(-E/T) each ratio was \
+             formed with, as `maxwellian_temperature_mev` per dataset, from the column \
+             $(MAXWELLIAN_TEMPERATURE_HEADING) of its subentry named in \
+             `maxwellian_temperature_source`; a dataset whose subentry gives none is refused"
+    end
+    return conventions
+end
+
+"""
+    _dataset_warnings!(record, accepted, query) -> Nothing
+
+Add to the `[datasets]` table of the run record `record` the warnings on the `accepted` datasets
+of `query`: each names the datasets a qualifier, a curated reading, a reduction step or a defect
+of the archive concerns. A warning with no dataset to name is not written.
+"""
+function _dataset_warnings!(
+    record::AbstractDict,
+    accepted::AbstractVector{AcceptedDataset},
+    query::Query,
+)
+    datasets = record["datasets"]
+    units = datasets["units_present"]
+    flagged = [
+        entry.dataset.identifier for entry in accepted if any(
+            tag -> has_code(entry.dataset.reaction_code, qualifier_tag(tag)),
+            keys(SCALE_QUALIFIERS),
+        )
+    ]
+    off_scale = [
+        entry.dataset.identifier for entry in accepted if
+        get(_curation_record(entry.dataset.identifier), "scale_consistent", true) == false
+    ]
+    _warn!(
+        datasets,
+        "pair_sum_warning",
+        "the pair sum of these datasets, weighted with the light-fragment yield, misses \
+         nubar by more than $(PAIR_SUM_TOLERANCE_SIGMAS) standard deviations; their reading \
+         stands and their values are not corrected. `pair_sum_deviation` on each gives \
+         the deviation, and `curation` what it is: a scale other than that of nubar, or \
+         the consistency of the table with a normalisation its publication states: ",
+        off_scale,
+    )
+    unstated = [
+        entry.dataset.identifier for entry in accepted if
+        get(entry.dataset.record, "ordinate_frame", nothing) == "unstated"
+    ]
+    _warn!(
+        datasets,
+        "frame_warning",
+        "the subentries of these datasets do not state the frame of the neutron energy; \
+         they are written, flagged among their `qualifiers`, and are not established to \
+         be centre-of-mass energies — `ordinate_frame_evidence` on each gives what the \
+         subentry does say: ",
+        unstated,
+    )
+    oriented = Dict{String, Vector{String}}()
+    for entry in accepted
+        orientation = get(entry.dataset.record, "ratio_orientation", nothing)
+        orientation === nothing && continue
+        push!(get!(oriented, orientation, String[]), entry.dataset.identifier)
+    end
+    if length(oriented) > 1
+        datasets["orientation_warning"] =
+            "the ratios of this directory are not all oriented alike, and one orientation is \
+             the reciprocal of the other; `ratio_orientation` on each dataset says which \
+             spectrum is the numerator: " * join(
+                [
+                    "$(orientation) $(join(oriented[orientation], ", "))" for
+                    orientation in sort!(collect(keys(oriented)))
+                ],
+                "; ",
+            )
+    end
+    preliminary = [
+        entry.dataset.identifier for
+        entry in accepted if preliminary_qualifier(entry.dataset.identifier) !== nothing
+    ]
+    _warn!(
+        datasets,
+        "preliminary_warning",
+        "the archive marks these datasets preliminary, with PRELM under STATUS in their \
+         subentry or in the common subentry of their entry; they are written and flagged \
+         among their `qualifiers`, which add the words of the publication where it has \
+         been read: ",
+        preliminary,
+    )
+    superseded = [
+        "$(entry.dataset.identifier) by $(SUPERSEDED_DATASETS[entry.dataset.identifier].by)"
+        for entry in accepted if haskey(SUPERSEDED_DATASETS, entry.dataset.identifier)
+    ]
+    _warn!(
+        datasets,
+        "superseded_warning",
+        "the subentries of these datasets mark them superseded (STATUS, SPSDD), each by \
+         the dataset named after it; they are written and flagged among their \
+         `qualifiers`, and where one of the two is wanted the superseding dataset is \
+         the authors' own choice: ",
+        superseded,
+    )
+    if query.ordinate in GAMMA_ORDINATES
+        undefined = String[]
+        partial = String[]
+        magnitude = String[]
+        stated = String[]
+        for entry in accepted
+            identifier = entry.dataset.identifier
+            own = entry.dataset.record
+            unstated = gamma_definition_unstated(own)
+            isempty(unstated) || push!(undefined, "$(identifier) ($(join(unstated, ", ")))")
+            coded_partial = get(own, "gamma_range_partial", false)
+            if coded_partial || get(own, "gamma_range_limited", false)
+                bounds = [
+                    get(own, key, NaN) for
+                    key in ("gamma_energy_min_mev", "gamma_energy_max_mev")
+                ]
+                push!(
+                    partial,
+                    "$(identifier) ($(isnan(bounds[1]) ? "?" : bounds[1]) to \
+                     $(isnan(bounds[2]) ? "?" : bounds[2]) MeV, \
+                     $(coded_partial ? "PAR" : "stated range"))",
+                )
+            end
+            get(own, "quantity_reading_basis", "") == "magnitude" &&
+                push!(magnitude, identifier)
+            haskey(own, "stated_value_evidence") && push!(stated, identifier)
+        end
+        _warn!(
+            datasets,
+            "gamma_definition_warning",
+            "the entries of these datasets state no γ-energy range or no time window, \
+             nor does a publication read for them; their values are not comparable with \
+             the others on that definition: ",
+            undefined,
+        )
+        _warn!(
+            datasets,
+            "gamma_range_warning",
+            "the archive codes these datasets partial (PAR), or a threshold or a ceiling of \
+             their stated range limits the photons counted; each is given with its γ-energy \
+             range and written beside the full-range sets, not filtered: ",
+            partial,
+        )
+        _warn!(
+            datasets,
+            "quantity_reading_warning",
+            "nothing but the magnitude says which quantity these datasets hold, their \
+             REACTION text naming none: ",
+            magnitude,
+        )
+        _warn!(
+            datasets,
+            "stated_value_warning",
+            "these values are stated by their entries outside any DATA table, with \
+             their uncertainties, and read from the words of the subentry: ",
+            stated,
+        )
+    end
+    defective = String[]
+    for entry in accepted
+        defects = get(ARCHIVE_DEFECTS, entry.dataset.identifier, nothing)
+        defects === nothing && continue
+        lines = sum(d.occurrences for d in defects)
+        push!(
+            defective,
+            "$(entry.dataset.identifier) ($(lines) $(lines == 1 ? "line" : "lines"))",
+        )
+    end
+    _warn!(
+        datasets,
+        "archive_defect_warning",
+        "lines of these datasets are compilation defects of the archive; they are left \
+         out of the written tables, never corrected, and each dataset's \
+         `archive_defects` gives the line, the evidence and the reason: ",
+        defective,
+    )
+    counted(key) = [
+        "$(entry.dataset.identifier) ($(length(rows)) $(length(rows) == 1 ? "row" : "rows"))"
+        for entry in accepted for
+        rows in (get(entry.dataset.record, key, nothing),) if rows !== nothing
+    ]
+    left_out = counted("rows_left_out")
+    _warn!(
+        datasets,
+        "rows_left_out_warning",
+        "rows of these datasets hold a bound (Max, Min, Min2Max), a kind marked uncertain \
+         or no value kind, and were left out of the written tables, since a limit is \
+         never written as a value; each dataset's `rows_left_out` lists them with the \
+         bound: ",
+        left_out,
+    )
+    approximate = counted("approximate_rows")
+    _warn!(
+        datasets,
+        "approximate_warning",
+        "rows of these datasets hold values the archive marks approximate (DATA-APRX); \
+         they are written, and each dataset's `approximate_rows` lists them: ",
+        approximate,
+    )
+    reduced_form = [
+        entry.dataset.identifier for
+        entry in accepted if has_code(entry.dataset.reaction_code, SPECTRUM_FORM_TAG)
+    ]
+    _warn!(
+        datasets,
+        "spectrum_form_warning",
+        "these datasets hold N(E)/sqrt(E), the spectrum divided by the square root of \
+         the outgoing neutron energy (RRE in their reaction code), and not the spectrum; \
+         they are written as tabulated and flagged among their `qualifiers`: ",
+        reduced_form,
+    )
+    evaluations = [
+        entry.dataset.identifier for
+        entry in accepted if has_code(entry.dataset.reaction_code, EVALUATION_TAG)
+    ]
+    _warn!(
+        datasets,
+        "evaluation_warning",
+        "these datasets are evaluations (EVAL in their reaction code), not \
+         measurements; they are written and flagged among their `qualifiers`: ",
+        evaluations,
+    )
+    _warn!(
+        datasets,
+        "scale_warning",
+        "these datasets carry a reaction-code qualifier that bears on their scale — see \
+         `qualifiers` on each — and are not necessarily on the same footing as the rest: ",
+        flagged,
+    )
+    if length(units) > 1
+        datasets["units_warning"] = "this query returned more than one unit token; datasets in different units must \
+             not be renormalised together"
+    end
+    combined = [
+        entry.dataset.identifier for
+        entry in accepted if entry.reduced.diagnostics["abscissae_combined"] > 0
+    ]
+    _warn!(
+        datasets,
+        "combined_warning",
+        "rows of these datasets shared an abscissa value and were combined by an \
+         inverse-variance weighted mean; `combined_over` names the \
+         auxiliary columns that varied among them, and the subentry stored beside the \
+         data is the reference: ",
+        combined,
+    )
+    isomeric = [
+        entry.dataset.identifier for entry in accepted if
+        !isempty(entry.reduced.diagnostics["isomer_summed_nuclides"]) ||
+            !isempty(entry.reduced.diagnostics["isomer_single_state_nuclides"]) ||
+            !isempty(entry.reduced.diagnostics["isomer_ambiguous_nuclides"])
+    ]
+    _warn!(
+        datasets,
+        "isomer_warning",
+        "these datasets report isomeric states: the nuclides summed over their states, \
+         those written from one marked state alone, which carry that state's yield and \
+         not the nuclide's, and those whose unmarked rows were combined are named per \
+         dataset in `isomer_summed_nuclides`, `isomer_single_state_nuclides` and \
+         `isomer_ambiguous_nuclides`: ",
+        isomeric,
+    )
+    correlated = [
+        entry.dataset.identifier for
+        entry in accepted if correlation_group(entry.dataset.identifier) !== nothing
+    ]
+    _warn!(
+        datasets,
+        "correlated_warning",
+        "these datasets stand in groups that are one experiment, each naming the others \
+         as `correlated_with` and how its group is related as `correlation_relation`: of \
+         a republication take one, by default the one not flagged `superseded:`; of an \
+         alternative_analysis, one measurement reduced more than once, take one or \
+         combine the members as one; of a repeated_run combine the members as one; of a \
+         complementary_range join the members under one normalisation; of a dependent \
+         group, one member formed from another, use one. No group counts once per \
+         member: ",
+        correlated,
+    )
+    relative = [
+        entry.dataset.identifier for
+        entry in accepted if is_relative_unit(entry.dataset.unit)
+    ]
+    if !isempty(relative)
+        datasets["relative"] = length(relative)
+        datasets["relative_warning"] =
+            "these datasets are in arbitrary units and are written under `relative/` rather \
+             than beside the absolute data. They carry a shape and no scale: normalise each one \
+             on its own before comparing it with anything, and never average them with absolute \
+             data or with each other. " * join(relative, ", ")
+    end
+    return nothing
+end
+
+"""
     write_metadata(path, configuration, accepted, rejected, listing) -> Nothing
 
-Write the run record: the query, the transport settings, the package revision, the platform, and
-every dataset considered — those written, with what the reduction had to do to them, and those
-excluded, with the reason.
+Write the run record: the run itself, with the package version and revision, the configuration
+file and the platform; the query; the conventions the tables are written under; a summary of the
+datasets with their warnings; and every dataset considered — those written, with what the
+reduction had to do to them, and those excluded, with the reason.
 
-The rejection list is the point of this file. A dataset missing from the output is otherwise
-indistinguishable from one the archive does not hold. An accepted dataset carries the evidence
+Without the rejection list a dataset missing from the output could not be told from one the
+archive does not hold. An accepted dataset carries the evidence
 for a curated reading as `curation`, the compilation defects left out of it as `archive_defects`,
 and the other runs of its experiment as `correlated_with`, with the relation of the group as
 `correlation_relation`; see src/curation.jl. A dataset its subentry marks superseded names the
@@ -277,7 +747,7 @@ function write_metadata(
         # The same rule the configuration follows: a key that can only be redundant or wrong is
         # not written down. The EXFOR reaction code follows from the channel, the quantity code
         # from the ordinate, and spontaneity is the channel being `sf`. The reaction code of each
-        # dataset, which is what the archive actually returned, stays under `accepted`.
+        # dataset, as the archive returned it, stays under `accepted`.
         "query" => Dict{String, Any}(
             "target_Z" => query.target_Z,
             "target_A" => query.target_A,
@@ -288,150 +758,9 @@ function write_metadata(
             "energy_min_mev" => query.energy_min,
             "energy_max_mev" => query.energy_max,
         ),
-        "conventions" => Dict{String, Any}(
-            "energies" => "MeV; converted from the electronvolts EXFOR reports",
-            "ordinate_normalisation" => "none applied; the unit token of each dataset is \
-                 recorded below",
-            "absent_uncertainty" => "the uncertainty column is omitted when no row of a \
-                 dataset carries one. Where it is written, a row without one is NaN, never 0, \
-                 and so is a row interpolated next to such a row or combined only from such \
-                 rows; a 0 is written only where EXFOR states it. Per dataset, \
-                 `uncertainty_zero_rows` counts the subentry lines stating a zero uncertainty \
-                 and `uncertainty_absent_rows` those stating none",
-            "duplicate_abscissa" => "isomers resolved first (archive total preferred; else the \
-                 rows of each marked state combined as repeats and the states summed in \
-                 quadrature), then rows still sharing an abscissa value combined by an \
-                 inverse-variance weighted mean; `abscissae_combined` counts the combinations \
-                 per dataset and `combined_over` names the auxiliary columns that varied among \
-                 the rows combined",
-            "abscissa_resolution" => "masses are never rounded: integer subentry masses are \
-                 written as they are; a mass bin with integer edges is written at each of its \
-                 masses with the bin's value and uncertainty, except for a yield, whose bin is \
-                 a sum; non-integer masses are interpolated linearly onto the integer masses \
-                 within their range, value and uncertainty alike, at each value of any other \
-                 abscissa quantity and never across more than mass_interpolation_span_u. \
-                 Charges are ELEMENT; energies are the subentry columns in MeV, a bin pair \
-                 contributing its midpoint. mass_treatment and the mass_ keys record what was \
-                 done per dataset",
-            "archive_state" => "EXFOR as of the retrieval date recorded per dataset \
-                 (retrieved_utc, UTC); the listing date is when the archive was last asked \
-                 which datasets exist",
-        ),
+        "conventions" => _conventions(query),
         "platform" => _platform(configuration.record_hostname),
     )
-    if selection_ordinate(query.ordinate) in CENTRE_OF_MASS_ORDINATES
-        record["conventions"]["ordinate_frame"] = "the frame of the neutron energy, per dataset: centre_of_mass where the subentry \
-             heads the value $(CENTRE_OF_MASS_DATUM), its text says so, or the publication \
-             it cites does; unstated where none of them says; a value stated to be in the \
-             laboratory frame is refused. `ordinate_frame_basis` names which of the three \
-             the reading rests on, heading, subentry or publication, and \
-             `ordinate_frame_evidence` gives the heading or the words read, with the DOI of \
-             a publication"
-        record["conventions"]["ordinate_bound"] = "a dataset holding more than $(MAXIMUM_NEUTRON_KINETIC_ENERGY) MeV on any row is \
-             refused as no mean neutron energy"
-        record["conventions"]["mean_formation"] = "how each mean was formed, as its publication states it: `mean_formed_from` is \
-             measured_spectrum, the first moment of the measured centre-of-mass spectrum, \
-             fitted_spectrum, the first moment of the form in `mean_fitted_form` fitted to \
-             it, completed_spectrum, that of the measured spectrum completed beyond its \
-             range by that form, or unstated; `mean_threshold_mev` and \
-             `mean_threshold_frame` give the low-energy limit of the neutrons that enter \
-             the mean, where a publication read states one, and the frame it is stated in, \
-             and `mean_evidence` the sentence or equation read"
-    end
-    if "charge" in query.abscissa
-        record["conventions"]["isomers"] = "a nuclide the archive reports in several isomeric rows is written once: the \
-             archive's own total, the row without an isomer mark, where it gives one, else the \
-             sum of the marked states with their uncertainties in quadrature, the rows of one \
-             state being repeat measurements and combined as such first; \
-             `isomer_summed_nuclides` names the nuclides summed. A nuclide given in one marked \
-             state alone is written as it stands and is the yield of that state, not of the \
-             nuclide; `isomer_single_state_nuclides` names them. Several rows without a mark are \
-             totals that cannot be told apart and are combined as repeats; \
-             `isomer_ambiguous_nuclides` names them"
-    end
-    if query.ordinate in GAMMA_ORDINATES
-        record["conventions"]["gamma_definition"] = "a prompt-γ quantity is defined by the γ-energy range of the photons counted, \
-             the time window after fission they were counted in and the corrections made for \
-             what lies outside either; each dataset records them as read, never as a cut. \
-             `gamma_energy_min_mev` and `gamma_energy_max_mev` give the range where it is \
-             stated, `gamma_energy_range_basis` whether a heading of the entry (entry), its \
-             text (subentry text) or its publication states it, or nobody (unstated), and \
-             `gamma_energy_range_evidence` the headings or the words; `time_window_ns`, \
-             `time_window_kind`, `time_window_basis` and `time_window_evidence` the same of \
-             the window, prompt gate or acquisition trigger; `time_resolution_ns` a \
-             resolution stated where no window is; `corrections_stated` the corrections the entry states, whatever quantity they concern, \
-             verbatim with their place. `gamma_range_partial` is true where the archive codes \
-             the set PAR, over a stated range, and such a set is written beside the full-range \
-             ones"
-        if !query.spontaneous
-            record["conventions"]["incident_energy_basis"] = "the archive lists datasets without an incident-energy window, so each dataset \
-                 records in `incident_energy_basis` the incident energy that put it in the \
-                 window and the heading of its entry it comes from; `incident_energy_reading` \
-                 states where the csv rendering misstates it and what the entry states"
-        end
-        if query.ordinate in ("gamma_energy_per_fission", "gamma_mean_energy")
-            record["conventions"]["quantity_reading"] = "the archive codes the total γ energy per fission and the mean photon energy \
-                 alike, 0-G-0,PR,KE. `quantity_reading` says which a dataset holds: the \
-                 magnitude decides, $(TOTAL_GAMMA_ENERGY_INTERVAL[1]) to \
-                 $(TOTAL_GAMMA_ENERGY_INTERVAL[2]) MeV for the total and \
-                 $(MEAN_PHOTON_ENERGY_INTERVAL[1]) to $(MEAN_PHOTON_ENERGY_INTERVAL[2]) MeV \
-                 for the mean; `quantity_reading_basis` is REACTION text where the words of \
-                 the reaction name the same quantity, a dataset whose words name the other \
-                 being refused, curation or subentry text where the entry has been read, and \
-                 magnitude where nothing else says it"
-        end
-        if isempty(query.abscissa)
-            record["conventions"]["per_fission"] = "one value per dataset file, the quantity per fission; a dataset giving several \
-                 values is refused with them rather than combined into a value no \
-                 publication states. A value an entry states outside its DATA tables, with its \
-                 uncertainty, is written as a dataset named after the subentry stating it, \
-                 `stated_value_evidence` giving the words and their place"
-        end
-    end
-    if query.ordinate == "yield"
-        record["conventions"]["yield_sum"] = "`yield_sum` is the sum of the written yields of each dataset, in the unit the file \
-             is written in: a mass yield in PART/FIS sums to 2 over both fragments and to \
-             about 1 over one side. It is recorded, never a cut; a table whose sum its \
-             coverage does not explain is to be read with its publication"
-    end
-    if query.ordinate == "yield" && query.abscissa == ["product_mass"]
-        record["conventions"]["chain_yield"] = "a chain yield, CHN in its reaction code, is written as a post-neutron mass yield: \
-             beta decay conserves A, so the yield of a mass chain is the post-neutron mass \
-             yield up to the delayed-neutron transfer between neighbouring chains, below a \
-             per cent. Such a dataset carries the qualifier among its `qualifiers` and is \
-             named in `scale_warning`"
-    end
-    if haskey(PARAMETER_ORDINATES, query.ordinate)
-        record["conventions"]["fit_parameter"] = "each table is a column of the dataset of the mean neutron energy, named in the \
-             configuration ([[fit_parameter]]): $(PARAMETER_MEANINGS[query.ordinate]). \
-             `parameter_column` and `parameter_unit` give the column, `fit_form` the form \
-             fitted and `fit_evidence` the equation of the publication; the uncertainty is \
-             the column <column>-ERR"
-    elseif query.ordinate == DISTRIBUTION_ORDINATE
-        record["conventions"]["distribution"] = "P(nu), the probability of emitting nu neutrons in a fission, written as \
-             tabulated and never renormalised. Per dataset: `distribution_sum` is the sum \
-             of the P(nu) and `distribution_normalised` whether it lies within \
-             $(NORMALISATION_TOLERANCE) of one; `mean_multiplicity` is sum(nu P)/sum(P), \
-             with its uncertainty where every line states one, the lines taken as \
-             uncorrelated; `mean_deviation` is mean_multiplicity/mean_nubar - 1 against the \
-             total nubar of the IAEA neutron data standards 2017 \
-             (doi:10.1016/j.nds.2018.02.002), which includes the delayed neutrons, and \
-             `mean_consistent` whether it lies within $(PAIR_SUM_TOLERANCE_SIGMAS) standard \
-             deviations of zero. A distribution whose mean lies further than \
-             $(MEAN_MULTIPLICITY_BAND) of nubar from it is refused as not that of the \
-             neutrons emitted"
-    elseif query.ordinate == REFERENCE_RATIO_ORDINATE
-        record["conventions"]["ratio"] = "each dataset is the ratio of the spectrum of $(system_reaction(query)) and that \
-             of $(REFERENCE_SPECTRUM), both at the outgoing neutron energy E, written as \
-             tabulated: `ratio_orientation` says which is the numerator, system_over_reference \
-             or reference_over_system, and `ratio_numerator` and `ratio_denominator` give the \
-             two reaction codes. Nothing is inverted or normalised"
-    elseif query.ordinate == MAXWELLIAN_RATIO_ORDINATE
-        record["conventions"]["maxwellian_temperature"] = "the temperature T, in MeV, of the Maxwellian sqrt(E) exp(-E/T) each ratio was \
-             formed with, as `maxwellian_temperature_mev` per dataset, from the column \
-             $(MAXWELLIAN_TEMPERATURE_HEADING) of its subentry named in \
-             `maxwellian_temperature_source`; a dataset whose subentry gives none is refused"
-    end
 
     units = sort!(unique(String[entry.dataset.unit for entry in accepted]))
     record["datasets"] = Dict{String, Any}(
@@ -445,251 +774,11 @@ function write_metadata(
         record["datasets"]["retrieved_latest_utc"] =
             string(maximum(entry.retrieved for entry in accepted))
     end
-    flagged = [
-        entry.dataset.identifier for entry in accepted if any(
-            tag -> has_code(entry.dataset.reaction_code, qualifier_tag(tag)),
-            keys(SCALE_QUALIFIERS),
-        )
-    ]
-    off_scale = [
-        entry.dataset.identifier for entry in accepted if
-        get(_curation_record(entry.dataset.identifier), "scale_consistent", true) == false
-    ]
-    if !isempty(off_scale)
-        record["datasets"]["pair_sum_warning"] =
-            "the pair sum of these datasets, weighted with the light-fragment yield, misses \
-             nubar by more than $(PAIR_SUM_TOLERANCE_SIGMAS) standard deviations; their reading \
-             stands and their values are not corrected. `pair_sum_deviation` on each gives \
-             the deviation, and `curation` what it is: a scale other than that of nubar, or \
-             the consistency of the table with a normalisation its publication states: " *
-            join(off_scale, ", ")
-    end
-    unstated = [
-        entry.dataset.identifier for entry in accepted if
-        get(entry.dataset.record, "ordinate_frame", nothing) == "unstated"
-    ]
-    if !isempty(unstated)
-        record["datasets"]["frame_warning"] =
-            "the subentries of these datasets do not state the frame of the neutron energy; \
-             they are written, flagged among their `qualifiers`, and are not established to \
-             be centre-of-mass energies — `ordinate_frame_evidence` on each gives what the \
-             subentry does say: " * join(unstated, ", ")
-    end
-    oriented = Dict{String, Vector{String}}()
-    for entry in accepted
-        orientation = get(entry.dataset.record, "ratio_orientation", nothing)
-        orientation === nothing && continue
-        push!(get!(oriented, orientation, String[]), entry.dataset.identifier)
-    end
-    if length(oriented) > 1
-        record["datasets"]["orientation_warning"] =
-            "the ratios of this directory are not all oriented alike, and one orientation is \
-             the reciprocal of the other; `ratio_orientation` on each dataset says which \
-             spectrum is the numerator: " * join(
-                [
-                    "$(orientation) $(join(oriented[orientation], ", "))" for
-                    orientation in sort!(collect(keys(oriented)))
-                ],
-                "; ",
-            )
-    end
-    preliminary = [
-        entry.dataset.identifier for
-        entry in accepted if preliminary_qualifier(entry.dataset.identifier) !== nothing
-    ]
-    if !isempty(preliminary)
-        record["datasets"]["preliminary_warning"] =
-            "the archive marks these datasets preliminary, with PRELM under STATUS in their \
-             subentry or in the common subentry of their entry; they are written and flagged \
-             among their `qualifiers`, which add the words of the publication where it has \
-             been read: " * join(preliminary, ", ")
-    end
-    superseded = [
-        "$(entry.dataset.identifier) by $(SUPERSEDED_DATASETS[entry.dataset.identifier].by)"
-        for entry in accepted if haskey(SUPERSEDED_DATASETS, entry.dataset.identifier)
-    ]
-    if !isempty(superseded)
-        record["datasets"]["superseded_warning"] =
-            "the subentries of these datasets mark them superseded (STATUS, SPSDD), each by \
-             the dataset named after it; they are written and flagged among their \
-             `qualifiers`, and where one of the two is wanted the superseding dataset is \
-             the authors' own choice: " * join(superseded, ", ")
-    end
-    if query.ordinate in GAMMA_ORDINATES
-        undefined = String[]
-        partial = String[]
-        magnitude = String[]
-        stated = String[]
-        for entry in accepted
-            identifier = entry.dataset.identifier
-            own = entry.dataset.record
-            unstated = gamma_definition_unstated(own)
-            isempty(unstated) || push!(undefined, "$(identifier) ($(join(unstated, ", ")))")
-            coded_partial = get(own, "gamma_range_partial", false)
-            if coded_partial || get(own, "gamma_range_limited", false)
-                bounds = [
-                    get(own, key, NaN) for
-                    key in ("gamma_energy_min_mev", "gamma_energy_max_mev")
-                ]
-                push!(
-                    partial,
-                    "$(identifier) ($(isnan(bounds[1]) ? "?" : bounds[1]) to \
-                     $(isnan(bounds[2]) ? "?" : bounds[2]) MeV, \
-                     $(coded_partial ? "PAR" : "stated range"))",
-                )
-            end
-            get(own, "quantity_reading_basis", "") == "magnitude" &&
-                push!(magnitude, identifier)
-            haskey(own, "stated_value_evidence") && push!(stated, identifier)
-        end
-        isempty(undefined) || (
-            record["datasets"]["gamma_definition_warning"] =
-                "the entries of these datasets state no γ-energy range or no time window, \
-                 nor does a publication read for them; their values are not comparable with \
-                 the others on that definition: " * join(undefined, ", ")
-        )
-        isempty(partial) || (
-            record["datasets"]["gamma_range_warning"] =
-                "the archive codes these datasets partial (PAR), or a threshold or a ceiling of \
-                 their stated range limits the photons counted; each is given with its γ-energy \
-                 range and written beside the full-range sets, not filtered: " *
-                join(partial, ", ")
-        )
-        isempty(magnitude) || (
-            record["datasets"]["quantity_reading_warning"] =
-                "nothing but the magnitude says which quantity these datasets hold, their \
-                 REACTION text naming none: " * join(magnitude, ", ")
-        )
-        isempty(stated) || (
-            record["datasets"]["stated_value_warning"] =
-                "these values are stated by their entries outside any DATA table, with \
-                 their uncertainties, and read from the words of the subentry: " *
-                join(stated, ", ")
-        )
-    end
-    defective = String[]
-    for entry in accepted
-        defects = get(ARCHIVE_DEFECTS, entry.dataset.identifier, nothing)
-        defects === nothing && continue
-        lines = sum(d.occurrences for d in defects)
-        push!(
-            defective,
-            "$(entry.dataset.identifier) ($(lines) $(lines == 1 ? "line" : "lines"))",
-        )
-    end
-    if !isempty(defective)
-        record["datasets"]["archive_defect_warning"] =
-            "lines of these datasets are compilation defects of the archive; they are left \
-             out of the written tables, never corrected, and each dataset's \
-             `archive_defects` gives the line, the evidence and the reason: " *
-            join(defective, ", ")
-    end
-    counted(key) = [
-        "$(entry.dataset.identifier) ($(length(rows)) $(length(rows) == 1 ? "row" : "rows"))"
-        for entry in accepted for
-        rows in (get(entry.dataset.record, key, nothing),) if rows !== nothing
-    ]
-    left_out = counted("rows_left_out")
-    if !isempty(left_out)
-        record["datasets"]["rows_left_out_warning"] =
-            "rows of these datasets hold a bound (Max, Min, Min2Max), a kind marked uncertain \
-             or no value kind, and were left out of the written tables, since a limit is \
-             never written as a value; each dataset's `rows_left_out` lists them with the \
-             bound: " * join(left_out, ", ")
-    end
-    approximate = counted("approximate_rows")
-    if !isempty(approximate)
-        record["datasets"]["approximate_warning"] =
-            "rows of these datasets hold values the archive marks approximate (DATA-APRX); \
-             they are written, and each dataset's `approximate_rows` lists them: " *
-            join(approximate, ", ")
-    end
-    reduced_form = [
-        entry.dataset.identifier for
-        entry in accepted if has_code(entry.dataset.reaction_code, SPECTRUM_FORM_TAG)
-    ]
-    if !isempty(reduced_form)
-        record["datasets"]["spectrum_form_warning"] =
-            "these datasets hold N(E)/sqrt(E), the spectrum divided by the square root of \
-             the outgoing neutron energy (RRE in their reaction code), and not the spectrum; \
-             they are written as tabulated and flagged among their `qualifiers`: " *
-            join(reduced_form, ", ")
-    end
-    evaluations = [
-        entry.dataset.identifier for
-        entry in accepted if has_code(entry.dataset.reaction_code, EVALUATION_TAG)
-    ]
-    if !isempty(evaluations)
-        record["datasets"]["evaluation_warning"] =
-            "these datasets are evaluations (EVAL in their reaction code), not \
-             measurements; they are written and flagged among their `qualifiers`: " *
-            join(evaluations, ", ")
-    end
-    if !isempty(flagged)
-        record["datasets"]["scale_warning"] =
-            "these datasets carry a reaction-code qualifier that bears on their scale — see \
-             `qualifiers` on each — and are not necessarily on the same footing as the rest: " *
-            join(flagged, ", ")
-    end
-    if length(units) > 1
-        record["datasets"]["units_warning"] = "this query returned more than one unit token; datasets in different units must \
-             not be renormalised together"
-    end
-    combined = [
-        entry.dataset.identifier for
-        entry in accepted if entry.reduced.diagnostics["abscissae_combined"] > 0
-    ]
-    if !isempty(combined)
-        record["datasets"]["combined_warning"] =
-            "rows of these datasets shared an abscissa value and were combined by an \
-             inverse-variance weighted mean; `combined_over` names the \
-             auxiliary columns that varied among them, and the subentry stored beside the \
-             data is the reference: " * join(combined, ", ")
-    end
-    isomeric = [
-        entry.dataset.identifier for entry in accepted if
-        !isempty(entry.reduced.diagnostics["isomer_summed_nuclides"]) ||
-            !isempty(entry.reduced.diagnostics["isomer_single_state_nuclides"]) ||
-            !isempty(entry.reduced.diagnostics["isomer_ambiguous_nuclides"])
-    ]
-    if !isempty(isomeric)
-        record["datasets"]["isomer_warning"] =
-            "these datasets report isomeric states: the nuclides summed over their states, \
-             those written from one marked state alone, which carry that state's yield and \
-             not the nuclide's, and those whose unmarked rows were combined are named per \
-             dataset in `isomer_summed_nuclides`, `isomer_single_state_nuclides` and \
-             `isomer_ambiguous_nuclides`: " * join(isomeric, ", ")
-    end
-    correlated = [
-        entry.dataset.identifier for
-        entry in accepted if correlation_group(entry.dataset.identifier) !== nothing
-    ]
-    if !isempty(correlated)
-        record["datasets"]["correlated_warning"] =
-            "these datasets stand in groups that are one experiment, each naming the others \
-             as `correlated_with` and how its group is related as `correlation_relation`: of \
-             a republication take one, by default the one not flagged `superseded:`; of an \
-             alternative_analysis, one measurement reduced more than once, take one or \
-             combine the members as one; of a repeated_run combine the members as one; of a \
-             complementary_range join the members under one normalisation; of a dependent \
-             group, one member formed from another, use one. No group counts once per \
-             member: " * join(correlated, ", ")
-    end
-    relative = [
-        entry.dataset.identifier for
-        entry in accepted if is_relative_unit(entry.dataset.unit)
-    ]
-    if !isempty(relative)
-        record["datasets"]["relative"] = length(relative)
-        record["datasets"]["relative_warning"] =
-            "these datasets are in arbitrary units and are written under `relative/` rather \
-             than beside the absolute data. They carry a shape and no scale: normalise each one \
-             on its own before comparing it with anything, and never average them with absolute \
-             data or with each other. " * join(relative, ", ")
-    end
+    _dataset_warnings!(record, accepted, query)
 
     record["accepted"] = [
-        merge(
+        _merge_record(
+            entry.dataset.identifier,
             Dict{String, Any}(
                 "identifier" => entry.dataset.identifier,
                 "author" => entry.dataset.author,

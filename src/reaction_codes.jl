@@ -174,6 +174,9 @@ Whether an EXFOR reaction code satisfies `rule`.
 """
 matches(rule::TagRule, code::AbstractString) = rejection_reason(rule, code) === nothing
 
+"""The opening of the reason [`rejection_reason`](@ref) gives when no alternative holds."""
+const NO_ALTERNATIVE_PREFIX = "none of the alternatives"
+
 """
     rejection_reason(rule, code) -> Union{String,Nothing}
 
@@ -199,7 +202,7 @@ function rejection_reason(rule::TagRule, code::AbstractString)
     end
     isempty(rule.require_any) && return nothing
     any(tag -> _holds(tag, fields), rule.require_any) && return nothing
-    return "none of the alternatives $(join(_describe.(rule.require_any), ", ")) present"
+    return "$(NO_ALTERNATIVE_PREFIX) $(join(_describe.(rule.require_any), ", ")) present"
 end
 
 """
@@ -216,8 +219,8 @@ Codes rejected for every observable, besides any combination of reactions.
 | `SF5:CUM`, `SF5:(CUM)` | cumulative yield, or one the compiler could not tell from it |
 | `SF8:RAW` | uncorrected data |
 
-`REL` (relative data) is deliberately absent, since excluding it removes datasets that are
-wanted, and is recorded per dataset through [`SCALE_QUALIFIERS`](@ref). `CHN`, a chain yield,
+`REL` (relative data) is not among them: excluding it would remove datasets that are wanted, and
+it is recorded per dataset through [`SCALE_QUALIFIERS`](@ref). `CHN`, a chain yield,
 is a post-neutron product mass: the abscissa rules refuse it beside a pre-neutron mass and admit
 it beside the product mass.
 """
@@ -473,10 +476,8 @@ const ORDINATE_RULES = Dict{String, TagRule}(
 """
 The ASCII symbol of each abscissa quantity, as the literature writes it.
 
-The configuration spells a quantity out, so that a file a user edits explains itself; a path and
-a column header carry the symbol, which is the field's own nomenclature and what every other file
-in this toolchain uses. `nu_vs_A_TKE` says what
-`multiplicity_vs_mass_total_kinetic_energy` says, and a directory listing stays readable.
+The configuration spells a quantity out; a path and a column header carry the symbol, as the
+literature writes it. See [Naming](@ref).
 """
 const ABSCISSA_TOKEN = Dict(
     "mass" => "A",
@@ -663,10 +664,9 @@ const ORDINATES = sort!(collect(keys(ORDINATE_RULES)))
 Reaction-code qualifiers that bear on whether a value is on an absolute, directly comparable
 scale, mapped to what each means.
 
-None of these causes a dataset to be rejected — several are admitted deliberately. They are
-recorded per dataset in the run record so that a consumer renormalising a directory of files
-knows which of them are not on the same footing, rather than having to re-read the reaction
-codes to find out.
+None of these rejects a dataset. They are recorded per dataset in the run record, so that a
+consumer renormalising a directory of files knows which of them are not on the same footing
+without re-reading the reaction codes.
 """
 const SCALE_QUALIFIERS = Dict(
     "MSC" => "miscellaneous: not a standard EXFOR quantity definition",
@@ -837,10 +837,7 @@ function spectrum_ratio(
     end
     own = orientation == "system_over_reference" ? numerator : denominator
     conflict = channel_qualifier_conflict(channel, own)
-    conflict === nothing ||
-        return "reaction code carries \"$(conflict)\" ($(SPECTRUM_QUALIFIERS[conflict])), \
-                which names a neutron spectrum no measurement in channel \"$(channel)\" was \
-                made in"
+    conflict === nothing || return channel_conflict_reason(conflict, channel)
     return SpectrumRatio(numerator, denominator, orientation)
 end
 
@@ -1003,4 +1000,16 @@ function channel_qualifier_conflict(channel::AbstractString, code::AbstractStrin
         has_code(code, qualifier_tag(tag)) && return tag
     end
     return nothing
+end
+
+"""
+    channel_conflict_reason(qualifier, channel) -> String
+
+The reason a reaction code carrying the spectrum qualifier `qualifier`, as
+[`channel_qualifier_conflict`](@ref) finds it, is refused under `channel`.
+"""
+function channel_conflict_reason(qualifier::AbstractString, channel::AbstractString)
+    return "reaction code carries \"$(qualifier)\" \
+            ($(SPECTRUM_QUALIFIERS[qualifier])), which names a neutron spectrum no \
+            measurement in channel \"$(channel)\" was made in"
 end

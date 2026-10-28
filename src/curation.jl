@@ -3,7 +3,7 @@
 # A few datasets hold a different observable from the one their reaction code names, or one the
 # code does not distinguish from it: a total kinetic energy coded as the energy of one fragment,
 # a pre-neutron quantity with the branch field left blank, a mean over a selected class of events
-# coded exactly as the unconditional mean. Substring tests cannot tell these apart, so each is
+# coded exactly as the unconditional mean. No reaction-code test can tell these apart, so each is
 # read here from its subentry text, one dataset at a time, and the evidence is written beside it.
 # An entry here replaces the ordinate reading of the tag rule for that dataset alone; every other
 # test of the selection still applies to it.
@@ -614,6 +614,96 @@ const ROW_NOTES = Dict{String, Vector{String}}(
 )
 
 """
+Readings of individual datasets, other than the multiplicities against mass coded without `FRG`,
+which [`MULTIPLICITY_READINGS`](@ref) holds; [`CURATED_DATASETS`](@ref) is the union of the two.
+"""
+const INDIVIDUAL_READINGS = Dict{String, Curation}(
+    "23175011" => Curation(
+        nothing,
+        "curated: coded MASS,,KE,LF+HF,MSC with DATA-MAX as its only datum column, 'Total \
+             kinetic energies, where the neutron emission stops, versus heavy and light \
+             fission-fragment masses', Fig. 15 of Budtz-Jørgensen and Knitter 1988 \
+             (doi:10.1016/0375-9474(88)90508-8): the TKE at which neutron emission ceases, \
+             against fragment mass, a bound of the TKE distribution and not its mean, and no \
+             observable of this package",
+    ),
+    "14101003" => Curation(
+        "total_kinetic_energy",
+        "curated: a double-velocity measurement, the times of flight of both fragments \
+         (Whetstone 1963, doi:10.1103/PhysRev.131.1232), with the branch field left blank. \
+         Isotropic neutron emission leaves the mean fragment velocity unchanged, so masses \
+         from momentum conservation of the two measured velocities, \
+         A_L = A_0 v_H / (v_L + v_H), are the pre-neutron masses, broadened but not biased, \
+         and the TKE formed from them is pre-neutron. A double-energy measurement differs: \
+         neutron emission lowers the fragment energies, and its masses stay provisional \
+         until corrected with nu(A)",
+    ),
+    "22780003" => Curation(
+        "total_kinetic_energy",
+        "curated: coded as the kinetic energy of one fragment (FF), but the column holds the \
+         total kinetic energy: subentry 001 gives graphs of 'yield, TKE and TKE-dispersion', \
+         the MISC column beside DATA is the 'Dispersion of TKE distribution', and DATA reaches \
+         150 MeV at A = 74, where one light fragment carries about 0.7 of the total; the masses \
+         are pre-neutron, neutron emission having been corrected with nu(A, TKE)",
+    ),
+    "41109007" => Curation(
+        nothing,
+        "curated: a mean over cold-fragmentation events, not over the TKE distribution; the \
+         entry is 'Uranium cold fragmentation induced by thermal and fast neutrons', and DATA \
+         lies 20 to 30 MeV above every unconditional mean TKE against mass of 235-U(n,f), at \
+         or above the maximal cold-fragmentation TKE of 23589002",
+    ),
+    "23268002" => Curation(
+        ["mass", "total_kinetic_energy"],
+        "yield",
+        "curated: the joint pre-neutron yield Y(A, TKE), coded MASS,PRE,FY,,MSC without a TKE \
+         marker. Its REACTION text reads 'Fission fragment yield as a function of pre-neutron \
+         mass and TKE (counts)', and its DATA table holds 30 000 cells of counts, TKE 100.5 to \
+         299.5 MeV in steps of 1 MeV against MASS 51 to 200 (Goeoek 2014, \
+         doi:10.1103/PhysRevC.90.064611, Fig. 6a). The csv rendering drops the TKE column and \
+         gives the unit as PART/FIS; the subentry gives ARB-UNITS",
+        Dict(
+            "tke_grid_inference" => "the TKE values are the centres of 1-MeV bins, an \
+                inference the data support but EXFOR does not state: taken as centres, the \
+                count-weighted mean TKE of the matrix reproduces that of 23268004 to +0.05 MeV \
+                over the masses of at least 1000 counts, and taken as lower or upper edges it \
+                misses by +0.55 or -0.45 MeV",
+            "mass_marginal" => "23268003, the pre-neutron mass yield of the same measurement \
+                in PC/FIS, is this matrix summed over TKE and normalised to 200 %, to a \
+                relative 4e-6; 23268004 holds its mean TKE and the standard deviation of TKE \
+                against mass",
+        ),
+    ),
+    "22413013" => Curation(
+        ["mass", "total_kinetic_energy"],
+        "yield",
+        "curated: the joint pre-neutron yield Y(A, TKE) of 240-Pu(sf) in raw event counts \
+         (Dematte 1997, doi:10.1016/S0375-9474(97)00032-8), coded MASS,PRE,FY/DE,,RAW: 2911 \
+         cells, E 140 to 210 MeV in 1-MeV steps against heavy masses 120 to 160. EN-SEC codes \
+         the energy (E,FF), but at 140 to 210 MeV against these masses it is the total kinetic \
+         energy, as in 21995034 of the same group; the masses are from the double-energy method \
+         with 'corrections ... for prompt neutron emission' (22413001, METHOD, CORRECTION). RAW \
+         marks the counts themselves, which carry no normalisation; the heading NO-DIM is read \
+         as arbitrary units",
+        Dict{String, String}(),
+        "ARB-UNITS",
+    ),
+    "41425015" => Curation(
+        nothing,
+        _vorobiev_yield("4-pi", "146.7", "Fig. 10 and Fig. 11a '(NUt=0)'"),
+    ),
+    "41425016" =>
+        Curation(nothing, _vorobiev_yield("2x2-pi", "146.2", "Fig. 11a '(NUt=0)'")),
+    "40420062" => Curation(
+        nothing,
+        "curated: a joint histogram of event counts in 1.5-u mass and 2.5-MeV TKE bins, coded \
+         PRE, whose masses its entry does not establish as pre-neutron: entry 40420 names \
+         entry 40232 for the 'FY and TKE for this experiment', and 40232 states that \
+         'corrections on emission of neutrons from fission fragments were not introduced'",
+    ),
+)
+
+"""
 Datasets whose ordinate is read from the subentry text, keyed by dataset identifier; see
 [`Curation`](@ref).
 
@@ -641,94 +731,7 @@ rule and [`BASE_FORBID`](@ref) admit its code; under any other ordinate it is re
 reason. A dataset listed with an abscissa as well is read in full, and admitted under that
 abscissa and ordinate alone. A dataset listed without an ordinate is rejected under every one.
 """
-const CURATED_DATASETS = merge(
-    Dict{String, Curation}(
-        "23175011" => Curation(
-            nothing,
-            "curated: coded MASS,,KE,LF+HF,MSC with DATA-MAX as its only datum column, 'Total \
-             kinetic energies, where the neutron emission stops, versus heavy and light \
-             fission-fragment masses', Fig. 15 of Budtz-Jørgensen and Knitter 1988 \
-             (doi:10.1016/0375-9474(88)90508-8): the TKE at which neutron emission ceases, \
-             against fragment mass, a bound of the TKE distribution and not its mean, and no \
-             observable of this package",
-        ),
-        "14101003" => Curation(
-            "total_kinetic_energy",
-            "curated: a double-velocity measurement, the times of flight of both fragments \
-         (Whetstone 1963, doi:10.1103/PhysRev.131.1232), with the branch field left blank. \
-         Isotropic neutron emission leaves the mean fragment velocity unchanged, so masses \
-         from momentum conservation of the two measured velocities, \
-         A_L = A_0 v_H / (v_L + v_H), are the pre-neutron masses, broadened but not biased, \
-         and the TKE formed from them is pre-neutron. A double-energy measurement differs: \
-         neutron emission lowers the fragment energies, and its masses stay provisional \
-         until corrected with nu(A)",
-        ),
-        "22780003" => Curation(
-            "total_kinetic_energy",
-            "curated: coded as the kinetic energy of one fragment (FF), but the column holds the \
-         total kinetic energy: subentry 001 gives graphs of 'yield, TKE and TKE-dispersion', \
-         the MISC column beside DATA is the 'Dispersion of TKE distribution', and DATA reaches \
-         150 MeV at A = 74, where one light fragment carries about 0.7 of the total; the masses \
-         are pre-neutron, neutron emission having been corrected with nu(A, TKE)",
-        ),
-        "41109007" => Curation(
-            nothing,
-            "curated: a mean over cold-fragmentation events, not over the TKE distribution; the \
-         entry is 'Uranium cold fragmentation induced by thermal and fast neutrons', and DATA \
-         lies 20 to 30 MeV above every unconditional mean TKE against mass of 235-U(n,f), at \
-         or above the maximal cold-fragmentation TKE of 23589002",
-        ),
-        "23268002" => Curation(
-            ["mass", "total_kinetic_energy"],
-            "yield",
-            "curated: the joint pre-neutron yield Y(A, TKE), coded MASS,PRE,FY,,MSC without a TKE \
-         marker. Its REACTION text reads 'Fission fragment yield as a function of pre-neutron \
-         mass and TKE (counts)', and its DATA table holds 30 000 cells of counts, TKE 100.5 to \
-         299.5 MeV in steps of 1 MeV against MASS 51 to 200 (Goeoek 2014, \
-         doi:10.1103/PhysRevC.90.064611, Fig. 6a). The csv rendering drops the TKE column and \
-         gives the unit as PART/FIS; the subentry gives ARB-UNITS",
-            Dict(
-                "tke_grid_inference" => "the TKE values are the centres of 1-MeV bins, an \
-                inference the data support but EXFOR does not state: taken as centres, the \
-                count-weighted mean TKE of the matrix reproduces that of 23268004 to +0.05 MeV \
-                over the masses of at least 1000 counts, and taken as lower or upper edges it \
-                misses by +0.55 or -0.45 MeV",
-                "mass_marginal" => "23268003, the pre-neutron mass yield of the same measurement \
-                in PC/FIS, is this matrix summed over TKE and normalised to 200 %, to a \
-                relative 4e-6; 23268004 holds its mean TKE and the standard deviation of TKE \
-                against mass",
-            ),
-        ),
-        "22413013" => Curation(
-            ["mass", "total_kinetic_energy"],
-            "yield",
-            "curated: the joint pre-neutron yield Y(A, TKE) of 240-Pu(sf) in raw event counts \
-         (Dematte 1997, doi:10.1016/S0375-9474(97)00032-8), coded MASS,PRE,FY/DE,,RAW: 2911 \
-         cells, E 140 to 210 MeV in 1-MeV steps against heavy masses 120 to 160. EN-SEC codes \
-         the energy (E,FF), but at 140 to 210 MeV against these masses it is the total kinetic \
-         energy, as in 21995034 of the same group; the masses are from the double-energy method \
-         with 'corrections ... for prompt neutron emission' (22413001, METHOD, CORRECTION). RAW \
-         marks the counts themselves, which carry no normalisation; the heading NO-DIM is read \
-         as arbitrary units",
-            Dict{String, String}(),
-            "ARB-UNITS",
-        ),
-        "41425015" => Curation(
-            nothing,
-            _vorobiev_yield("4-pi", "146.7", "Fig. 10 and Fig. 11a '(NUt=0)'"),
-        ),
-        "41425016" =>
-            Curation(nothing, _vorobiev_yield("2x2-pi", "146.2", "Fig. 11a '(NUt=0)'")),
-        "40420062" => Curation(
-            nothing,
-            "curated: a joint histogram of event counts in 1.5-u mass and 2.5-MeV TKE bins, coded \
-         PRE, whose masses its entry does not establish as pre-neutron: entry 40420 names \
-         entry 40232 for the 'FY and TKE for this experiment', and 40232 states that \
-         'corrections on emission of neutrons from fission fragments were not introduced'",
-        ),
-    ),
-    MULTIPLICITY_READINGS,
-)
+const CURATED_DATASETS = merge(INDIVIDUAL_READINGS, MULTIPLICITY_READINGS)
 
 """
     curation_for(identifier, ordinate) -> Union{Curation,Nothing}

@@ -1,5 +1,26 @@
 # Orchestration: query, retrieve, select, reduce, write.
 
+# The failures of one request that are recorded as the rejection of its dataset.
+const RETRIEVAL_FAILURES = Union{HTTP.HTTPError, Base.IOError, ArgumentError}
+
+# `f()`, or the exception it throws where that is a retrieval failure; any other exception is a
+# defect of this package and is rethrown.
+function _attempt(f)
+    try
+        return f()
+    catch exception
+        exception isa RETRIEVAL_FAILURES || rethrow()
+        return exception
+    end
+end
+
+# A reason naming what failed, followed by the failure as `showerror` prints it.
+_failure_reason(prefix::AbstractString, exception::Exception) =
+    prefix * sprint(showerror, exception)
+
+_failed_rejection(identifier, code, prefix, exception) =
+    Rejection(identifier, code, _failure_reason(prefix, exception))
+
 """
     retrieve(configuration; root) -> RetrievalResult
 
@@ -44,24 +65,59 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
     @info "dataset identifiers returned" count = length(identifiers) from_cache =
         listing.from_cache retrieved = listing.retrieved
 
+    # The rejections are pushed in the order the stages run, which is the order of the record.
+    widths, parameters = configuration.widths, configuration.parameters
+    stage_one = _screen_renderings(identifiers, query, options; widths, parameters)
+    rejected = stage_one.rejected
+    _explain_empty_renderings!(rejected, stage_one.empties, options)
+    selected = _select_subentries!(
+        rejected,
+        stage_one.screened,
+        stage_one.responses,
+        query,
+        options;
+        widths,
+        parameters,
+    )
+    _select_stated!(selected, rejected, query, options)
+    sort!(selected.datasets; by = dataset -> dataset.identifier)
+    _note_unadmitted!(rejected, query, options)
+    @info "selection complete" accepted = length(selected.datasets) rejected =
+        length(rejected)
+
+    return _write_retrieval(selected, rejected, listing, configuration, root)
+end
+
+"""
+    _screen_renderings(identifiers, query, options; widths, parameters) -> NamedTuple
+
+Stage one of selection: retrieve the csv rendering of each dataset and screen it with
+[`screen_dataset`](@ref). Returns `screened`, the datasets that passed; `responses`, the csv
+response each of them was read from, for the retrieval date in the record; `rejected`, the
+rejections in identifier order; and `empties`, the positions in `rejected` of the datasets whose
+rendering is empty.
+
+Throws a [`LayoutError`](@ref) when no rendering parsed and one failed on the column layout, the
+rendering itself having changed.
+"""
+function _screen_renderings(
+    identifiers::AbstractVector,
+    query::Query,
+    options::RetrievalOptions;
+    widths::AbstractVector{WidthColumn},
+    parameters::AbstractVector{ParameterColumn},
+)
     responses = map_bounded(identifiers, options) do identifier
-        try
-            dataset_csv(identifier, options)
-        catch exception
-            # A dataset that cannot be retrieved is recorded as a rejection rather than taking
-            # the whole run down with it; anything but a retrieval failure is a defect.
-            exception isa Union{HTTP.HTTPError, Base.IOError, ArgumentError} ||
-                rethrow()
-            exception
-        end
+        # A dataset that cannot be retrieved is recorded as a rejection rather than taking the
+        # whole run down with it; anything but a retrieval failure is a defect.
+        _attempt(() -> dataset_csv(identifier, options))
     end
 
-    # Stage one: everything the csv rendering can answer.
     screened = Screened[]
     # The csv response each screened dataset was read from, for the retrieval date in the record.
     screened_responses = Response[]
     rejected = Rejection[]
-    # The positions in `rejected` of the datasets whose rendering is empty, explained below.
+    # The positions in `rejected` of the datasets whose rendering is empty, explained later.
     empties = Int[]
     parsed = 0
     layout_failures = String[]
@@ -69,22 +125,12 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         if response isa Exception
             push!(
                 rejected,
-                Rejection(
-                    identifier,
-                    "",
-                    "retrieval failed: $(sprint(showerror, response))",
-                ),
+                _failed_rejection(identifier, "", "retrieval failed: ", response),
             )
             continue
         end
         outcome = try
-            candidate = screen_dataset(
-                identifier,
-                response.body,
-                query;
-                configuration.widths,
-                configuration.parameters,
-            )
+            candidate = screen_dataset(identifier, response.body, query; widths, parameters)
             parsed += 1
             candidate
         catch exception
@@ -111,91 +157,122 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             ),
         )
     end
+    return (; screened, responses = screened_responses, rejected, empties)
+end
+
+"""
+    _explain_empty_renderings!(rejected, empties, options) -> Vector{Rejection}
+
+Replace in place the reason of each rejection at the positions `empties` of `rejected`, a dataset
+whose csv rendering is empty, with what its subentry says of it; see
+[`empty_rendering_reason`](@ref).
+"""
+function _explain_empty_renderings!(
+    rejected::Vector{Rejection},
+    empties::Vector{Int},
+    options::RetrievalOptions,
+)
     # An empty rendering is explained from its subentry: the subentry holds no data and says so
     # (NODATA), or it holds a DATA table and the rendering alone is empty.
-    if !isempty(empties)
-        explanations = map_bounded([rejected[i].identifier for i in empties], options) do id
-            try
-                empty_rendering_reason(id, subentry_text(id, options).body)
-            catch exception
-                exception isa Union{HTTP.HTTPError, Base.IOError, ArgumentError} ||
-                    rethrow()
-                "$(EMPTY_RENDERING); the subentry could not be retrieved to say why: " *
-                sprint(showerror, exception)
-            end
-        end
-        for (i, reason) in zip(empties, explanations)
-            rejected[i] =
-                Rejection(rejected[i].identifier, rejected[i].reaction_code, reason)
-        end
+    isempty(empties) && return rejected
+    explanations = map_bounded([rejected[i].identifier for i in empties], options) do id
+        outcome =
+            _attempt(() -> empty_rendering_reason(id, subentry_text(id, options).body))
+        outcome isa Exception ?
+        _failure_reason(
+            "$(EMPTY_RENDERING); the subentry could not be retrieved to say why: ",
+            outcome,
+        ) : outcome
     end
+    for (i, reason) in zip(empties, explanations)
+        rejected[i] = Rejection(rejected[i].identifier, rejected[i].reaction_code, reason)
+    end
+    return rejected
+end
 
-    # Stage two: the subentry settles what each screened dataset is tabulated against.
+"""
+    _select_subentries!(rejected, screened, responses, query, options; widths, parameters)
+        -> NamedTuple
+
+Stage two of selection: retrieve the subentry of each screened dataset and settle with
+[`select_dataset`](@ref) what it is tabulated against, pushing the rejections onto `rejected`.
+Returns `datasets`, those accepted; `responses`, the csv response of each, by identifier; and
+`subentry_texts`, the subentry text of each, by identifier, written beside the data without a
+second request.
+"""
+function _select_subentries!(
+    rejected::Vector{Rejection},
+    screened::Vector{Screened},
+    responses::Vector{Response},
+    query::Query,
+    options::RetrievalOptions;
+    widths::AbstractVector{WidthColumn},
+    parameters::AbstractVector{ParameterColumn},
+)
     subentry_responses = map_bounded(screened, options) do candidate
-        try
-            subentry_text(candidate.identifier, options)
-        catch exception
-            exception isa Union{HTTP.HTTPError, Base.IOError, ArgumentError} ||
-                rethrow()
-            exception
-        end
+        _attempt(() -> subentry_text(candidate.identifier, options))
     end
     retrieved_subentries = count(response -> !(response isa Exception), subentry_responses)
     @info "subentries retrieved" count = retrieved_subentries
 
-    accepted_datasets = Dataset[]
-    accepted_responses = Dict{String, Response}()
-    # The subentry text of each accepted dataset, written beside the data without a second
-    # request.
-    subentry_texts = Dict{String, String}()
-    for (candidate, response, subentry) in
-        zip(screened, screened_responses, subentry_responses)
+    selected = (;
+        datasets = Dataset[],
+        responses = Dict{String, Response}(),
+        subentry_texts = Dict{String, String}(),
+    )
+    for (candidate, response, subentry) in zip(screened, responses, subentry_responses)
         if subentry isa Exception
             push!(
                 rejected,
-                Rejection(
+                _failed_rejection(
                     candidate.identifier,
                     candidate.reaction_code,
-                    "retrieval of the subentry failed: " * sprint(showerror, subentry),
+                    "retrieval of the subentry failed: ",
+                    subentry,
                 ),
             )
             continue
         end
-        outcome = select_dataset(
-            candidate,
-            subentry.body,
-            query;
-            configuration.widths,
-            configuration.parameters,
-        )
+        outcome = select_dataset(candidate, subentry.body, query; widths, parameters)
         if outcome isa Rejection
             push!(rejected, outcome)
         else
-            push!(accepted_datasets, outcome)
-            accepted_responses[outcome.identifier] = response
-            subentry_texts[outcome.identifier] = subentry.body
+            push!(selected.datasets, outcome)
+            selected.responses[outcome.identifier] = response
+            selected.subentry_texts[outcome.identifier] = subentry.body
         end
     end
+    return selected
+end
+
+"""
+    _select_stated!(selected, rejected, query, options) -> NamedTuple
+
+Add to `selected`, as [`_select_subentries!`](@ref) returns it, the values of
+[`stated_values`](@ref) that answer `query`, each read from its subentry by
+[`stated_dataset`](@ref), and push those refused onto `rejected`.
+"""
+function _select_stated!(
+    selected::NamedTuple,
+    rejected::Vector{Rejection},
+    query::Query,
+    options::RetrievalOptions,
+)
     # Values an entry states outside its DATA tables, read where the entry has been read for
     # them: the subentry stating each is fetched like any other, and the words looked for in it.
     stated = stated_values(query)
     stated_responses = map_bounded(stated, options) do value
-        try
-            subentry_text(value.source, options)
-        catch exception
-            exception isa Union{HTTP.HTTPError, Base.IOError, ArgumentError} ||
-                rethrow()
-            exception
-        end
+        _attempt(() -> subentry_text(value.source, options))
     end
     for (value, response) in zip(stated, stated_responses)
         if response isa Exception
             push!(
                 rejected,
-                Rejection(
+                _failed_rejection(
                     value.source,
                     "",
-                    "retrieval of the subentry failed: " * sprint(showerror, response),
+                    "retrieval of the subentry failed: ",
+                    response,
                 ),
             )
             continue
@@ -204,21 +281,37 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         if outcome isa Rejection
             push!(rejected, outcome)
         else
-            push!(accepted_datasets, outcome)
-            accepted_responses[outcome.identifier] = response
-            subentry_texts[outcome.identifier] = response.body
+            push!(selected.datasets, outcome)
+            selected.responses[outcome.identifier] = response
+            selected.subentry_texts[outcome.identifier] = response.body
         end
     end
-    sort!(accepted_datasets; by = dataset -> dataset.identifier)
+    return selected
+end
+
+"""
+    _note_unadmitted!(rejected, query, options) -> Vector{Rejection}
+
+Keep each value of [`unadmitted_values`](@ref) that would answer `query` among the reasons of
+`rejected`, with the note [`unadmitted_note`](@ref) reads: appended to the reason of the
+rejection of its dataset where there is one, else as a rejection of its own.
+"""
+function _note_unadmitted!(
+    rejected::Vector{Rejection},
+    query::Query,
+    options::RetrievalOptions,
+)
     # Values stated outside the DATA column without an uncertainty: kept in the reasons.
-    for value in unadmitted_values(query)
-        note = try
-            unadmitted_note(value, subentry_text(value.identifier, options).body)
-        catch exception
-            exception isa Union{HTTP.HTTPError, Base.IOError, ArgumentError} ||
-                rethrow()
-            "retrieval of the subentry failed: " * sprint(showerror, exception)
-        end
+    values = unadmitted_values(query)
+    notes = map_bounded(values, options) do value
+        outcome = _attempt(
+            () -> unadmitted_note(value, subentry_text(value.identifier, options).body),
+        )
+        outcome isa Exception ?
+        _failure_reason("retrieval of the subentry failed: ", outcome) : outcome
+    end
+    # Merged in the order of the values, so that two notes on one dataset keep their order.
+    for (value, note) in zip(values, notes)
         index = findfirst(r -> r.identifier == value.identifier, rejected)
         if index === nothing
             push!(rejected, Rejection(value.identifier, "", note))
@@ -231,8 +324,33 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
             )
         end
     end
-    @info "selection complete" accepted = length(accepted_datasets) rejected =
-        length(rejected)
+    return rejected
+end
+
+"""
+    _write_retrieval(selected, rejected, listing, configuration, root) -> RetrievalResult
+
+Reduce each accepted dataset of `selected` and write it, its subentry where the configuration
+asks for it, and the run record; a dataset the reduction leaves without rows is pushed onto
+`rejected` instead. Logs what was written.
+"""
+function _write_retrieval(
+    selected::NamedTuple,
+    rejected::Vector{Rejection},
+    listing::Listing,
+    configuration::Configuration,
+    root::AbstractString,
+)
+    query = configuration.query
+    accepted_datasets = selected.datasets
+    # Each dataset is written to a file named for its identifier: a stated value and a dataset
+    # of a DATA table sharing one would overwrite each other.
+    identifiers = [dataset.identifier for dataset in accepted_datasets]
+    if !allunique(identifiers)
+        shared = [id for id in unique(identifiers) if count(==(id), identifiers) > 1]
+        error("accepted datasets share an identifier, so their files would collide: \
+             $(join(shared, ", "))")
+    end
 
     # One directory per system, one subdirectory per observable, the measurements directly
     # inside it. The absolute data needs no directory of its own: naming a path segment `data`
@@ -264,8 +382,10 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         if query.ordinate == WIDTH_ORDINATE
             # Every MISC-COL definition of the subentry, the width's and any other, quoted for
             # the record; the width itself is read only from the column the configuration names.
-            reduced.diagnostics["misc_columns"] =
-                misc_columns(subentry_texts[dataset.identifier], dataset.identifier)
+            reduced.diagnostics["misc_columns"] = misc_columns(
+                selected.subentry_texts[dataset.identifier],
+                dataset.identifier,
+            )
         end
         if isempty(reduced.table)
             refused = get(reduced.diagnostics, "mass_placement_refused", nothing)
@@ -289,7 +409,7 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         end
         file = joinpath(destination, string(stem, ".dat"))
         write_dataset(file, reduced; significant_digits = configuration.significant_digits)
-        response = accepted_responses[dataset.identifier]
+        response = selected.responses[dataset.identifier]
         push!(
             accepted,
             AcceptedDataset(
@@ -306,7 +426,7 @@ function retrieve(configuration::Configuration; root::AbstractString = pwd())
         for entry in accepted
             write(
                 joinpath(subentry_directory, string(dataset_stem(entry.dataset), ".txt")),
-                subentry_texts[entry.dataset.identifier],
+                selected.subentry_texts[entry.dataset.identifier],
             )
         end
     end
@@ -346,10 +466,19 @@ The dataset of a value its entry states outside any DATA table, [`StatedValue`](
 the subentry text `text` of its source: the words must stand in the text and state both the
 value and its uncertainty, and the incident energy must lie in the window of `query`. The value
 is held as one row in the layout of the csv rendering, so that it is reduced and recorded as any
-other dataset is; its definition is read as [`gamma_definition`](@ref) reads one.
+other dataset is; its definition is read as [`gamma_definition`](@ref) reads one. A text whose
+BIB cannot be read refuses the value, as [`select_dataset`](@ref) refuses such a subentry.
 """
-function stated_dataset(value::StatedValue, text::AbstractString, query)
+function stated_dataset(value::StatedValue, text::AbstractString, query::Query)
     identifier = value.source
+    # The text reaches here without `parse_subentry`, so a SUBENT record that names no subentry
+    # first shows when its BIB is read.
+    try
+        bib_blocks(text)
+    catch exception
+        exception isa SubentryError || rethrow()
+        return Rejection(identifier, "", "subentry: " * exception.msg)
+    end
     place = locate_statement(text, value.evidence)
     place === nothing && return Rejection(
         identifier,
@@ -379,9 +508,7 @@ function stated_dataset(value::StatedValue, text::AbstractString, query)
     record["gamma_range_partial"] = value.partial
     record["stated_value_evidence"] = "\"$(value.evidence)\" ($(place))"
     record["stated_value_reading"] = value.reason
-    record["quantity_reading"] =
-        value.ordinate == "gamma_energy_per_fission" ? "total_energy_per_fission" :
-        "mean_photon_energy"
+    record["quantity_reading"] = gamma_energy_quantity(value.ordinate)
     record["quantity_reading_basis"] = "subentry text"
     record["quantity_reading_evidence"] = value.evidence
     query.spontaneous || (record["incident_energy_basis"] = value.incident_evidence)

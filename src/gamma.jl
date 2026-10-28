@@ -28,12 +28,15 @@ const GAMMA_OBSERVABLES = Dict{String, Vector{Vector{String}}}(
     "gamma_energy" => [["mass"]],
 )
 
+"""The bases of [`DEFINITION_BASES`](@ref) a [`GammaStatement`](@ref) can rest on."""
+const STATEMENT_BASES = ("subentry text", "publication")
+
 """
 What a definition of a prompt-γ measurement rests on, as the `_basis` keys of the run record: a
 heading of the entry with its value (`entry`), the free text of the entry (`subentry text`), the
 publication it cites (`publication`), or nothing (`unstated`).
 """
-const DEFINITION_BASES = ("entry", "subentry text", "publication", "unstated")
+const DEFINITION_BASES = ("entry", STATEMENT_BASES..., "unstated")
 
 """
 Kinds of time window: a gate that selects the photons counted as prompt, or the window within
@@ -72,7 +75,7 @@ struct GammaStatement
         quantity in (:range, :window, :resolution, :correction) || throw(
             ArgumentError("statement quantity $(quantity) is not one this package reads"),
         )
-        basis in ("subentry text", "publication") || throw(
+        basis in STATEMENT_BASES || throw(
             ArgumentError("statement basis \"$(basis)\" is not a text or a publication"),
         )
         quantity == :window &&
@@ -351,7 +354,7 @@ function bib_blocks(text::AbstractString)
         line = rpad(first(raw, 66), 66)
         label = strip(line[1:10])
         if label == "SUBENT"
-            subentry = strip(split(raw)[2])
+            subentry = _subentry_number(raw)
             continue
         elseif label == "BIB"
             inside = true
@@ -456,13 +459,25 @@ const TOTAL_GAMMA_ENERGY_INTERVAL = (3.0, 15.0)
 const GAMMA_ENERGY_READINGS = ("total_energy_per_fission", "mean_photon_energy")
 
 """
+    gamma_energy_quantity(ordinate) -> String
+
+The reading of [`GAMMA_ENERGY_READINGS`](@ref) a prompt-γ energy must have to answer
+`ordinate`: `"total_energy_per_fission"` for `gamma_energy_per_fission`, `"mean_photon_energy"`
+for any other.
+"""
+gamma_energy_quantity(ordinate::AbstractString) =
+    ordinate == "gamma_energy_per_fission" ? "total_energy_per_fission" :
+    "mean_photon_energy"
+
+"""
     QuantityReading(reading, basis, evidence)
 
 What a prompt-γ energy coded `KE` holds, and what establishes it.
 
 # Fields
 - `reading::String`: one of [`GAMMA_ENERGY_READINGS`](@ref).
-- `basis::String`: `"REACTION text"`, `"publication"` or `"magnitude"`.
+- `basis::String`: `"REACTION text"` or `"magnitude"`, as [`gamma_energy_reading`](@ref) reads
+  it, or `"curation"` for a dataset of [`CURATED_DATASETS`](@ref).
 - `evidence::String`: the words of the REACTION, or the values and the interval they lie in.
 """
 struct QuantityReading

@@ -29,12 +29,20 @@ One EXFOR dataset, parsed and accepted for a query.
 - `units::Dict{String,String}`: the unit of each heading of `columns`, the first occurrence of a
   repeated heading deciding.
 - `record::Dict{String,Any}`: what selection read of the dataset beyond its columns, written to
-  the run record under the same keys: `ordinate_frame` with its basis and evidence and the
-  `mean_` entries of a mean neutron energy, the `distribution_` and `mean_` entries of a
-  distribution P(ν), `maxwellian_temperature_mev` and `maxwellian_temperature_source` of a ratio
-  to a Maxwellian, `ratio_numerator`, `ratio_denominator` and `ratio_orientation` of a ratio
-  of two spectra, `common_constants` of a nuclide identification taken from a COMMON section.
-  Empty for every other dataset, and for the eight-argument constructor.
+  the run record under the same keys. Any dataset may carry `rows_left_out` and
+  `approximate_rows`, the rows its value kinds leave out or mark approximate
+  ([`sort_rows`](@ref)); against the charge, `common_constants`, a nuclide identification taken
+  from a COMMON section, and `isomer_states_left_out`. By observable: `ordinate_frame` with its
+  basis and evidence, the `mean_` entries and, for a parameter of the fitted spectrum,
+  `fit_form` and `fit_evidence` of a mean neutron energy; the `distribution_` and `mean_`
+  entries of a distribution P(ν); `maxwellian_temperature_mev` and
+  `maxwellian_temperature_source` of a ratio to a Maxwellian; `ratio_numerator`,
+  `ratio_denominator` and `ratio_orientation` of a ratio of two spectra; for a prompt-γ
+  quantity, the definition of [`gamma_definition`](@ref), `quantity_reading` with its basis and
+  evidence for an energy, `abscissa_heading_reading`, `listed_under`, `incident_energy_basis`
+  and `incident_energy_reading`, and for a value stated outside any DATA table
+  ([`stated_dataset`](@ref)) `stated_value_evidence` and `stated_value_reading`. Empty where
+  none of these applies, and for the eight-argument constructor.
 """
 struct Dataset
     identifier::String
@@ -111,6 +119,9 @@ end
 
 """The reason of a dataset whose csv rendering has no rows; see [`empty_rendering_reason`](@ref)."""
 const EMPTY_RENDERING = "dataset is empty"
+
+# The opening of the reason of a dataset whose csv rendering and DATA table differ on a row.
+const TABLES_DISAGREE = "the csv rendering and the subentry DATA table disagree at "
 
 _whole(x) = isinteger(x) ? string(round(Int, x)) : string(x)
 
@@ -314,7 +325,7 @@ A [`Screened`](@ref) or a [`Rejection`](@ref). Throws as [`parse_dataset`](@ref)
 function screen_dataset(
     identifier::AbstractString,
     body::AbstractString,
-    query;
+    query::Query;
     widths::AbstractVector{WidthColumn} = WidthColumn[],
     parameters::AbstractVector{ParameterColumn} = ParameterColumn[],
 )
@@ -413,7 +424,7 @@ function screen_dataset(
     # of stays unstated, and the record says so rather than listing the alternatives.
     if reason !== nothing &&
        ordinate == "product_kinetic_energy" &&
-       startswith(reason, "none of the alternatives") &&
+       startswith(reason, NO_ALTERNATIVE_PREFIX) &&
        _blank_branch(code)
         reason = "the branch field SF5 is blank: the code says neither that the kinetic \
                   energy is of the pre-neutron fragment (PRE) nor of the post-neutron product \
@@ -453,13 +464,7 @@ function screen_dataset(
     end
     conflict = channel_qualifier_conflict(query.channel, code)
     if conflict !== nothing
-        return Rejection(
-            identifier,
-            code,
-            "reaction code carries \"$(conflict)\" ($(SPECTRUM_QUALIFIERS[conflict])), which \
-             names a neutron spectrum no measurement in channel \"$(query.channel)\" was made \
-             in",
-        )
+        return Rejection(identifier, code, channel_conflict_reason(conflict, query.channel))
     end
 
     # Incident energy. Spontaneous fission carries no incident particle, so the window does not
@@ -720,7 +725,7 @@ any other exception propagates.
 function select_dataset(
     screened::Screened,
     subentry_text::AbstractString,
-    query;
+    query::Query;
     widths::AbstractVector{WidthColumn} = WidthColumn[],
     parameters::AbstractVector{ParameterColumn} = ParameterColumn[],
 )
@@ -882,31 +887,22 @@ function select_dataset(
          they cannot be aligned",
     )
     misalignment = _misalignment(screened.table, data; bare_charge = charge_constant)
-    misalignment === nothing || return Rejection(
-        identifier,
-        code,
-        "the csv rendering and the subentry DATA table disagree at " * misalignment,
-    )
+    misalignment === nothing ||
+        return Rejection(identifier, code, TABLES_DISAGREE * misalignment)
     # A datum in the centre-of-mass frame is read from its own column, so the rendering is held
     # against that column line by line before it stands for it.
     if source in CENTRE_OF_MASS_ORDINATES
         misalignment = _ordinate_misalignment(screened.table, data, datum, screened.unit)
-        misalignment === nothing || return Rejection(
-            identifier,
-            code,
-            "the csv rendering and the subentry DATA table disagree at " * misalignment,
-        )
+        misalignment === nothing ||
+            return Rejection(identifier, code, TABLES_DISAGREE * misalignment)
     end
 
     # The neutron number of a distribution is not in the rendering, so the two are aligned by
     # their order alone; the probabilities are compared line by line to make that safe.
     if query.ordinate == DISTRIBUTION_ORDINATE
         misalignment = _value_misalignment(screened.table, data, datum)
-        misalignment === nothing || return Rejection(
-            identifier,
-            code,
-            "the csv rendering and the subentry DATA table disagree at " * misalignment,
-        )
+        misalignment === nothing ||
+            return Rejection(identifier, code, TABLES_DISAGREE * misalignment)
     end
 
     keep = copy(screened.keep)
@@ -1068,6 +1064,11 @@ function select_dataset(
             "PART-OUT holds values that are no whole numbers of neutrons",
         )
         moments = distribution_moments(numbers, table[!, COL_Y], table[!, COL_DY])
+        moments === nothing && return Rejection(
+            identifier,
+            code,
+            "the probabilities of the distribution sum to zero or less, so it has no mean",
+        )
         refusal = distribution_refusal(moments, query)
         refusal === nothing || return Rejection(identifier, code, refusal)
         merge!(record, distribution_record(moments, query))
@@ -1123,9 +1124,7 @@ function select_dataset(
                 $(last(heading_reading))"
         )
         if query.ordinate in ("gamma_energy_per_fission", "gamma_mean_energy")
-            wanted =
-                query.ordinate == "gamma_energy_per_fission" ? "total_energy_per_fission" :
-                "mean_photon_energy"
+            wanted = gamma_energy_quantity(query.ordinate)
             reading = if curated === nothing
                 factor = energy_factor(screened.unit)
                 factor === nothing && return Rejection(
@@ -1191,7 +1190,7 @@ function select_dataset(
     identifier::AbstractString,
     body::AbstractString,
     subentry_text::AbstractString,
-    query;
+    query::Query;
     widths::AbstractVector{WidthColumn} = WidthColumn[],
     parameters::AbstractVector{ParameterColumn} = ParameterColumn[],
 )

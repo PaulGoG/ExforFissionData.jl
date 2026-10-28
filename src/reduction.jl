@@ -1,8 +1,7 @@
 # Reducing an accepted dataset to the tabulated observable.
 #
 # Three distinct things cause an EXFOR dataset to report the same abscissa value more than once,
-# and they need different treatment. Conflating them under one unweighted mean is the error this
-# stage exists to avoid.
+# and each needs its own treatment; one unweighted mean over all of them would be wrong.
 #
 #   1. Several incident energies. Handled upstream in `select_dataset`, which filters rows to the
 #      configured window rather than testing the dataset as a whole.
@@ -51,7 +50,7 @@ end
 
 The name of the column holding the uncertainty of `ordinate_column`.
 
-One spelling and one position throughout the toolchain: the quantity's own name suffixed with
+One spelling and one position throughout this package: the quantity's own name suffixed with
 `_uncertainty`, immediately after the quantity it belongs to.
 """
 uncertainty_column(ordinate_column::Symbol) = Symbol(ordinate_column, "_uncertainty")
@@ -64,8 +63,8 @@ Combine repeat measurements of one quantity by an inverse-variance weighted mean
 Points with a positive uncertainty carry weight `1/σ²`. Points quoting none (`NaN`) or a zero
 carry no information about their own weight; rather than discarding them they are given the
 median of the positive weights, and the number so treated is returned as `imputed`. The median
-is what a point of unknown precision is worth among its neighbours: it neither privileges such a
-point nor throws away the measurement. Where no point quotes a positive uncertainty the result is
+gives a point of unknown precision the weight of a typical neighbour, so the measurement is kept
+without being favoured. Where no point quotes a positive uncertainty the result is
 the unweighted mean, with an uncertainty of zero if every point states zero and `NaN` otherwise:
 an unknown uncertainty is never written as zero.
 
@@ -553,7 +552,7 @@ it, on the scale of a number per fission; see [`MULTIPLICITY_ORDINATES`](@ref).
 """
 function reduce_dataset(
     dataset::Dataset,
-    query;
+    query::Query;
     widths::AbstractVector{WidthColumn} = WidthColumn[],
     parameters::AbstractVector{ParameterColumn} = ParameterColumn[],
 )
@@ -828,8 +827,8 @@ function reduce_dataset(
     end
 
     # An ordinate that is itself an energy is restated in MeV, the unit fission observables are
-    # quoted in. This is an exact conversion of a value, with the factor recorded — unlike a
-    # normalisation, which is deliberately never applied. A spectrum is a density in energy, so
+    # quoted in. This is an exact conversion of a value, with the factor recorded; no
+    # normalisation is applied. A spectrum is a density in energy, so
     # it is left alone: rescaling one would change the distribution, not restate it.
     unit_written = dataset.unit
     factor = 1.0
