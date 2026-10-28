@@ -19,7 +19,7 @@ ExforFissionData.jl/
 ├── check.jl           # pre-commit gate: format, then test
 ├── config/            # 86 retrieval configurations, <system>_<observable>.toml
 ├── scripts/
-│   └── retrieve.jl    # entry point
+│   └── retrieve.jl    # entry point; the release and curation scripts beside it
 ├── src/               # the package: selection, reduction, export, run record
 ├── plotting/          # survey figures; an environment of its own
 ├── test/  docs/  formatter/
@@ -60,6 +60,9 @@ Documentation: <https://PaulGoG.github.io/ExforFissionData.jl/stable/>
 ```bash
 julia scripts/retrieve.jl config/Cf252_sf_nu_vs_A.toml             # retrieve one observable
 julia scripts/retrieve.jl config/U233_nth_Y_vs_A.toml ~/data       # elsewhere
+julia scripts/run_configurations.jl ~/regen offline . --all          # every configuration, from the cache
+julia scripts/compare_release_trees.jl data ~/regen/data            # two trees, file by file, key by key
+julia scripts/complement_test.jl ~/complement                       # the complement test of ν(A)
 julia plotting/survey.jl data/Cf252_sf/nu_vs_A --format png        # figure to plots/Cf252_sf/nu_vs_A.png
 julia plotting/coverage.jl data/{Cf252_sf,U235_nth,U233_nth,Pu239_nth}/nu_vs_A   # the animation
 julia -e 'include("activate.jl"); Pkg.test()'                      # test suite
@@ -262,7 +265,7 @@ reference is in `CITATION.cff`. If the retrieval itself is referred to, cite the
 @software{gogita2026exforfissiondata,
   author  = {Gogîță, Paul-Adrian},
   title   = {ExforFissionData.jl: retrieval of experimental fission observables from the IAEA EXFOR archive},
-  version = {0.6.0},
+  version = {0.7.0},
   year    = {2026},
   url     = {https://github.com/PaulGoG/ExforFissionData.jl}
 }
@@ -356,7 +359,11 @@ ExforFissionData.jl/
 │   ├── coverage.jl              #   several retrievals accumulating, as an animation
 │   └── runtests.jl              #   tests for the helpers in style.jl
 ├── scripts/
-│   └── retrieve.jl              # entry point
+│   ├── retrieve.jl              # entry point
+│   ├── run_configurations.jl    # every configuration into a fresh root, offline or online
+│   ├── staging.jl               #   its helper: staged copies of the configurations
+│   ├── compare_release_trees.jl # two retrieval trees compared file by file and key by key
+│   └── complement_test.jl       # the complement test of the multiplicities coded without FRG
 ├── src/
 │   ├── ExforFissionData.jl      # module
 │   ├── elements.jl              # chemical symbols, for naming a target by Z and A

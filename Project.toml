@@ -1,6 +1,6 @@
 name = "ExforFissionData"
 uuid = "d02a33b8-3da8-4825-8b46-52714913fc73"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Paul-Adrian Gogîță"]
 
 [deps]
@@ -13,10 +13,10 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [compat]
-CSV = "1.1.0"
+CSV = "1.2.0"
 DataFrames = "1.8.2"
 Dates = "1"
-HTTP = "2.7.1"
+HTTP = "2.13.1"
 Scratch = "1.3.0"
 Statistics = "1"
 TOML = "1"

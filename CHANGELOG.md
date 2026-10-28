@@ -6,8 +6,11 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
-An audit of the code, the tooling and the prose. No table, stored subentry or record value
-changes; every retrieval regenerated offline from the cache is byte-identical to 0.6.0.
+## [0.7.0] - 2026-10-28
+
+An audit of the code, the tooling and the prose, with its follow-ups. Every table and stored
+subentry that 0.6.0 writes is written unchanged, 1254 of 1254 files byte for byte; the records
+change in `[run]` alone.
 
 ### Added
 
@@ -22,6 +25,14 @@ changes; every retrieval regenerated offline from the cache is byte-identical to
 - Tests that the ordinate tables agree, that the curated tables are disjoint, and that the 86
   configurations carry one and the same comment block and enumerate exactly the abscissae and
   ordinates the package knows.
+- `[retrieval] base_url`, the archive endpoint every request is made relative to, so that a
+  mirror can be named; the tests of an unreachable archive point it at an unroutable address
+  and make no connection attempt.
+- `scripts/run_configurations.jl`, `scripts/compare_release_trees.jl` and
+  `scripts/complement_test.jl`: the release regeneration, the byte-level comparison of two
+  retrieval trees and the complement test the documentation cites, shipped with the package.
+- `plotting/survey.jl` draws a quantity per fission, one value to a file, as a strip of named
+  datasets, and labels the prompt-γ ordinates with their symbols and units.
 
 ### Changed
 
@@ -41,6 +52,10 @@ changes; every retrieval regenerated offline from the cache is byte-identical to
   0.6.0, the key table of the configurations page completed with the prompt-γ ordinates and the
   empty abscissa, the `NODATA` reason documented, `test/limits_tests.jl` listed, and the prose
   tightened throughout.
+- A figure of one dataset names it above the axes, where a legend would stand, clear of the data.
+- `Curation` is built by keyword; the five positional constructors are gone.
+- Compat floors follow the resolved releases: CSV 1.2, HTTP 2.13; JET 0.13 admitted in the test
+  environment beside 0.12.
 
 ## [0.6.0] - 2026-10-15
 
@@ -1065,7 +1080,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.5.0...v0.5.1
