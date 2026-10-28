@@ -157,3 +157,7 @@ it writes to `<observable>_1`, then `_2`, and so on, leaving the system director
 they are. A consumer restaging a tree writes to a fresh
 root, or removes the old observable directory first; otherwise the new data lands beside the old
 under a suffixed name and the old directory is still the one under the plain name.
+
+Two retrieval trees, of two releases or of two runs, are compared file by file and record key by
+key with `scripts/compare_release_trees.jl`; `scripts/run_configurations.jl` regenerates every
+shipped configuration into a fresh root, offline from the cache or online.

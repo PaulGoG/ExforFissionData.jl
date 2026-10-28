@@ -252,7 +252,8 @@ multiplicity of the fragment pair tabulated against one fragment's mass. The arc
 per-fragment data the second way too, so every dataset coded `MASS,PR,NU` that a ν(A) or
 ν(A, TKE) retrieval meets is read from its data by a complement test, A₀ being the mass of the
 fissioning nucleus. The data alone decide the reading; its scale is recorded beside it and decides
-nothing; a publication, where consulted, corroborates it.
+nothing; a publication, where consulted, corroborates it. `scripts/complement_test.jl` runs the
+test over a retrieval tree and writes its readings.
 
 **Reading.** A dataset has both halves when its pairs (A, A₀ − A) span at least 90 % of the
 light-fragment yield. For such a dataset D = ν(A) − ν(A₀ − A), and S is the pair sum
