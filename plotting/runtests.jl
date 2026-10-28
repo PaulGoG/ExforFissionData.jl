@@ -79,4 +79,55 @@ end
             @test isfile(output) && filesize(output) > 0
         end
     end
+
+    @testset "survey of a quantity per fission" begin
+        mktempdir() do directory
+            write(
+                joinpath(directory, "retrieval.toml"),
+                """
+                [run]
+                system = "U235_nth"
+                observable = "E_gamma_tot"
+
+                [query]
+                abscissa = []
+                ordinate = "gamma_energy_per_fission"
+
+                [[accepted]]
+                file = "first.dat"
+                author = "First"
+                year = 1973
+
+                [[accepted]]
+                file = "second.dat"
+                author = "Second"
+                year = 2015
+                """,
+            )
+            write(
+                joinpath(directory, "first.dat"),
+                "E_gamma_tot E_gamma_tot_uncertainty\n6.7 0.4\n",
+            )
+            write(joinpath(directory, "second.dat"), "E_gamma_tot\n6.9\n")
+            output = joinpath(directory, "figure.png")
+            @test survey(directory; format = "png", output) == output
+            @test isfile(output) && filesize(output) > 0
+        end
+    end
+
+    @testset "ordinate labels" begin
+        # Every quantity the run record can name has a label; a name outside the vocabulary
+        # is set upright with its underscores escaped, not read as subscripts.
+        for quantity in (
+            "gamma_multiplicity_per_fission",
+            "gamma_energy",
+            "post_neutron_total_kinetic_energy",
+        )
+            @test haskey(QUANTITY_LABELS, quantity)
+        end
+        @test occursin(
+            "not\\_in\\_the\\_vocabulary",
+            _ordinate_label("not_in_the_vocabulary").s,
+        )
+    end
 end

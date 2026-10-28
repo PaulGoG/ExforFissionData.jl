@@ -68,8 +68,8 @@ function survey(
     joint = length(abscissa) > 1
 
     tables = NamedTuple{
-        (:index, :table, :label, :relative, :unit),
-        Tuple{Int, DataFrame, String, Bool, String},
+        (:index, :table, :label, :identifier, :relative, :unit),
+        Tuple{Int, DataFrame, String, String, Bool, String},
     }[]
     for (index, entry) in enumerate(accepted)
         file = joinpath(directory, entry["file"])
@@ -82,6 +82,7 @@ function survey(
                 index,
                 table,
                 label = string(entry["author"], " ", entry["year"]),
+                identifier = String(get(entry, "identifier", "")),
                 relative = get(entry, "relative", false),
                 unit = String(get(entry, "unit_written", "")),
             ),
@@ -130,6 +131,49 @@ function survey(
             fontsize = ANNOTATION_SIZE,
         )
         colgap!(figure.layout, 10)
+    elseif isempty(abscissa)
+        # A quantity per fission is tabulated against nothing, one value to a file. The datasets
+        # stand one under the other, named on the axis, the first at the top, so that the values
+        # can be read against each other and against their uncertainties.
+        labels = [entry.label for entry in tables]
+        # Datasets of one entry share an author and a year; the accession tells them apart.
+        repeated = Set(label for label in labels if count(==(label), labels) > 1)
+        for (position, label) in enumerate(labels)
+            label in repeated || continue
+            labels[position] = string(label, " (", tables[position].identifier, ")")
+        end
+        positions = collect(length(tables):-1:1)
+        figure = Figure(; size = (CANVAS[1], max(CANVAS[2], 160 + 44 * length(tables))))
+        axis = Axis(
+            figure[1, 1];
+            yticks = (positions, labels),
+            xlabel = _panel_label(ordinate, tables),
+        )
+        for (position, entry) in zip(positions, tables)
+            colour, marker = series_style(entry.index)
+            value = entry.table[1, 1]
+            if ncol(entry.table) ≥ 2 && isfinite(entry.table[1, 2])
+                errorbars!(
+                    axis,
+                    [value],
+                    [position],
+                    [entry.table[1, 2]];
+                    direction = :x,
+                    color = (colour, 0.6),
+                    linewidth = 1.5,
+                    whiskerwidth = 0,
+                )
+            end
+            scatter!(
+                axis,
+                [value],
+                [position];
+                color = colour,
+                marker,
+                strokecolor = stroke_colour(colour),
+            )
+        end
+        ylims!(axis, 0.5, length(tables) + 0.5)
     else
         # Absolute and relative data are shown apart, because they cannot be put on one scale.
         groups = Tuple{Bool, Vector{eltype(tables)}}[]
@@ -141,7 +185,7 @@ function survey(
         logscale = ordinate in LOG_ORDINATES
         legend_rows =
             1 < length(tables) ≤ MAX_LEGEND_ENTRIES ? cld(length(tables), LEGEND_COLUMNS) :
-            0
+            length(tables) == 1 ? 1 : 0
         height =
             CANVAS[2] +
             (length(groups) == 1 ? 0 : PANEL_HEIGHT) +
@@ -168,15 +212,13 @@ function survey(
             # Beyond this many series a per-dataset legend takes the figure over and stops being
             # readable, so the count is stated instead and the record names the datasets. It goes
             # in the corner the data leaves free: a spectrum falls across the axes and clears the
-            # upper right, everything else here rises towards it. A single dataset is named there
-            # too, since a legend of one entry says nothing a label does not.
-            1 < length(tables) ≤ MAX_LEGEND_ENTRIES && continue
+            # upper right, everything else here rises towards it.
+            length(tables) ≤ MAX_LEGEND_ENTRIES && continue
             text!(
                 axis,
                 logscale ? 0.97 : 0.03,
                 0.95;
-                text = length(tables) == 1 ? last(only(entries)) :
-                       "$(length(selected)) datasets",
+                text = "$(length(selected)) datasets",
                 space = :relative,
                 align = (logscale ? :right : :left, :top),
                 fontsize = ANNOTATION_SIZE,
@@ -184,7 +226,11 @@ function survey(
         end
         length(axes) == 1 || linkxaxes!(axes...)
 
-        if 1 < length(tables) ≤ MAX_LEGEND_ENTRIES
+        # A single dataset is named where the legend would stand, clear of the data; a legend of
+        # one entry says nothing a label does not.
+        if length(tables) == 1
+            Label(figure[0, 1], last(only(entries)); tellwidth = false)
+        elseif 1 < length(tables) ≤ MAX_LEGEND_ENTRIES
             Legend(
                 figure[0, 1],
                 first.(entries),
@@ -218,7 +264,7 @@ has no lower end; such points are skipped and the bar is truncated just short of
 """
 function _draw_series!(axis::Axis, selected::AbstractVector; logscale::Bool = false)
     entries = Tuple{Any, String}[]
-    for (index, table, label, _, _) in selected
+    for (index, table, label, _, _, _) in selected
         colour, marker = series_style(index)
         x, y = table[!, 1], table[!, 2]
         keep = logscale ? findall(value -> isfinite(value) && value > 0, y) : eachindex(y)

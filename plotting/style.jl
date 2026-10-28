@@ -128,6 +128,13 @@ const QUANTITY_LABELS = Dict{String, LaTeXString}(
     "spectrum" => L"Spectrum [MeV$^{-1}$]",
     "spectrum_maxwellian_ratio" => LaTeXString("Ratio to Maxwellian"),
     "spectrum_cf252_ratio" => L"Ratio to $^{252}$Cf(sf), either orientation",
+    "gamma_multiplicity_per_fission" =>
+        L"Prompt $\gamma$ multiplicity $\bar{M}_\gamma$",
+    "gamma_energy_per_fission" =>
+        L"Total $\gamma$ energy $E_{\gamma,\mathrm{tot}}$ [MeV]",
+    "gamma_mean_energy" => L"Mean photon energy $\varepsilon_\gamma$ [MeV]",
+    "gamma_multiplicity" => L"Fragment $\gamma$ multiplicity $M_\gamma$",
+    "gamma_energy" => L"Fragment $\gamma$ energy $E_\gamma$ [MeV]",
     "mass" => L"Fragment mass $A$",
     "product_mass" => L"Fragment mass $A'$",
     "charge" => L"Fragment charge $Z$",
@@ -153,6 +160,11 @@ const QUANTITY_SYMBOLS = Dict{String, String}(
     "spectrum" => "\\mathrm{spectrum}",
     "spectrum_maxwellian_ratio" => "\\mathrm{ratio}",
     "spectrum_cf252_ratio" => "\\mathrm{ratio}",
+    "gamma_multiplicity_per_fission" => "\\bar{M}_\\gamma",
+    "gamma_energy_per_fission" => "E_{\\gamma,\\mathrm{tot}}",
+    "gamma_mean_energy" => "\\varepsilon_\\gamma",
+    "gamma_multiplicity" => "M_\\gamma",
+    "gamma_energy" => "E_\\gamma",
 )
 
 """
@@ -194,11 +206,16 @@ end
 """
     _ordinate_label(quantity) -> LaTeXString
 
-The axis text of one quantity; one outside the vocabulary is set upright under its own name.
+The axis text of one quantity; one outside the vocabulary is set upright under its own name,
+its underscores escaped so that TeX does not read them as subscripts.
 """
 function _ordinate_label(quantity)
     name = String(quantity)
-    return get(QUANTITY_LABELS, name, latexstring("\\mathrm{", name, "}"))
+    return get(
+        QUANTITY_LABELS,
+        name,
+        latexstring("\\mathrm{", replace(name, "_" => "\\_"), "}"),
+    )
 end
 
 """
