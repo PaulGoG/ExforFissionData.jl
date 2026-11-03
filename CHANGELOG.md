@@ -6,6 +6,57 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-03
+
+The element yield Y(Z) and the post-neutron total kinetic energy TKE_p(A_p), probed in 0.7.0,
+ship with configurations for the four systems. Every table and stored subentry that 0.7.0 writes
+is written unchanged, 1254 of 1254 files byte for byte. The records change in `[run]`; in the time
+windows the five prompt-γ measurements now carry, 23 dataset entries, and the six γ definition
+warnings those entries leave; in the empty-rendering reason of `40115002`; and in the reasons
+`23175011`, `33089002`, `416930052` and `210580051` are refused with under observables not
+their own, their curations now standing in for their codes.
+
+### Added
+
+- Eight configurations, `<system>_Y_vs_Z` and `<system>_TKE_p_vs_A_p` for 252-Cf(sf) and thermal
+  235-U, 233-U and 239-Pu. `Y_vs_Z`, the independent yield of an element against its charge
+  (`ELEM,CHG,FY`), writes 8 datasets for 252-Cf, 5 for 235-U, 2 for 233-U and 4 for 239-Pu.
+  `TKE_p_vs_A_p`, the total kinetic energy of the two products against the product mass
+  (`MASS,SEC,KE,LF+HF`), writes 6 for 235-U, 2 for 233-U and 1 for 239-Pu; the archive codes none
+  for 252-Cf, and `Cf252_sf_TKE_p_vs_A_p` writes nothing.
+- Six curated readings. The element yields `307870052` (Srivastava 1986), `210580052` (Kratz
+  1978) and `30953006` (Ehrenberg 1972) are read from their publications, their method recorded
+  as `element_yield_method`; `33089002` (Choudhury 1980) is the binary TKE, its values most
+  probable and its masses provisional, recorded as `ordinate_statistic` and `mass_note`.
+  `210580051` (Kratz 1978), a sum over the measured isotopes alone, and `416930052` (Belyaev
+  1988), a TKE derived from the heavy-fragment energies of `416930051`, are refused by name.
+- The post-neutron TKE rule requires `SEC` and refuses `N`, `MSC` and `DERIV`. `MSC` leaves the
+  quantity to the free text: `33089003` and `33089004` (Choudhury 1980) are the TKE of
+  α-accompanied ternary fission. `DERIV` names a value formed from other data of the experiment
+  by a derivation the record does not hold.
+- An empty rendering of a subentry the entry has deleted, which comes back as a `NOSUBENT`
+  record, is said to be one, and the STATUS of the entry's first subentry is quoted: for
+  `40115002`, "Subent 002 deleted due to duplication with 40033.002, .006", STATUS
+  `(SPSDD,40033002)`, `(SPSDD,40033006)`.
+- Time windows of five prompt-γ datasets. `23197002`, `23197003` and `23197009` (Billnert 2013
+  and the average of six) and 31729 (Oberstedt 2013, 235-U) take the prompt gate of ±3 ns that
+  Oberstedt, Billnert, Hambsch and Oberstedt 2015 (doi:10.1140/epja/i2015-15178-8, p. 3) state
+  for those measurements; Billnert 2013 (doi:10.1103/PhysRevC.87.024601) names no width.
+  `23174004` (Skarsvåg 1970, doi:10.1016/0375-9474(70)90757-8) takes the prompt gate of −10 to
+  12.5 ns its ANALYSIS defines; the 120 ns of the entry is the extent of the measured time
+  distribution, and the two readings differ by less than 0.3 photons on 11.6 ± 1.0.
+
+### Changed
+
+- The reason of `23175011` names TKE_max(A), the TKE-axis intercept of the straight line fitted
+  to ν(A, TKE) per fragment, "where the neutron emission stops" (Budtz-Jørgensen and Knitter
+  1988, doi:10.1016/0375-9474(88)90508-8, Fig. 15, pp. 321-322).
+- Documentation: the observables page describes the element yield and the post-neutron total
+  kinetic energy, the configurations page lists the eight configurations with their datasets and
+  refusals, the conventions page states the refusal of `MSC` and `DERIV` on the post-neutron TKE
+  path, what `DERIV` codes and the rule of the element yield, and the README counts 94
+  configurations.
+
 ## [0.7.0] - 2026-10-28
 
 An audit of the code, the tooling and the prose, with its follow-ups. Every table and stored

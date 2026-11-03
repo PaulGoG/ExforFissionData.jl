@@ -274,7 +274,7 @@ reference is in `CITATION.cff`. If the retrieval itself is referred to, cite the
 @software{gogita2026exforfissiondata,
   author  = {Gogîță, Paul-Adrian},
   title   = {ExforFissionData.jl: retrieval of experimental fission observables from the IAEA EXFOR archive},
-  version = {0.7.0},
+  version = {0.8.0},
   year    = {2026},
   url     = {https://github.com/PaulGoG/ExforFissionData.jl}
 }
