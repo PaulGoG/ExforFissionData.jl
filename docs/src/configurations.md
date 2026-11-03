@@ -193,8 +193,8 @@ so these configurations omit `energy_min` and `energy_max`.
   10937003 (Fontenla 1980), 21543015 (Asghar 1977), 21313016 (Asghar 1978), 21752018 (Wagemans
   1981), 31797004 (Bakhromi 1982, `SPA`) and 33089002 (Choudhury 1980, binary fission, most
   probable values over provisional masses). Refused: 33089003 and 33089004 (Choudhury 1980),
-  coded `MSC`, the TKE of α-accompanied ternary fission; 101 datasets without a mass abscissa,
-  70 ternary, 61 pre-neutron and 15 energies of one fragment.
+  coded `MSC`, the TKE of α-accompanied ternary fission; 78 datasets without a mass abscissa, 70
+  ternary, 61 pre-neutron, 15 energies of one fragment, 15 coded `DERIV` and 10 more coded `MSC`.
 - `U235_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41516012
   (Vorobyev 2010) carries a qualifier beginning `preliminary:`.
 - `U235_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
@@ -260,8 +260,8 @@ its own and is written to its own directory under the ordinary rule.
   1971, 24 charges) and 21550011 (Brissot 1975, 3). Refused: 115 cumulative yields, 91 nuclide
   yields coded `MASS`, 50 combinations of reactions, 41 ratios and 24 in arbitrary units.
 - `U233_nth_TKE_p_vs_A_p` — post-neutron total kinetic energy against product mass, in MeV:
-  21771014 (Asghar 1981) and 23784004 (Chebboubi 2021). Refused: 27 pre-neutron, 19 without a
-  mass abscissa, 19 ternary and 14 energies of one fragment.
+  21771014 (Asghar 1981) and 23784004 (Chebboubi 2021). Refused: 27 pre-neutron, 18 without a
+  mass abscissa, 19 ternary, 14 energies of one fragment and one coded `DERIV`.
 - `U233_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, from
   40873002, 40930004, 40930010, 40930011, 40930012 and 41611010, all formed with T = 1.34 MeV. The
   four of 40930 (Starostov 1985) are one measurement in four parts, the first cycle with each of
@@ -308,8 +308,8 @@ its own and is written to its own directory under the ordinary rule.
   45 in arbitrary units and 29 ratios.
 - `Pu239_nth_TKE_p_vs_A_p` — post-neutron total kinetic energy against product mass, in MeV:
   21544010 (Asghar 1978). Refused by name: 416930052 (Belyaev 1988), coded `DERIV`, a TKE derived
-  from the heavy-fragment energies of 416930051 by formulas the record does not hold. Refused: 60
-  without a mass abscissa, 55 pre-neutron and 6 energies of one fragment.
+  from the heavy-fragment energies of 416930051 by formulas the record does not hold. Refused: 48
+  without a mass abscissa, 55 pre-neutron, 6 energies of one fragment and 11 more coded `DERIV`.
 - `Pu239_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41720004
   (Basova 1979) and 41694003 (Zamyatnin 1979), which differ by 0.36 neutrons rms over 73 shared
   masses, are two reductions of one measurement, relation `alternative_analysis`: one measurement,

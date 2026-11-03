@@ -553,12 +553,13 @@ For 252-Cf the archive codes no `MASS,SEC,KE,LF+HF`: its 269 kinetic-energy data
 pre-neutron, ternary, γ or neutron energies, and `Cf252_sf_TKE_p_vs_A_p` writes nothing. For 235-U
 the configuration writes six: `10937003` (Fontenla 1980), `21543015` (Asghar 1977), `21313016`
 (Asghar 1978), `21752018` (Wagemans 1981), `31797004` (Bakhromi 1982, `SPA`) and `33089002`
-(Choudhury 1980, binary fission); it refuses by rule `33089003` and `33089004`, 101 datasets
-without a mass abscissa, 70 ternary, 61 pre-neutron and 15 energies of one fragment. For 233-U
-two: `21771014` (Asghar 1981) and `23784004` (Chebboubi 2021); refused are 27 pre-neutron, 19
-without a mass abscissa, 19 ternary and 14 energies of one fragment. For 239-Pu one: `21544010`
-(Asghar 1978); beside `416930052`, refused by name, refused are 60 without a mass abscissa, 55
-pre-neutron and 6 energies of one fragment.
+(Choudhury 1980, binary fission); it refuses by rule `33089003` and `33089004`, 78 datasets
+without a mass abscissa, 70 ternary, 61 pre-neutron, 15 energies of one fragment, 15 coded `DERIV`
+and 10 more coded `MSC`. For 233-U two: `21771014` (Asghar 1981) and `23784004` (Chebboubi 2021);
+refused are 27 pre-neutron, 18 without a mass abscissa, 19 ternary, 14 energies of one fragment
+and one coded `DERIV`. For 239-Pu one: `21544010` (Asghar 1978); beside `416930052`, refused by
+name, refused are 48 without a mass abscissa, 55 pre-neutron, 6 energies of one fragment and 11
+more coded `DERIV`.
 
 ## Prompt γ rays
 
