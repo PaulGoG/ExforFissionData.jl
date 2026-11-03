@@ -376,7 +376,11 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      fragment's energy takes the fragment_kinetic_energy rule
 #   post_neutron_total_kinetic_energy  the same, post-neutron: SEC required, since a blank
 #                                      branch establishes nothing — 40232003 leaves it blank
-#                                      over provisional masses — and (SEC) is uncertain
+#                                      over provisional masses — and (SEC) is uncertain; MSC
+#                                      refused, the code then leaving the quantity to its free
+#                                      text (33089003 and 33089004 are the TKE of α-accompanied
+#                                      ternary fission); DERIV refused, a TKE formed from other
+#                                      data by a derivation the record does not hold (416930052)
 #   neutron_kinetic_energy             mean centre-of-mass energy of the prompt neutrons of a
 #                                      fragment (PR, KE, per neutron ,N). PRE beside PR marks the
 #                                      pre-neutron mass the energy is tabulated against, as in
@@ -446,8 +450,11 @@ const ORDINATE_RULES = Dict{String, TagRule}(
         TagRule(["SF6:KE", "SF7:LF+HF", "SF5:PRE"], String[], ["SF7:N", "SF8:MSC"]),
     "total_kinetic_energy_dispersion" =>
         TagRule(["SF6:KE", "SF7:LF+HF", "SF5:PRE"], String[], ["SF7:N", "SF8:MSC"]),
-    "post_neutron_total_kinetic_energy" =>
-        TagRule(["SF6:KE", "SF7:LF+HF", "SF5:SEC"], String[], ["SF7:N"]),
+    "post_neutron_total_kinetic_energy" => TagRule(
+        ["SF6:KE", "SF7:LF+HF", "SF5:SEC"],
+        String[],
+        ["SF7:N", "SF8:MSC", "SF9:DERIV"],
+    ),
     "neutron_kinetic_energy" =>
         TagRule(["SF6:KE", "SF5:PR", "SF7:N"], String[], String[]),
     "neutron_spectrum_temperature" =>

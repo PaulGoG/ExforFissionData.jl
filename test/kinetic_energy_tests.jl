@@ -184,6 +184,69 @@
         @test isempty(ExforFissionData._curation_record("10000002"))
     end
 
+    @testset "the post-neutron total kinetic energy against product mass" begin
+        post = test_query(;
+            target_Z = 92,
+            target_A = 235,
+            abscissa = ["product_mass"],
+            ordinate = "post_neutron_total_kinetic_energy",
+        )
+        # 33089003 (Choudhury 1980): coded MSC, the TKE of α-accompanied ternary fission.
+        body, text = kinetic_energy_dataset(
+            "33089003",
+            "92-U-235(N,F)MASS,SEC,KE,LF+HF,MSC",
+            [(120, 145.894), (122, 151.063), (123, 152.557)];
+            bib = [
+                "REACTION   (92-U-235(N,F)MASS,SEC,KE,LF+HF,MSC)",
+                "            Sum of kinetic energy of two fragments in alpha",
+                "            accompanied ternary fission.",
+            ],
+        )
+        rejected = select_dataset("33089003", body, text, post)
+        @test rejected isa Rejection
+        @test rejected.reason == "forbidden code \"MSC\" in SF8"
+
+        # 416930052 (Belyaev 1988): a TKE derived by formulas the record does not hold.
+        pu = test_query(;
+            target_Z = 94,
+            target_A = 239,
+            abscissa = ["product_mass"],
+            ordinate = "post_neutron_total_kinetic_energy",
+        )
+        body, text = kinetic_energy_dataset(
+            "416930052",
+            "94-PU-239(N,F)MASS,SEC,KE,LF+HF,MXW,DERIV",
+            [(129, 172.45), (130, 173.85), (131, 175.70)],
+        )
+        rejected = select_dataset("416930052", body, text, pu)
+        @test rejected isa Rejection
+        @test occursin("formulas (2) and (3)", rejected.reason)
+
+        # 33089002 (Choudhury 1980): the binary-fission TKE, most probable values over
+        # provisional masses, admitted as the post-neutron TKE alone.
+        body, text = kinetic_energy_dataset(
+            "33089002",
+            "92-U-235(N,F)MASS,SEC,KE,LF+HF",
+            [(120, 162.2), (124, 166.1), (125, 169.0)],
+        )
+        admitted = select_dataset("33089002", body, text, post)
+        @test admitted isa Dataset
+        @test reduce_dataset(admitted, post).table.A_p == [120, 124, 125]
+        record = ExforFissionData._curation_record("33089002")
+        @test all(
+            haskey(record, key) for key in ("curation", "ordinate_statistic", "mass_note")
+        )
+        product = test_query(;
+            target_Z = 92,
+            target_A = 235,
+            abscissa = ["product_mass"],
+            ordinate = "product_kinetic_energy",
+        )
+        rejected = select_dataset("33089002", body, text, product)
+        @test rejected isa Rejection
+        @test occursin("binary-fission TKE", rejected.reason)
+    end
+
     @testset "an uncertainty the rendering drops is read from the subentry" begin
         # 14369003 (Fraser): the csv carries no uncertainty, the subentry a DATA-ERR column.
         query = test_query(; target_A = 235, ordinate = "total_kinetic_energy")

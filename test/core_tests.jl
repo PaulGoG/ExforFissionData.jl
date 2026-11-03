@@ -161,6 +161,12 @@
         @test rejection_reason(post, "98-CF-252(0,F)MASS,,KE,LF+HF") ==
               "missing required code \"SEC\" in SF5"
         @test !matches(post, "98-CF-252(0,F)MASS,(SEC),KE,LF+HF")
+        # MSC leaves the quantity to the free text (33089003, 33089004: the TKE of α-accompanied
+        # ternary fission), and DERIV names a TKE formed from other data (416930052).
+        @test rejection_reason(post, "92-U-235(N,F)MASS,SEC,KE,LF+HF,MSC") ==
+              "forbidden code \"MSC\" in SF8"
+        @test rejection_reason(post, "94-PU-239(N,F)MASS,SEC,KE,LF+HF,MXW,DERIV") ==
+              "forbidden code \"DERIV\" in SF9"
 
         # Every combination of reactions is refused, not only ratios; delayed emission too.
         spectrum = tag_rule(["neutron_energy"], "spectrum")

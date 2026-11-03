@@ -668,9 +668,94 @@ const INDIVIDUAL_READINGS = Dict{String, Curation}(
         reason = "curated: coded MASS,,KE,LF+HF,MSC with DATA-MAX as its only datum column, 'Total \
              kinetic energies, where the neutron emission stops, versus heavy and light \
              fission-fragment masses', Fig. 15 of Budtz-Jørgensen and Knitter 1988 \
-             (doi:10.1016/0375-9474(88)90508-8): the TKE at which neutron emission ceases, \
-             against fragment mass, a bound of the TKE distribution and not its mean, and no \
-             observable of this package",
+             (doi:10.1016/0375-9474(88)90508-8, pp. 321-322): TKE_max(A), the crossing point \
+             with the TKE axis of the straight line fitted to nu(A, TKE) for each fragment, \
+             'where the neutron emission stops', a parameter of nu(TKE) and not a moment of \
+             the TKE distribution, and no observable of this package; its 88 rows run from \
+             166 to 240 MeV over the light and the heavy masses alike",
+    ),
+    "416930052" => Curation(
+        ordinate = nothing,
+        reason = "curated: coded MASS,SEC,KE,LF+HF,MXW,DERIV, the total kinetic energy 'determined by \
+         formulas (2) and (3)' of Belyaev et al. 1988 (Sov. J. Nucl. Phys. 48, 204; Yad. Fiz. \
+         48, 324) from the heavy-fragment kinetic energies of 416930051, measured at a mass \
+         separator; the publication could not be obtained, the formulas are not in the \
+         record, and the tabulated TKE is not the momentum conversion E_H A_0/(A_0 - A_H) of \
+         the measured energies (0.988 to 1.026 of it over A_H = 129 to 149), so whether the \
+         TKE is pre- or post-neutron and how neutron emission was treated stays unstated; \
+         refused under every ordinate",
+    ),
+    "33089002" => Curation(
+        ordinate = "post_neutron_total_kinetic_energy",
+        reason = "curated: coded MASS,SEC,KE,LF+HF, Fig. 5(a,b) of Choudhury et al. 1980 \
+         (doi:10.1016/0375-9474(80)90481-9): the binary-fission TKE of the two fragments \
+         against the heavy-fragment mass, read from the data: the α-accompanied tables of the \
+         same experiment, 33089003 (the two fragments) and 33089004 (fragments and α), differ \
+         from each other by 15.6 to 17.4 MeV at every mass, the α energy, and 33089003 lies \
+         11 to 19 MeV below this table, the binary-to-ternary gap of 235-U(n_th,f) (Choudhury \
+         et al. 1976, doi:10.1007/BF02848636: 168.7 ± 0.5 against 155.4 ± 0.5 MeV)",
+        notes = Dict(
+            "ordinate_statistic" => "most probable values of the energy distributions, not \
+                means, as the ANALYSIS of the entry states",
+            "mass_note" => "provisional masses: the fragment energies were converted into \
+                mass by momentum and mass conservation without a correction for neutron \
+                emission (ANALYSIS of the entry)",
+        ),
+    ),
+    "307870052" => Curation(
+        ordinate = "yield",
+        reason = "curated: coded ELEM,CHG,FY with ELEMENT = 43 in its COMMON section, one row: the \
+         total independent element yield of technetium in 239-Pu(n_th,f), Table IV of \
+         Srivastava et al. 1986 (doi:10.1103/PhysRevC.33.969), obtained from the independent \
+         yields of 101-Tc, 103-Tc, 104-Tc and 105-Tc (102-Tc interpolated) through a Gaussian \
+         fit of the fractional cumulative yield against A', of which the measured isotopes \
+         carry 24 % (FCY(105) = 0.241); the twin BARC-1381 (1987), Table 2, p. 54, gives Y_Z \
+         = 8.00 ± 1.32 %; Wahl 1988 (doi:10.1016/0092-640X(88)90016-2) recommends 7.26 % for \
+         Z = 43",
+        notes = Dict(
+            "element_yield_method" => "fitted: Gaussian fit of the fractional cumulative \
+                yields over A = 101 to 105, 24 % of the yield measured",
+        ),
+    ),
+    "210580052" => Curation(
+        ordinate = "yield",
+        reason = "curated: coded ELEM,CHG,FY,,MXW, pointer 2 of Table 5 of Kratz 1978 \
+         (doi:10.1524/ract.1978.25.1.1): the element yields of bromine and iodine 'obtained by \
+         integration of fitted curve through the fractional independent yields in the range \
+         A=80-93 (Br) or 128-142 (I)', ranges wider than ±4 sigma of the isotopic \
+         distributions (A_p = 88.26, sigma 1.33, and A_p = 135.92, sigma 1.62, subentry \
+         21058004), so the complete element yields: 5.63 ± 0.10 and 12.39 ± 0.34 % against \
+         the 5.97 and 12.04 % Wahl 1988 (doi:10.1016/0092-640X(88)90016-2) recommends",
+        notes = Dict(
+            "element_yield_method" => "fitted: integration of the fitted isotopic \
+                distribution over A = 80 to 93 (Br) and 128 to 142 (I)",
+        ),
+    ),
+    "210580051" => Curation(
+        ordinate = nothing,
+        reason = "curated: coded ELEM,CHG,FY,,MXW, pointer 1 of Table 5 of Kratz 1978 \
+         (doi:10.1524/ract.1978.25.1.1): sums of the fractional independent yields over the \
+         measured masses alone, 'A=87-92 (Br) or 137-141 (I)', which for iodine cover about \
+         36 % of the isotopic distribution (A_p = 135.92, sigma 1.62, subentry 21058004): \
+         5.12 % against the 12.39 % of the complete integration, 210580052, of the same \
+         experiment; a partial sum, not an element yield, so 210580052 is written and this \
+         table is not",
+    ),
+    "30953006" => Curation(
+        ordinate = "yield",
+        reason = "curated: coded ELEM,CHG,FY,,MXW, Table VI of Ehrenberg and Amiel 1972 \
+         (doi:10.1103/PhysRevC.6.618), the 'total independent yields of krypton and xenon' \
+         from the isotopic yields of 30953004 and 30953005: krypton, 14.1 ± 1.0 %, is the sum \
+         of the independent yields over A = 87 to 94 (14.14 with the monitor 91-Kr), about \
+         99.5 % of the isotopic distribution; xenon, 20.0 (+2.3, -1.8) %, exceeds the sum \
+         over A = 137 to 143 (18.17) by the Gaussian extrapolation to the unmeasured masses; \
+         Wahl 1988 (doi:10.1016/0092-640X(88)90016-2) recommends 16.01 % for krypton and \
+         19.64 % for xenon, the krypton deficit of 12 % lying in isotopic yields Wahl did not \
+         adopt (his Table IX)",
+        notes = Dict(
+            "element_yield_method" => "summed (Kr, A = 87 to 94, about 99.5 % of the \
+                distribution) and extrapolated (Xe, beyond A = 137 to 143)",
+        ),
     ),
     "14101003" => Curation(
         ordinate = "total_kinetic_energy",
@@ -762,7 +847,13 @@ Datasets whose ordinate is read from the subentry text, keyed by dataset identif
 | `22413013` | `94-PU-240(0,F)MASS,PRE,FY/DE,,RAW` | Y(A, TKE), in raw counts |
 | `40420062` | `98-CF-252(0,F)MASS,PRE,FY/DE,LF+HF,RAW` | none: a joint histogram against provisional masses |
 | `41425015`, `41425016` | `98-CF-252(0,F)MASS,PRE,FY` | none: a yield 3 u off the inclusive one, from Fig. 11a (NUt=0) |
-| `23175011` | `98-CF-252(0,F)MASS,,KE,LF+HF,MSC` | none: the TKE at which neutron emission stops, against mass (DATA-MAX, Fig. 15) |
+| `23175011` | `98-CF-252(0,F)MASS,,KE,LF+HF,MSC` | none: TKE_max(A), the TKE-axis intercept of nu(A, TKE) per fragment (DATA-MAX, Fig. 15) |
+| `416930052` | `94-PU-239(N,F)MASS,SEC,KE,LF+HF,MXW,DERIV` | none: a TKE derived from the heavy-fragment energies by formulas the record does not hold |
+| `33089002` | `92-U-235(N,F)MASS,SEC,KE,LF+HF` | post-neutron TKE of binary fission, most probable values over provisional masses |
+| `307870052` | `94-PU-239(N,F)ELEM,CHG,FY` | the total element yield of technetium, fitted over its isotopes |
+| `210580052` | `92-U-235(N,F)ELEM,CHG,FY,,MXW` | the element yields of Br and I, integrated over their isotopic distributions |
+| `210580051` | `92-U-235(N,F)ELEM,CHG,FY,,MXW` | none: sums over the measured isotopes alone, a partial element yield |
+| `30953006` | `92-U-235(N,F)ELEM,CHG,FY,,MXW` | the element yields of Kr (summed) and Xe (extrapolated) |
 
 The criterion for a blank branch field is kinematic. A double-velocity measurement yields
 pre-neutron masses and energies directly, since isotropic neutron emission leaves the mean

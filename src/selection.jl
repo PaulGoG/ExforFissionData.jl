@@ -212,13 +212,22 @@ end
     empty_rendering_reason(identifier, text) -> String
 
 Why the csv rendering of `identifier` has no rows, read from its subentry text `text`: the
-subentry holds no DATA table and says so with the `NODATA` record of the EXFOR format, its
-STATUS, which says why (superseded, identical to another entry), quoted; or it holds a DATA table
-of so many lines, in which case the rendering is empty and the data is not, and a retrieval
-without the cache may fill it.
+subentry has been deleted from the entry, which the `NOSUBENT` record of the EXFOR format marks,
+the STATUS of the entry's first subentry quoted when it has one; the subentry holds no DATA
+table and says so with the `NODATA` record, its STATUS, which says why (superseded, identical to
+another entry), quoted; or it holds a DATA table of so many lines, in which case the rendering is
+empty and the data is not, and a retrieval without the cache may fill it.
 """
 function empty_rendering_reason(identifier::AbstractString, text::AbstractString)
     subentry = first(identifier, 8)
+    if occursin(Regex("^NOSUBENT\\s+$(subentry)\\b", "m"), text)
+        status = bib_text(text, string(first(subentry, 5), "001"), "STATUS")
+        return isempty(status) ?
+               "$(EMPTY_RENDERING): the archive holds no such subentry (NOSUBENT), the entry \
+                having deleted it" :
+               "$(EMPTY_RENDERING): the archive holds no such subentry (NOSUBENT), the entry \
+                having deleted it; the STATUS of its first subentry reads \"$(status)\""
+    end
     block = match(Regex("^SUBENT\\s+$(subentry)\\b.*?^ENDSUBENT", "ms"), text)
     nodata = block !== nothing && occursin(r"^NODATA\b"m, block.match)
     if nodata

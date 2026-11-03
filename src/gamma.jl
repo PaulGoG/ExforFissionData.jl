@@ -159,6 +159,30 @@ const _OBERSTEDT_2015_WINDOW = gamma_window(
     publication = _OBERSTEDT_2015,
 )
 
+const _OBERSTEDT_2015_EPJA = "Oberstedt, Billnert, Hambsch and Oberstedt 2015, \
+    doi:10.1140/epja/i2015-15178-8, p. 3, stated for the 252-Cf measurements of Billnert 2013 \
+    (its ref. [44]) and the 235-U measurement of Oberstedt 2013 (its ref. [45]); Billnert 2013 \
+    (doi:10.1103/PhysRevC.87.024601, p. 024601-3) states only that time windows were selected \
+    \"in order to eliminate all events that arrived later than what we expected from a prompt \
+    fission γ ray\""
+
+const _BILLNERT_WINDOW = gamma_window(
+    -3.0,
+    3.0,
+    "prompt gate",
+    "Prompt γ-rays were selected within a time-window of ±3 ns",
+    publication = _OBERSTEDT_2015_EPJA,
+)
+
+# The entry defines the prompt peak in the ANALYSIS of its first subentry; the words are those of
+# the entry, odd spacing included, since they are looked for in its text.
+const _SKARSVAG_WINDOW = gamma_window(
+    -10.0,
+    12.5,
+    "prompt gate",
+    "by setting the area of prompt gamma-ray peak ( from -10 to 12.5 ns) to unity",
+)
+
 const _WRIGHT_2024 = "Wright et al. 2024, doi:10.1140/epja/s10050-024-01277-8, p. 1 (abstract); \
     the threshold is that of the NaI detectors after the γ-flash, Sec. 4, p. 4: \"a minimum \
     threshold for γ-ray detection of E min = 0.8 MeV and an upper neutron energy cut of 8 meV \
@@ -180,14 +204,24 @@ three. A statement of the subentry text is looked for in it at every retrieval a
 recorded; one the text no longer holds refuses the dataset until the statement is reviewed.
 
 A window of the publication applies only to the measurement it describes: the abstract of
-Pleasonton 1972 is that of the 235-U measurement, whose values 14214 gives (6.51 photons, 6.43 MeV
-and 0.99 MeV per photon, the numbers of the abstract), and that of Pleasonton 1973 is that of the
-233-U and 239-Pu measurements of the same report; its 252-Cf sets have no publication read for
-them. The ±3 ns gate of Oberstedt 2015 is that of the four detectors of that work (23197005 to
-23197008), not of the two measurements of Billnert 2013 it reprints (23197002, 23197003) nor of
-their average over all six (23197009); the 2013 rapid communication on 235-U (31729) states no
-width for its gate. Where the publication states the prompt gate and the entry the acquisition
-trigger, as for Gatera 2017, the gate defines the value and the trigger is recorded beside it.
+Pleasonton 1972 is that of the 235-U measurement, whose values 14214 gives (6.51 photons,
+6.43 MeV and 0.99 MeV per photon, the numbers of the abstract), and that of Pleasonton 1973
+is that of the 233-U and 239-Pu measurements of the same report; its 252-Cf sets have no
+publication read for them. The ±3 ns gate of Oberstedt 2015 (Phys. Rev. C 92) is stated for
+the four detectors of that work (23197005 to 23197008); the two measurements of Billnert
+2013 it reprints (23197002, 23197003), their average over all six (23197009) and the 235-U
+measurement of Oberstedt 2013 (31729) take the same gate from the group's review of 2015
+(Eur. Phys. J. A 51, 178, p. 3), which states it for those measurements, Billnert 2013
+itself naming no width. The multiplicity of Skarsvåg 1970 (23174004) is the area of the
+prompt γ peak, which the entry defines as −10 to 12.5 ns after fission; 'up to time of
+120 ns' in its ANALYSIS is the extent of the time distribution measured, not of the
+integration, as the author's own usage ('within 12 ns', Nucl. Phys. A 253, 274 (1975),
+Phys. Rev. C 22, 638 (1980)) and his abstract of 1969 (IAEA-SM-122/2) read; p. 93 of the
+article was not read, and the delayed yields of 23174002 (0.71 % of the prompt yield in
+45 to 120 ns, 0.43 % in 30 to 54 ns) bound the difference between the two readings below
+0.3 photons on 11.6 ± 1.0. Where the publication states the prompt gate and the entry the
+acquisition trigger, as for Gatera 2017, the gate defines the value and the trigger is
+recorded beside it.
 """
 const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
     "14214004" => [_PLEASONTON_WINDOW],
@@ -212,12 +246,15 @@ const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
         gamma_resolution(1.5, "Time resolution < 1.5 nsec."),
         gamma_correction("Fitting detector response"),
     ],
-    "23197009" => [gamma_range(0.1, NaN, "Energy range > 0.1 MeV .")],
+    "23197009" => [gamma_range(0.1, NaN, "Energy range > 0.1 MeV ."), _BILLNERT_WINDOW],
+    "23197002" => [_BILLNERT_WINDOW],
+    "23197003" => [_BILLNERT_WINDOW],
     "23197005" => [_OBERSTEDT_2015_WINDOW],
     "23197006" => [_OBERSTEDT_2015_WINDOW],
     "23197007" => [_OBERSTEDT_2015_WINDOW],
     "23197008" => [_OBERSTEDT_2015_WINDOW],
     "23174004" => [
+        _SKARSVAG_WINDOW,
         gamma_correction(
             "Attenuation of gamma-rays in air was taken into account by extrapolating the \
              number of gamma-rays to zero distance.",
@@ -255,6 +292,7 @@ const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
              chamber and neutron-gamma overlap cause by a reduced timing resolution. This \
              correction amounted to values smaller than 0.32.",
         ),
+        _BILLNERT_WINDOW,
     ],
     "317290074" => [
         gamma_correction(

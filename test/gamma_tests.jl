@@ -496,8 +496,8 @@ end
     @test gatera["acquisition_window_ns"] == [0.0, 300.0]
     @test occursin("subentry 31778002, METHOD", gatera["acquisition_window_evidence"])
 
-    # 23197 (Oberstedt 2015): the gate of its four detectors, not of the two of Billnert 2013
-    # nor of their average.
+    # 23197: the gate of the four detectors of Oberstedt 2015 from that paper, and of the two of
+    # Billnert 2013 and their average from the group's review (EPJ A 51, 178); 31729 likewise.
     gate(identifier) = any(
         s ->
             s.quantity == :window &&
@@ -506,7 +506,37 @@ end
         ExforFissionData.gamma_statements(identifier),
     )
     @test all(gate, ("231970051", "231970063", "231970072", "231970081"))
-    @test !any(gate, ("231970021", "231970033", "231970091"))
+    @test all(gate, ("231970021", "231970033", "231970091", "317290074"))
+    review(identifier) = any(
+        s ->
+            s.quantity == :window && occursin("10.1140/epja/i2015-15178-8", s.location),
+        ExforFissionData.gamma_statements(identifier),
+    )
+    @test all(review, ("231970021", "231970033", "231970091", "317290074"))
+    @test !review("231970051")
+
+    # 23174004 (Skarsvåg 1970): the prompt gate the entry defines, found in its own words.
+    skarsvag = ExforFissionData.gamma_statements("23174004")
+    @test any(
+        s ->
+            s.quantity == :window &&
+            s.basis == "subentry text" &&
+            (s.low, s.high) == (-10.0, 12.5),
+        skarsvag,
+    )
+    entry_text = exfor_subentry(;
+        entry = "23174",
+        subentry = "23174004",
+        bib = [
+            "ANALYSIS   Data were normalized to gamma-rays per prompt gamma-ray",
+            "           per channel(0.57ns) by setting the area of prompt",
+            "           gamma-ray peak ( from -10 to 12.5 ns) to unity.",
+        ],
+    )
+    @test ExforFissionData.locate_statement(
+        entry_text,
+        "by setting the area of prompt gamma-ray peak ( from -10 to 12.5 ns) to unity",
+    ) == "subentry 23174004, ANALYSIS"
 
     # Skarsvag 1970 is cited by DOI.
     @test occursin(

@@ -69,9 +69,10 @@ The mass yield, the mean TKE and its width against mass, or the joint yield, are
 pre-neutron Y(A, TKE) is built from. Each is retrieved experiment by experiment, with the
 accession in every file name, so that a consumer can take the three marginals of one
 measurement, or its joint matrix, together. The post-neutron products — the mass yield Y(A_p),
-the independent yields Y(Z, A_p) and the product kinetic energy E_K_p(A_p) — are retrieved for
-the same four systems under `Y_vs_A_p`, `Y_vs_Z_A_p` and `E_K_p_vs_A_p`. Datasets of one
-measurement name each other as `correlated_with`, with the relation of their group (see
+the independent yields Y(Z, A_p), the product kinetic energy E_K_p(A_p), the element yield Y(Z)
+and the total kinetic energy of the two products TKE_p(A_p) — are retrieved for the same four
+systems under `Y_vs_A_p`, `Y_vs_Z_A_p`, `E_K_p_vs_A_p`, `Y_vs_Z` and `TKE_p_vs_A_p`. Datasets
+of one measurement name each other as `correlated_with`, with the relation of their group (see
 [Conventions and selection](conventions.md)); the lists below give the relation alone.
 
 ### 252-Cf(sf)
@@ -98,6 +99,14 @@ so these configurations omit `energy_min` and `energy_max`.
 - `Cf252_sf_E_K_p_vs_A_p` — post-neutron kinetic energy against product mass; the archive holds
   none for this system. Its post-neutron kinetic energies, 32928002 and 32928003, are
   `ELEM,SEC,AKE`, resolved in charge rather than mass, and the configuration writes nothing.
+- `Cf252_sf_Y_vs_Z` — independent element yields against charge, 8 datasets: 13456005 (Reisdorf
+  1971, 32 charges), 145390061 (Nifenecker 1973, 27), 331200021 and 331200022 (Rao 1990, 23 and
+  11), 14542002 (Lipinski 1977, 12), 21743006 (Mariolopoulos 1981, 11), 33028017 (Naik 1997, 10)
+  and 13648008 (Ter-Akopian 1997, 5). Refused: 70 nuclide yields coded `MASS`, 69 in arbitrary
+  units, 66 combinations of reactions, 36 cumulative yields and 17 ratios.
+- `Cf252_sf_TKE_p_vs_A_p` — post-neutron total kinetic energy against product mass; the archive
+  codes no `MASS,SEC,KE,LF+HF` for this system, its 269 kinetic-energy datasets being pre-neutron,
+  ternary, γ or neutron energies, and the configuration writes nothing.
 - `Cf252_sf_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41720002
   (Basova 1979) and 41694002 (Zamyatnin 1979), which differ by 0.34 neutrons rms over 80 shared
   masses, are two reductions of one measurement, relation `alternative_analysis`.
@@ -174,6 +183,18 @@ so these configurations omit `energy_min` and `energy_max`.
   23551003 and 23551004 (Konecny 1970), the second combined over its cooling times in `MISC1` to
   `MISC3`, 235580032 (Günther 1972), 31797003 (Bakhromi 1982) and 41496005 (Aleksandrov 1994),
   interpolated from non-integer masses.
+- `U235_nth_Y_vs_Z` — independent element yields against charge, 5 datasets: 13456003 (Reisdorf
+  1971, 24 charges), 210580052 (Kratz 1978, Br and I, the integration of the fitted isotopic
+  distributions), 21550010 (Brissot 1975, 3), 23586002 (Armbruster 1987, 3) and 30953006
+  (Ehrenberg 1972, Kr and Xe). Refused by name: 210580051 (Kratz 1978), the sums over the
+  measured isotopes alone. Refused: 386 cumulative yields, 311 combinations of reactions, 219
+  nuclide yields coded `MASS`, 129 in arbitrary units, 61 ternary and 33 ratios.
+- `U235_nth_TKE_p_vs_A_p` — post-neutron total kinetic energy against product mass, in MeV:
+  10937003 (Fontenla 1980), 21543015 (Asghar 1977), 21313016 (Asghar 1978), 21752018 (Wagemans
+  1981), 31797004 (Bakhromi 1982, `SPA`) and 33089002 (Choudhury 1980, binary fission, most
+  probable values over provisional masses). Refused: 33089003 and 33089004 (Choudhury 1980),
+  coded `MSC`, the TKE of α-accompanied ternary fission; 101 datasets without a mass abscissa,
+  70 ternary, 61 pre-neutron and 15 energies of one fragment.
 - `U235_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41516012
   (Vorobyev 2010) carries a qualifier beginning `preliminary:`.
 - `U235_nth_nu_vs_A_TKE` — prompt neutron multiplicity per fragment against fragment mass and
@@ -235,6 +256,12 @@ its own and is written to its own directory under the ordinary rule.
   coded `FRC`.
 - `U233_nth_E_K_p_vs_A_p` — post-neutron kinetic energy against product mass, in MeV: 21981014
   (Geltenbort 1985) and 23784003 (Chebboubi 2021).
+- `U233_nth_Y_vs_Z` — independent element yields against charge, 2 datasets: 13456002 (Reisdorf
+  1971, 24 charges) and 21550011 (Brissot 1975, 3). Refused: 115 cumulative yields, 91 nuclide
+  yields coded `MASS`, 50 combinations of reactions, 41 ratios and 24 in arbitrary units.
+- `U233_nth_TKE_p_vs_A_p` — post-neutron total kinetic energy against product mass, in MeV:
+  21771014 (Asghar 1981) and 23784004 (Chebboubi 2021). Refused: 27 pre-neutron, 19 without a
+  mass abscissa, 19 ternary and 14 energies of one fragment.
 - `U233_nth_spectrum_maxwellian_ratio_vs_E` — the spectrum as a ratio to a Maxwellian, from
   40873002, 40930004, 40930010, 40930011, 40930012 and 41611010, all formed with T = 1.34 MeV. The
   four of 40930 (Starostov 1985) are one measurement in four parts, the first cycle with each of
@@ -274,6 +301,15 @@ its own and is written to its own directory under the ordinary rule.
 - `Pu239_nth_E_K_p_vs_A_p` — post-neutron kinetic energy against product mass, in MeV: 21544009
   (Asghar 1978), 21981016 (Geltenbort 1985), 235580022 (Günther 1972), 23583003 (Boucheneb 1991)
   and 416930051 (Belyaev 1988).
+- `Pu239_nth_Y_vs_Z` — independent element yields against charge, 4 datasets: 13456004 (Reisdorf
+  1971, 27 charges), 21549010 (Brissot 1977, 4), 23583005 (Boucheneb 1991, 12) and 307870052
+  (Srivastava 1986, technetium alone, its charge the constant `ELEMENT` of its COMMON section).
+  Refused: 187 cumulative yields, 118 nuclide yields coded `MASS`, 114 combinations of reactions,
+  45 in arbitrary units and 29 ratios.
+- `Pu239_nth_TKE_p_vs_A_p` — post-neutron total kinetic energy against product mass, in MeV:
+  21544010 (Asghar 1978). Refused by name: 416930052 (Belyaev 1988), coded `DERIV`, a TKE derived
+  from the heavy-fragment energies of 416930051 by formulas the record does not hold. Refused: 60
+  without a mass abscissa, 55 pre-neutron and 6 energies of one fragment.
 - `Pu239_nth_nu_vs_A` — prompt neutron multiplicity per fragment against fragment mass. 41720004
   (Basova 1979) and 41694003 (Zamyatnin 1979), which differ by 0.36 neutrons rms over 73 shared
   masses, are two reductions of one measurement, relation `alternative_analysis`: one measurement,

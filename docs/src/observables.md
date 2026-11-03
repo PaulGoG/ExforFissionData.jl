@@ -336,11 +336,11 @@ and second moments and covariance matrices of P(ν) only as free text, `ADD-RES`
 
 ## Post-neutron products
 
-Three observables describe the fission products after prompt neutron emission, each against one
+Five observables describe the fission products after prompt neutron emission, each against one
 abscissa, and each is retrieved for the four systems: `<system>_Y_vs_A_p`,
-`<system>_Y_vs_Z_A_p` and `<system>_E_K_p_vs_A_p`. As for every observable, the qualifiers `MXW`
-and `SPA` are recorded under `nth` and not refused, while `FIS`, `EPI` and `FST` reject the
-dataset.
+`<system>_Y_vs_Z_A_p`, `<system>_E_K_p_vs_A_p`, `<system>_Y_vs_Z` and
+`<system>_TKE_p_vs_A_p`. As for every observable, the qualifiers `MXW` and `SPA` are recorded
+under `nth` and not refused, while `FIS`, `EPI` and `FST` reject the dataset.
 
 ### The post-neutron mass yield
 
@@ -481,6 +481,84 @@ over `MISC1` to `MISC3`, which hold cooling times, `235580032` (Günther 1972), 
 239-Pu five: `21544009` (Asghar 1978), `21981016` (Geltenbort 1985), `235580022` (Günther 1972),
 `23583003` (Boucheneb 1991) and `416930051` (Belyaev 1988). For 233-U two: `21981014`
 (Geltenbort 1985) and `23784003` (Chebboubi 2021).
+
+### The element yield
+
+`yield` against `["charge"]` is the independent yield of an element, `ELEM,CHG,FY`, written under
+`Y_vs_Z/` as `Z Y Y_uncertainty` in fragments per fission; a full charge distribution over both
+fragments sums to 2. The abscissa requires `ELEM` in SF4 or `CHG` in SF5 and refuses `MASS` in
+SF4, which names a nuclide and not an element, beside the codes every yield refuses: `CUM`, `TER`,
+`RAT`, combinations of reactions and arbitrary units. A charge held as the constant `ELEMENT` of
+the COMMON section identifies the element as it does for the independent yields: `307870052`
+(Srivastava 1986) holds technetium alone, its charge given there.
+
+Every total independent yield of an element is written whatever the number of charges it covers,
+and the record gives that number as `rows_written`. A sum over the measured isotopes alone is a
+partial yield and is refused by name: `210580051` (Kratz 1978,
+[doi:10.1524/ract.1978.25.1.1](https://doi.org/10.1524/ract.1978.25.1.1)), pointer 1 of Table 5,
+sums the measured masses alone, 5.12 % for iodine, about 36 % of its distribution. The method of
+the yields read from their publications is recorded as `element_yield_method`, and each is
+checked against the element-yield systematics of Wahl 1988
+([doi:10.1016/0092-640X(88)90016-2](https://doi.org/10.1016/0092-640X(88)90016-2)). `307870052`
+(Srivastava 1986, [doi:10.1103/PhysRevC.33.969](https://doi.org/10.1103/PhysRevC.33.969)) is
+fitted: Table IV gives the total technetium yield from a Gaussian fit over A = 101 to 105, of which
+24 % is measured; the twin report BARC-1381 gives 8.00 ± 1.32 % in its Table 2, and Wahl
+recommends 7.26 %. `210580052` (Kratz 1978) is fitted: pointer 2 of Table 5 integrates the fitted
+isotopic distributions over A = 80 to 93 for bromine and 128 to 142 for iodine, more than ±4σ,
+giving 5.63 ± 0.10 and 12.39 ± 0.34 % against the 5.97 and 12.04 % of Wahl. `30953006` (Ehrenberg
+and Amiel 1972, [doi:10.1103/PhysRevC.6.618](https://doi.org/10.1103/PhysRevC.6.618)) is summed
+and extrapolated: in Table VI the krypton yield, 14.1 ± 1.0 %, is the sum over A = 87 to 94, about
+99.5 % of the distribution, and the xenon yield, 20.0 %, includes the extrapolation beyond A = 137
+to 143; Wahl recommends 16.01 and 19.64 %.
+
+For 252-Cf the configuration writes eight: `13456005` (Reisdorf 1971, 32 charges), `145390061`
+(Nifenecker 1973, 27), `331200021` and `331200022` (Rao 1990, 23 and 11), `14542002` (Lipinski
+1977, 12), `21743006` (Mariolopoulos 1981, 11), `33028017` (Naik 1997, 10) and `13648008`
+(Ter-Akopian 1997, 5); it refuses 70 nuclide yields coded `MASS`, 69 in arbitrary units, 66
+combinations of reactions, 36 cumulative yields and 17 ratios. For 235-U five: `13456003`
+(Reisdorf 1971, 24), `210580052` (Kratz 1978, bromine and iodine), `21550010` (Brissot 1975, 3),
+`23586002` (Armbruster 1987, 3) and `30953006` (Ehrenberg 1972, krypton and xenon); beside
+`210580051`, refused by name, it refuses 386 cumulative yields, 311 combinations of reactions, 219
+nuclide yields coded `MASS`, 129 in arbitrary units, 61 ternary and 33 ratios. For 233-U two:
+`13456002` (Reisdorf 1971, 24) and `21550011` (Brissot 1975, 3); refused are 115 cumulative
+yields, 91 nuclide yields coded `MASS`, 50 combinations, 41 ratios and 24 in arbitrary units. For
+239-Pu four: `13456004` (Reisdorf 1971, 27), `21549010` (Brissot 1977, 4), `23583005` (Boucheneb
+1991, 12) and `307870052` (Srivastava 1986, technetium alone); refused are 187 cumulative yields,
+118 nuclide yields coded `MASS`, 114 combinations, 45 in arbitrary units and 29 ratios.
+
+### The post-neutron total kinetic energy
+
+`post_neutron_total_kinetic_energy` against `["product_mass"]` is the total kinetic energy of the
+two products after neutron emission, `MASS,SEC,KE,LF+HF`, written under `TKE_p_vs_A_p/` as
+`A_p TKE_p TKE_p_uncertainty` in MeV, restated from the `EV` of the rendering. The rule requires
+`SEC`, since a blank branch establishes nothing: `40232003` leaves it blank over provisional
+masses, and `22985002` likewise. It refuses `N`, which makes the energy that of the neutrons;
+`MSC`, with which the code leaves the quantity to its free text; and `DERIV`, which names a TKE
+formed from other data of the experiment.
+
+`33089002` (Choudhury 1980,
+[doi:10.1016/0375-9474(80)90481-9](https://doi.org/10.1016/0375-9474(80)90481-9)) is kept as the
+TKE of binary fission on its data. `33089004` exceeds `33089003` by 15.6 to 17.4 MeV at every
+mass, the energy of the α particle, so the two are the TKE of α-accompanied ternary fission, of the
+two fragments and of the fragments and the α, and `33089003` lies 11 to 19 MeV below `33089002`;
+Choudhury et al. 1976 ([doi:10.1007/BF02848636](https://doi.org/10.1007/BF02848636)) give
+168.7 ± 0.5 MeV in binary against 155.4 ± 0.5 MeV in α-accompanied fission. Its values are most
+probable values over provisional masses, which the record states as `ordinate_statistic` and
+`mass_note`. `33089003` and `33089004`, coded `MSC`, are refused as ternary. `416930052` (Belyaev
+1988, Sov. J. Nucl. Phys. 48, 204), coded `DERIV`, is refused by name: its TKE is "determined by
+formulas (2) and (3)" from the heavy-fragment energies of `416930051`, which the record does not
+hold, and is not the momentum conversion of those energies, lying 0.988 to 1.026 times it.
+
+For 252-Cf the archive codes no `MASS,SEC,KE,LF+HF`: its 269 kinetic-energy datasets are
+pre-neutron, ternary, γ or neutron energies, and `Cf252_sf_TKE_p_vs_A_p` writes nothing. For 235-U
+the configuration writes six: `10937003` (Fontenla 1980), `21543015` (Asghar 1977), `21313016`
+(Asghar 1978), `21752018` (Wagemans 1981), `31797004` (Bakhromi 1982, `SPA`) and `33089002`
+(Choudhury 1980, binary fission); it refuses by rule `33089003` and `33089004`, 101 datasets
+without a mass abscissa, 70 ternary, 61 pre-neutron and 15 energies of one fragment. For 233-U
+two: `21771014` (Asghar 1981) and `23784004` (Chebboubi 2021); refused are 27 pre-neutron, 19
+without a mass abscissa, 19 ternary and 14 energies of one fragment. For 239-Pu one: `21544010`
+(Asghar 1978); beside `416930052`, refused by name, refused are 60 without a mass abscissa, 55
+pre-neutron and 6 energies of one fragment.
 
 ## Prompt γ rays
 

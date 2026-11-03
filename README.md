@@ -17,7 +17,7 @@ files with a record of everything the query considered.
 ExforFissionData.jl/
 ├── activate.jl        # silent activation of the package environment
 ├── check.jl           # pre-commit gate: format, then test
-├── config/            # 86 retrieval configurations, <system>_<observable>.toml
+├── config/            # 94 retrieval configurations, <system>_<observable>.toml
 ├── scripts/
 │   └── retrieve.jl    # entry point; the release and curation scripts beside it
 ├── src/               # the package: selection, reduction, export, run record
@@ -146,6 +146,8 @@ its data is written to.
 | Y(A_p), `Y_vs_A_p` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | Y(Z, A_p), `Y_vs_Z_A_p` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | E_K_p(A_p), `E_K_p_vs_A_p` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| Y(Z), `Y_vs_Z` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
+| TKE_p(A_p), `TKE_p_vs_A_p` | `Cf252_sf` | `U235_nth` | `U233_nth` | `Pu239_nth` | |
 | ν(A), `nu_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
 | ν(A, TKE), `nu_vs_A_TKE` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
 | ⟨ε⟩(A), `eps_vs_A` | `Cf252_sf` | `U235_nth`, `U235_nres` | `U233_nth` | `Pu239_nth` | |
@@ -177,15 +179,22 @@ configurations stand in for 239-Pu(n_th,f), which has no joint matrix in the arc
 whose two columns disagree. The width has no EXFOR code, so its configurations name, dataset by
 dataset, the column that holds it, what it holds and whose energy it is.
 
-The three rows after Y(A, TKE) are the products after neutron emission: the post-neutron mass
-yield, the independent yields of nuclides, and the kinetic energy of a product against its mass.
-The post-neutron mass yield admits the chain yields of radiochemistry beside the yields of the
-physical methods, since beta decay conserves A, and flags them in the record. The independent
-yields are read from the `ELEMENT`, `MASS` and `ISOMER` headings of the subentry,
-or from constants of its COMMON section, and a nuclide reported in several isomeric states is
-written once, with what was done recorded per dataset. Fractional yields, yields of correlated
+The five rows after Y(A, TKE) are the products after neutron emission: the post-neutron mass
+yield, the independent yields of nuclides, the kinetic energy of a product against its mass, the
+independent yield of an element against its charge, and the total kinetic energy of the two
+products against the product mass. The post-neutron mass yield admits the chain yields of
+radiochemistry beside the yields of the physical methods, since beta decay conserves A, and flags
+them in the record. The independent yields are read from the `ELEMENT`, `MASS` and `ISOMER`
+headings of the subentry, or from constants of its COMMON section, and a nuclide reported in
+several isomeric states is written once, with what was done recorded per dataset. Fractional yields, yields of correlated
 fragment pairs and partial yields at one product kinetic energy are refused. The archive holds no
 mass-resolved post-neutron kinetic energy for 252-Cf, so `Cf252_sf_E_K_p_vs_A_p` writes nothing.
+The element yield is the total independent yield of an element over its isotopes, summed or
+fitted; a sum over the measured isotopes alone is refused by name, and the method of the yields
+read from their publications is recorded as `element_yield_method`. The post-neutron total kinetic
+energy is the sum over the two products as measured, `MASS,SEC,KE,LF+HF`; the TKE of
+α-accompanied ternary fission, coded `MSC`, and a TKE derived from other data, coded `DERIV`, are
+refused. The archive holds no such dataset for 252-Cf, so `Cf252_sf_TKE_p_vs_A_p` writes nothing.
 
 The last eleven rows are the prompt γ rays. The multiplicity, the total energy and the mean
 photon energy per fission are written one value to a file. Against fragment mass the archive
@@ -331,7 +340,7 @@ ExforFissionData.jl/
 ├── README.md
 ├── .JuliaFormatter.toml         # formatter settings shared by check.jl and CI
 ├── .gitignore
-├── config/                      # 86 configurations, <system>_<observable>.toml
+├── config/                      # 94 configurations, <system>_<observable>.toml
 ├── docs/                        # Documenter site
 │   ├── activate.jl
 │   ├── Project.toml

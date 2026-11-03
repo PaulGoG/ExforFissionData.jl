@@ -443,6 +443,83 @@
         @test ExforFissionData.line_count(widened) == 2
     end
 
+    @testset "element yields against charge" begin
+        query = test_query(;
+            target_Z = 92,
+            target_A = 235,
+            abscissa = ["charge"],
+            ordinate = "yield",
+        )
+        code = "92-U-235(N,F)ELEM,CHG,FY,,MXW"
+        # An element yield: the rendering codes the product as 1000·Z, the subentry heads the
+        # charge ELEMENT; a dataset with a pointer carries it on its datum columns.
+        function element_yields(identifier, lines)
+            rows = [
+                exfor_row(;
+                    dataset_id = identifier,
+                    product_za = 1000 * round(Int, z),
+                    y,
+                    dy,
+                    incident_ev = 0.0253,
+                    reaction_code = code,
+                ) for (z, y, dy) in lines
+            ]
+            pointer = length(identifier) == 9 ? last(identifier) : ' '
+            text = exfor_subentry(;
+                entry = first(identifier, 5),
+                subentry = first(identifier, 8),
+                bib = ["REACTION   ($(code))"],
+                common = (headings = ["EN"], units = ["EV"], values = [0.0253]),
+                headings = ["ELEMENT", "DATA", "DATA-ERR"],
+                units = ["NO-DIM", "PC/FIS", "PC/FIS"],
+                pointers = [' ', pointer, pointer],
+                rows = lines,
+            )
+            return exfor_csv(rows), text
+        end
+
+        # 210580051 (Kratz 1978, pointer 1): sums over the measured isotopes alone.
+        partial = select_dataset(
+            "210580051",
+            element_yields("210580051", [[35.0, 5.05, 0.08], [53.0, 5.12, 0.17]])...,
+            query,
+        )
+        @test partial isa Rejection
+        @test occursin("partial sum", partial.reason)
+
+        # 210580052 (Kratz 1978, pointer 2): integrated over the isotopic distributions.
+        complete = select_dataset(
+            "210580052",
+            element_yields("210580052", [[35.0, 5.63, 0.10], [53.0, 12.39, 0.34]])...,
+            query,
+        )
+        @test complete isa Dataset
+        @test startswith(
+            ExforFissionData._curation_record("210580052")["element_yield_method"],
+            "fitted",
+        )
+
+        # 30953006 (Ehrenberg and Amiel 1972): krypton summed, xenon extrapolated.
+        summed = select_dataset(
+            "30953006",
+            element_yields("30953006", [[36.0, 14.1, 1.0], [54.0, 20.0, 2.3]])...,
+            query,
+        )
+        @test summed isa Dataset
+        @test startswith(
+            ExforFissionData._curation_record("30953006")["element_yield_method"],
+            "summed",
+        )
+
+        # 307870052 (Srivastava 1986): technetium, fitted over its isotopes.
+        @test ExforFissionData.curation_for("307870052", "yield").ordinate == "yield"
+        @test haskey(ExforFissionData._curation_record("307870052"), "element_yield_method")
+        @test ExforFissionData.curation_for(
+            "416930052",
+            "post_neutron_total_kinetic_energy",
+        ).ordinate === nothing
+    end
+
     @testset "a projection needs every other variable held fixed" begin
         query = test_query()
         gated(energy) = exfor_row(;

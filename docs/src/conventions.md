@@ -199,6 +199,22 @@ have been made in rejects the dataset; see [Entrance channels](channels.md). The
 yield against the product mass states under `[conventions]` how a chain yield is read, as
 `chain_yield`, and every yield record carries `yield_sum`, the sum of the written yields.
 
+`MSC` and `DERIV` are refused on the path of the post-neutron total kinetic energy, opened in
+0.8.0. `MSC` is refused because the code then leaves the quantity to its free text: `33089003` and
+`33089004` (Choudhury 1980) are the TKE of α-accompanied ternary fission, 11 to 19 MeV below the
+binary TKE of the same experiment, `33089002`. `DERIV` is refused because it names a value formed
+from other data of the experiment by a derivation the record does not hold (`416930052`). `DERIV`
+is a code of the data type, SF9 (EXFOR Dictionary 35: "data not derived from the experimental
+data by the most direct method, but are calculated from other data obtained in the analysis of
+the experimental data"), not a modifier. The P(ν) rule refuses it too; elsewhere it is recorded
+as a qualifier and admitted where the rule admits it: `237090031` through its correlation group,
+the yields of entry 22273, the 235-U γ datasets of 31729 and `40930002`.
+
+Under `yield` against `["charge"]` every total independent yield of an element is written,
+whatever the number of charges it covers. A sum over the measured isotopes alone, as `210580051`
+(Kratz 1978) gives, is no element yield and is refused by name, and `element_yield_method`
+records how the yields read from their publications were formed.
+
 Two statements of the reaction code on what a dataset is are written among its `qualifiers` under
 a prefix of their own and named in a warning, the dataset being written as the archive holds it:
 `spectrum_form:` for a spectrum coded `RRE`, which is N(E)/√E and is not converted

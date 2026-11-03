@@ -192,6 +192,38 @@ end
         "although the subentry DATA table holds 2 lines",
         ExforFissionData.empty_rendering_reason("30959002", filled),
     )
+    # The entry has deleted the subentry (NOSUBENT); the STATUS of its first subentry says why.
+    nosubent = "NOSUBENT      40115002   20140930   20141103   20141016       4164\n"
+    deleted_entry(bib) = replace(
+        exfor_subentry(;
+            entry = "40115",
+            subentry = "40115001",
+            bib,
+            headings = ["EN", "DATA"],
+            units = ["MEV", "NO-DIM"],
+            rows = [[1.0, 2.5]],
+        ),
+        r"^ENDENTRY"m => nosubent * "ENDENTRY",
+    )
+    deleted = deleted_entry([
+        "TITLE      Nu-bar data measurement and evaluation at U-235",
+        "STATUS     (TABLE) Data from FEI-227,1970 report",
+        "           (SPSDD,40033002) Superseded by 40033.",
+        "           (SPSDD,40033006)",
+    ])
+    reason = ExforFissionData.empty_rendering_reason("40115002", deleted)
+    @test startswith(
+        reason,
+        "dataset is empty: the archive holds no such subentry (NOSUBENT), the entry having \
+         deleted it",
+    )
+    @test occursin("(SPSDD,40033002)", reason)
+    @test ExforFissionData.empty_rendering_reason(
+        "40115002",
+        deleted_entry(["TITLE      Nu-bar data"]),
+    ) ==
+          "dataset is empty: the archive holds no such subentry (NOSUBENT), the entry having \
+          deleted it"
 end
 
 @testset "a kinetic energy with a blank branch" begin
@@ -225,8 +257,8 @@ end
 end
 
 @testset "the TKE at which neutron emission stops is curated out" begin
-    # 23175011 (Budtz-Jørgensen 1988): DATA-MAX alone, the bound of the TKE distribution per
-    # mass, refused for what it is rather than as a dataset of limits.
+    # 23175011 (Budtz-Jørgensen 1988): DATA-MAX alone, TKE_max(A), the TKE-axis intercept of
+    # nu(A, TKE) per fragment, refused for what it is rather than as a dataset of limits.
     query = cf252_query(; abscissa = ["mass"], ordinate = "total_kinetic_energy")
     rows = [
         exfor_row(;
@@ -240,7 +272,7 @@ end
     ]
     refused = ExforFissionData.screen_dataset("23175011", exfor_csv(rows), query)
     @test refused isa Rejection
-    @test occursin("neutron emission ceases", refused.reason)
+    @test occursin("where the neutron emission stops", refused.reason)
     @test occursin("10.1016/0375-9474(88)90508-8", refused.reason)
 end
 
