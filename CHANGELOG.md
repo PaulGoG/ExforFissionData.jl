@@ -33,7 +33,7 @@ is made with the release.
 - Two retrievals of one observable started together could be given the same directory: it is now
   created by the step that finds it free.
 - The runs test of `scripts/complement_test.jl` multiplied binomial coefficients in 64-bit
-  integers, which overflow from 72 signs on; no reading it has made has more than 53.
+  integers, which overflow from 70 signs on; no reading it has made has more than 53.
 - The documentation pages named canonical addresses that do not exist; they are those of the
   stable pages now.
 

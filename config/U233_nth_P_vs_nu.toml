@@ -39,6 +39,6 @@ save_subentries = true  # store the original EXFOR subentry text beside the data
 # base_url = "https://nds.iaea.org/exfor/" # archive endpoint; a mirror may be named instead
 
 [output]
-directory = "data"      # root for retrieved data, relative to the output root
+directory = "data"      # root for retrieved data, relative to the output root, without ..
 significant_digits = 7  # significant digits in tabulated output, 1 to 15
 # record_hostname = false # name the machine in the run record

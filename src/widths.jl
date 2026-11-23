@@ -77,7 +77,7 @@ function width_column_refusal(column::AbstractString; role::AbstractString = "a 
         return "$(heading) holds the datum or an uncertainty, not $(role)"
     heading_class(heading) == :auxiliary ||
         return "$(heading) is an independent variable, not $(role)"
-    startswith(heading, "MISC") ||
+    occursin(r"^MISC\d*$", heading) ||
         return "$(heading) is no MISC column, the one kind that holds $(role)"
     return nothing
 end

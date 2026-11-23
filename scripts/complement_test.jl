@@ -248,7 +248,7 @@ end
 # Exact P(R ≤ r) of the Wald–Wolfowitz runs test for n₁ and n₂ signs in random order.
 function runs_probability(r, n₁, n₂)
     (n₁ == 0 || n₂ == 0) && return 1.0
-    # In big integers throughout: the product of two binomials leaves Int64 from 72 signs on.
+    # In big integers throughout: the product of two binomials leaves Int64 from 70 signs on.
     a, b = big(n₁ - 1), big(n₂ - 1)
     ways(R) =
         iseven(R) ? 2 * binomial(a, R ÷ 2 - 1) * binomial(b, R ÷ 2 - 1) :

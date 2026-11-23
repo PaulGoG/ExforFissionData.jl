@@ -166,7 +166,8 @@
         @test isdir(target)
         @test reserve_directory(target) == target * "_1"
         @test reserve_directory(target) == target * "_2"
-        # Retrievals started together each get a directory of their own.
+        # Eight tasks get eight directories. On one thread they run in turn, which the test
+        # and creation done apart would survive as well; on several, only this does.
         raced = joinpath(root, "U235_nth", "nu_vs_A")
         taken = fetch.([Threads.@spawn reserve_directory(raced) for _ in 1:8])
         @test allunique(taken)
