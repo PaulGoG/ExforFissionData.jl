@@ -302,7 +302,7 @@ end
 
 The ordinate label of one panel, carrying the unit its datasets are actually written in.
 
-The curated label of an ordinate states the unit this package guarantees — MeV for an energy,
+The curated label of an ordinate states the unit this package guarantees: MeV for an energy,
 none for a multiplicity. A spectrum has no such guarantee: nothing is normalised on the way out,
 so the archive's own token stands, and a query returning more than one is labelled with all of
 them rather than with a unit that is right for only some of the data.

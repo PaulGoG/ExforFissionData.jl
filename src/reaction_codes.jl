@@ -18,7 +18,7 @@
 
 The codes of subfields SF4 to SF9 of a single EXFOR reaction, one vector per subfield in that
 order, each subfield split at its `/` separators; `nothing` when `code` is a combination of
-several reactions — a ratio, sum, difference or product, written in parentheses — or is not a
+several reactions (a ratio, sum, difference or product, written in parentheses) or is not a
 reaction code at all.
 
 Parenthesised codes keep their parentheses: `(SEC)`, "compiler uncertain if secondary", is a
@@ -55,7 +55,7 @@ end
     reaction_ratio(code) -> Union{Tuple{String,String},Nothing}
 
 The numerator and the denominator of a reaction code that is the ratio of two single reactions,
-`(A)/(B)`; `nothing` for a single reaction and for every other combination — a sum, a
+`(A)/(B)`; `nothing` for a single reaction and for every other combination: a sum, a
 difference, a product, a ratio of ratios, a ratio of more than two terms.
 
 # Example
@@ -137,7 +137,7 @@ end
 """
     has_code(code, tag) -> Bool
 
-Whether the reaction code `code` holds the code a tag names — `"SF8:MSC"` for `MSC` among the
+Whether the reaction code `code` holds the code a tag names: `"SF8:MSC"` for `MSC` among the
 modifiers, `"TKE"` for `TKE` in any subfield; false for a combination of reactions.
 """
 function has_code(code::AbstractString, tag::AbstractString)
@@ -180,8 +180,8 @@ const NO_ALTERNATIVE_PREFIX = "none of the alternatives"
 """
     rejection_reason(rule, code) -> Union{String,Nothing}
 
-Why `code` fails `rule` — the first forbidden code present, the first required code absent, or
-the absence of every alternative — or `nothing` when it matches.
+Why `code` fails `rule` (the first forbidden code present, the first required code absent, or
+the absence of every alternative) or `nothing` when it matches.
 
 Used to record why a dataset was excluded, so that an exclusion can be audited rather than
 merely observed.
@@ -375,8 +375,8 @@ const ABSCISSA_RULES = Dict{Vector{String}, TagRule}(
 #                                      configuration names ([[width]]); a width of one
 #                                      fragment's energy takes the fragment_kinetic_energy rule
 #   post_neutron_total_kinetic_energy  the same, post-neutron: SEC required, since a blank
-#                                      branch establishes nothing — 40232003 leaves it blank
-#                                      over provisional masses — and (SEC) is uncertain; MSC
+#                                      branch establishes nothing (40232003 leaves it blank
+#                                      over provisional masses) and (SEC) is uncertain; MSC
 #                                      refused, the code then leaving the quantity to its free
 #                                      text (33089003 and 33089004 are the TKE of α-accompanied
 #                                      ternary fission); DERIV refused, a TKE formed from other
@@ -498,8 +498,8 @@ const ABSCISSA_TOKEN = Dict(
 """
 The ASCII symbol of each ordinate quantity; see [`ABSCISSA_TOKEN`](@ref).
 
-A quantity appearing in both vocabularies — the total kinetic energy, which is an abscissa of a
-yield and an ordinate against mass — carries the same symbol in both.
+A quantity appearing in both vocabularies (the total kinetic energy, which is an abscissa of a
+yield and an ordinate against mass) carries the same symbol in both.
 """
 const ORDINATE_TOKEN = Dict(
     "multiplicity" => "nu",
@@ -534,7 +534,7 @@ datasets it offers for 235-U(n,f) under `MFQ`, 42 answer the `spectrum` query in
 against 15 in absolute ones. A thermal incident-energy window narrows both, to 11 and 6.
 
 Every other ordinate is excluded from this, because a relative value there is not a form anyone
-can interpret — a kinetic energy in arbitrary units is not an energy, and a multiplicity is a
+can interpret: a kinetic energy in arbitrary units is not an energy, and a multiplicity is a
 count per fragment whose scale is the whole quantity.
 
 A relative dataset cannot be put on a common scale with any other, not even another relative one,
@@ -546,7 +546,7 @@ const RELATIVE_SCALE_ORDINATES =
 """
 Observables, as abscissa and ordinate, for which arbitrary units are a standard form besides the
 ordinates of [`RELATIVE_SCALE_ORDINATES`](@ref): the joint yield Y(A, TKE). It is recorded event
-by event and published as counts on a grid — 23268002 is 30 000 cells of counts — and what it
+by event and published as counts on a grid (23268002 is 30 000 cells of counts) and what it
 carries is the TKE distribution at each mass, which a consumer normalises to a mass yield. A
 one-dimensional Y(A) in arbitrary units has no such use and stays excluded.
 """
@@ -615,7 +615,7 @@ const OBSERVABLE_RULES = Dict{Tuple{Vector{String}, String}, TagRule}(
 
 Compose the selection rule for an observable from its abscissa and ordinate rules.
 
-`abscissa` is the list of quantities the observable is tabulated against — `["mass"]`, or
+`abscissa` is the list of quantities the observable is tabulated against: `["mass"]`, or
 `["mass", "total_kinetic_energy"]` for a joint index.
 
 The requirements of both are taken together, with those of [`OBSERVABLE_RULES`](@ref) for the
@@ -811,9 +811,9 @@ the spectrum of [`REFERENCE_SPECTRUM`](@ref), or give the reason it is not one.
 
 The code must be the ratio of two single reactions ([`reaction_ratio`](@ref)), one headed
 `system` and the other the reference, each satisfying the rule of the ordinate `spectrum`
-against `neutron_energy` — so neither a ratio to a Maxwellian, nor a quantity outside the
+against `neutron_energy`, so neither a ratio to a Maxwellian, nor a quantity outside the
 standard definition (`MSC`: 10911002 and 41502003 hold the logarithm of the ratio), nor an
-angle-differential or partial spectrum — and the term of the system carrying no spectrum
+angle-differential or partial spectrum, and the term of the system carrying no spectrum
 qualifier that contradicts `channel`.
 """
 function spectrum_ratio(
@@ -945,7 +945,7 @@ const ORDINATE_QUANTITY = Dict(
 """
 The EXFOR reaction code each entrance channel is queried under.
 
-The channel names the fissioning system — `Cf252_sf`, `U235_nth`, `U235_nres` — and decides the
+The channel names the fissioning system (`Cf252_sf`, `U235_nth`, `U235_nres`) and decides the
 reaction code, which is why the configuration carries the channel and not the code: the two can
 disagree only if both are written down. Which datasets a neutron-induced channel admits is
 settled by the incident-energy window, which must lie inside the channel's interval of

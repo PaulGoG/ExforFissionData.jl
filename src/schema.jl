@@ -58,7 +58,7 @@ const EXFOR_HEADER = (
 # connection reviewable.
 const COL_YEAR = 2
 const COL_AUTHOR = 3
-const COL_VALUE_KIND = 4      # e.g. "Data(PART/FIS)", "Max(NO-DIM)" — datum type and unit
+const COL_VALUE_KIND = 4      # e.g. "Data(PART/FIS)", "Max(NO-DIM)"; datum type and unit
 const COL_Y = 5
 const COL_DY = 6
 const COL_INCIDENT_ENERGY = 11    # x2(eV)
@@ -146,7 +146,7 @@ const MAXIMUM_NEUTRON_KINETIC_ENERGY = 5.0
 A response whose header is not [`EXFOR_HEADER`](@ref).
 
 A type of its own because the two ways it arises need telling apart. One dataset failing the
-contract is an anomaly of that dataset — the archive renders a few with no columns at all — and
+contract is an anomaly of that dataset (the archive renders a few with no columns at all) and
 is recorded as a rejection. Every dataset failing it is the rendering having changed, and
 [`retrieve`](@ref) stops rather than report an archive with nothing in it.
 """
@@ -213,7 +213,7 @@ const LIMIT_KINDS = ("Max", "Min", "Min2Max")
 Unit tokens of the `y:Value` column that carry no absolute scale.
 
 `ARB-UNITS` is arbitrary; a dataset in arbitrary units cannot be combined with, or normalised
-against, one in absolute units. `NO-DIM` is dimensionless — correct for ratios and for already
+against, one in absolute units. `NO-DIM` is dimensionless, correct for ratios and for already
 normalised distributions, and therefore not rejected, but recorded so that a consumer never
 renormalises a mixture of tokens as though it were homogeneous.
 """
@@ -263,7 +263,7 @@ has_absolute_scale(token::AbstractString) = !is_relative_unit(last(parse_value_k
 
 Whether a unit token denotes an arbitrary rather than an absolute scale.
 
-Takes the unit alone, as recorded on a [`Dataset`](@ref) — `"ARB-UNITS"`, not
+Takes the unit alone, as recorded on a [`Dataset`](@ref): `"ARB-UNITS"`, not
 `"Data(ARB-UNITS)"`. [`has_absolute_scale`](@ref) takes the whole `y:Value` token including its
 wrapper and would read a bare unit as the kind, reporting any of them as absolute.
 """

@@ -125,8 +125,8 @@ const TABLES_DISAGREE = "the csv rendering and the subentry DATA table disagree 
 
 _whole(x) = isinteger(x) ? string(round(Int, x)) : string(x)
 
-# A row of the csv rendering located by what identifies it — the product with its isomer mark,
-# the secondary energy, the incident energy — whichever are present, after its row number.
+# A row of the csv rendering located by what identifies it (the product with its isomer mark,
+# the secondary energy, the incident energy, whichever are present), after its row number.
 function _row_place(table::DataFrame, i::Integer)
     parts = String[]
     product = table[i, COL_PRODUCT_ZA]
@@ -264,7 +264,7 @@ end
 Parse the csv rendering of one dataset, validating the column layout.
 
 Throws a [`LayoutError`](@ref) naming the dataset when the header does not match
-[`EXFOR_HEADER`](@ref), and an `ArgumentError` when the archive returned no data at all — which
+[`EXFOR_HEADER`](@ref), and an `ArgumentError` when the archive returned no data at all, which
 is a different failure and must not be reported as a changed layout.
 """
 function parse_dataset(identifier::AbstractString, body::AbstractString)
@@ -304,7 +304,7 @@ answer, in the order below, the first failure being reported.
    stay, listed; the value rows share one unit, which is not arbitrary; a kind this package
    does not read refuses the dataset. A dataset whose every row is a bound is refused after
    step 3, so that a curated reason speaks first;
-3. the reaction code satisfies the composed tag rule of the abscissa and ordinate — or, for a
+3. the reaction code satisfies the composed tag rule of the abscissa and ordinate, or, for a
    dataset of [`CURATED_DATASETS`](@ref), the curated ordinate is the one asked for and the
    code satisfies the abscissa rule; see [`curation_rejection`](@ref). Under the ordinate
    [`REFERENCE_RATIO_ORDINATE`](@ref) the code is instead the ratio of the spectrum of the
@@ -693,15 +693,15 @@ settles what the dataset is tabulated against. The first failure is reported.
    such, whatever unit the csv rendering reports, and passes only where the observable admits a
    relative scale. A mean neutron energy exceeds [`MAXIMUM_NEUTRON_KINETIC_ENERGY`](@ref) on
    no row of step 5; see [`neutron_energy_refusal`](@ref);
-7. the DATA table, restricted to the lines that carry a datum in this dataset's datum column —
-   `DATA`, or `DATA-CM` for an ordinate of [`CENTRE_OF_MASS_ORDINATES`](@ref); see
-   [`datum_heading`](@ref) — with `ELEMENT`, `MASS` or `ISOMER` taken from the COMMON section of
+7. the DATA table, restricted to the lines that carry a datum in this dataset's datum column
+   (`DATA`, or `DATA-CM` for an ordinate of [`CENTRE_OF_MASS_ORDINATES`](@ref); see
+   [`datum_heading`](@ref)) with `ELEMENT`, `MASS` or `ISOMER` taken from the COMMON section of
    the subentry or of the entry where the table lacks it and the charge is in the abscissa
-   (`common_constants` in the record) — has one line per row of the rendering and agrees with it
+   (`common_constants` in the record), has one line per row of the rendering and agrees with it
    row by row: the truncated product against `MASS` and `ELEMENT`, the secondary energy against
    `E` or `TKE`, and for those ordinates the value itself against the datum column. Only then are
    the rows of step 5 retained, less the lines a compilation defect of [`ARCHIVE_DEFECTS`](@ref)
-   marks — and a defect record the archive no longer matches rejects the dataset;
+   marks, and a defect record the archive no longer matches rejects the dataset;
 8. a mean neutron energy is not stated to be in the laboratory frame; see
    [`ordinate_frame`](@ref). No independent variable of the DATA table other than the abscissa's
    own varies over the retained rows; see [`varying_columns`](@ref);
@@ -781,7 +781,7 @@ function select_dataset(
     end
 
     # The rendering writes one row per line that carries a datum: a line whose DATA field is
-    # blank — the pointed column of another dataset holds the value there — has no row. The
+    # blank (the pointed column of another dataset holds the value there) has no row. The
     # DATA table is restricted to the lines with a datum before the two are compared.
     datum_name = datum_heading(source, subentry.data.headings)
     datum = datum_name === nothing ? nothing : column(subentry.data, datum_name)
@@ -799,7 +799,7 @@ function select_dataset(
         (present .|= BitVector(map(!ismissing, subentry.data.values[approximate])))
     data = restrict(subentry.data, present)
     # A nuclide identification the subentry holds as a constant of its COMMON section, or of
-    # the entry's — one element, its isotopes tabulated by mass; one isomeric state throughout —
+    # the entry's (one element, its isotopes tabulated by mass; one isomeric state throughout)
     # is a column of the DATA table in all but layout, and is placed beside the lines before the
     # two tables are compared. The rendering may or may not have coded the charge into ProdZA.
     constants = String[]
@@ -1031,7 +1031,7 @@ function select_dataset(
         )
         if !("charge" in query.abscissa)
             # A bare mass number, so it must look like one. `ProdZA` is 1000·Z + A whenever the
-            # product is charge-resolved, which for Z ≥ 10 reaches `CHARGE_CODED_MINIMUM` — but
+            # product is charge-resolved, which for Z ≥ 10 reaches `CHARGE_CODED_MINIMUM`; but
             # for a light charge-resolved product it does not: an α from ternary fission is 2004,
             # and taken as a mass number that is a fragment four times too heavy to exist.
             # Bounding the value from above is what separates the two codings for light

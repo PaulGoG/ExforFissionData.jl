@@ -1448,8 +1448,8 @@ function correlation_group(identifier::AbstractString)
 end
 
 """
-Entries whose fragment masses the entry itself establishes as provisional — derived from the two
-fragment energies without correcting them for neutron emission — keyed by the five-character
+Entries whose fragment masses the entry itself establishes as provisional (derived from the two
+fragment energies without correcting them for neutron emission), keyed by the five-character
 entry number, with the evidence.
 
 A dataset of such an entry is rejected under every abscissa that is a pre-neutron mass, whatever

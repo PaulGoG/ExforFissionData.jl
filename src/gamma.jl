@@ -536,7 +536,7 @@ the mean photon energy, or the reason they cannot be told.
 
 The magnitude decides, the two intervals [`TOTAL_GAMMA_ENERGY_INTERVAL`](@ref) and
 [`MEAN_PHOTON_ENERGY_INTERVAL`](@ref) being disjoint. The REACTION text `text` is the basis
-where it names the quantity — "total", or an energy per gamma, per photon or of one gamma — and
+where it names the quantity ("total", or an energy per gamma, per photon or of one gamma) and
 agrees with the magnitude; a text that names the other quantity refuses the dataset, and a
 reading on magnitude alone is recorded as such.
 """
@@ -872,8 +872,8 @@ incident_energy_reading(identifier::AbstractString) =
 """
     StatedValue
 
-A prompt-γ value its entry states with its uncertainty outside any DATA table — in the
-additional results (ADD-RES) of a subentry — read as a dataset of its own, the counterpart of
+A prompt-γ value its entry states with its uncertainty outside any DATA table, in the
+additional results (ADD-RES) of a subentry, read as a dataset of its own, the counterpart of
 convention 3 of [Prompt γ rays](@ref), which admits no value stated without its uncertainty. The
 words are looked for in the subentry text at every retrieval, and both numbers
 must stand in them; nothing is formed from other quantities.

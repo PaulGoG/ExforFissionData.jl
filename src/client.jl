@@ -8,8 +8,8 @@
 # The cache is what makes a re-run cost the archive one listing request and what keeps the load
 # on a public service proportionate to the data actually being used.
 #
-# It is not a statement that the archive stands still. Entries are revised — the HISTORY of a
-# subentry records each alteration — and new ones are added. A dataset response is served from
+# It is not a statement that the archive stands still. Entries are revised (the HISTORY of a
+# subentry records each alteration) and new ones are added. A dataset response is served from
 # the cache while it is usable, not refreshed, and younger than `max_age_days`. The listing of
 # datasets is requested on every run, because a cached listing never discovers an entry added
 # after it was written. Whatever is requested falls back to a usable cached copy, with a warning
@@ -140,7 +140,7 @@ One response of the archive.
 
 # Fields
 - `body::String`: the text.
-- `retrieved::DateTime`: when the body was obtained from the archive, in UTC — the modification
+- `retrieved::DateTime`: when the body was obtained from the archive, in UTC: the modification
   time of the cache file for a cached copy, the moment of the request otherwise.
 - `from_cache::Bool`: whether the body was served from the cache rather than requested.
 """

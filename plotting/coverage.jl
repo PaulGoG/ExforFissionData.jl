@@ -7,7 +7,7 @@
 # offered for its query, in the identifier order the pipeline processes them: a dataset that
 # answers the query enters the axes, one that does not only advances the tally of datasets
 # considered. Panels are paced to finish together, so this is an accumulation in processing
-# order and not a timeline of the retrieval itself — the archive is answered concurrently and a
+# order and not a timeline of the retrieval itself: the archive is answered concurrently and a
 # cached re-run takes no time at all.
 #
 # The environment activates and instantiates itself silently, so the script runs from a fresh

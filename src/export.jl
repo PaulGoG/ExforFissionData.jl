@@ -73,7 +73,7 @@ yields a two-column file, which a reader accepts and which claims no more than t
 holds. Where the column is written, a row without an uncertainty holds `NaN`, so that it cannot
 be read as a stated zero. Line endings are `\\n`.
 
-The header names the abscissa columns, then the ordinate, then its uncertainty — for example
+The header names the abscissa columns, then the ordinate, then its uncertainty: for example
 `A nu nu_uncertainty`, or `Z A_p Y Y_uncertainty` for a joint abscissa. Every name is the ASCII
 symbol of the quantity the column holds, so no column has to be identified from the file name.
 A reader is expected to take columns by **position**: the header names what is there, and
@@ -137,7 +137,7 @@ end
 
 # The commit of the package source, where the source is a working copy. A package installed by
 # Pkg sits in a depot directory that is no repository, and git then answers for whatever
-# repository encloses the depot — a home directory under version control, say. The top level
+# repository encloses the depot: a home directory under version control, say. The top level
 # has to be the package directory itself before its commit means anything; an installed package
 # is identified by `package_version` instead.
 function _revision()
@@ -727,7 +727,7 @@ end
 
 Write the run record: the run itself, with the package version and revision, the configuration
 file and the platform; the query; the conventions the tables are written under; a summary of the
-datasets with their warnings; and every dataset considered — those written, with what the
+datasets with their warnings; and every dataset considered: those written, with what the
 reduction had to do to them, and those excluded, with the reason.
 
 Without the rejection list a dataset missing from the output could not be told from one the

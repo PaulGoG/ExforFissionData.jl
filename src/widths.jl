@@ -5,7 +5,7 @@
 # standard deviation or FWHM of an energy, and the Formats Manual (IAEA-NDS-207) leaves such a
 # quantity to a MISC column explained in the MISC-COL keyword. The width sits beside the mean in
 # a MISC column, defined only in free text and not consistently: a standard deviation, a variance
-# in MeV², a FWHM, a "dispersion" — of the TKE or of one fragment's energy. Which column of which
+# in MeV², a FWHM, a "dispersion", of the TKE or of one fragment's energy. Which column of which
 # dataset holds which width is therefore stated per dataset in the configuration, `[[width]]`, and
 # never read from the free text.
 

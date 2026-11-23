@@ -31,7 +31,7 @@ retrieved, parsed against the recorded column layout, and either accepted or rej
 reason; accepted datasets are projected onto the abscissa, reduced to one row per abscissa value,
 and written. A run record naming every dataset considered is written beside the data.
 
-Data is written to `<root>/<output.directory>/<system>/<observable>/` — one directory per
+Data is written to `<root>/<output.directory>/<system>/<observable>/`: one directory per
 fissioning system, one subdirectory per observable, one file per measurement.
 
 Datasets are processed in identifier order and written in identifier order, so a re-run over an
@@ -364,8 +364,8 @@ function _write_retrieval(
         ),
     )
     # Datasets in arbitrary units are kept apart from absolute ones, and the directory is created
-    # only if any arrive. A relative measurement cannot be put on a common scale with anything —
-    # not even another relative measurement — so a consumer that reads a directory wholesale must
+    # only if any arrive. A relative measurement cannot be put on a common scale with anything,
+    # not even another relative measurement, so a consumer that reads a directory wholesale must
     # not be able to pick one up by accident.
     relative_directory = joinpath(directory, "relative")
     subentry_directory = joinpath(directory, "subentries")

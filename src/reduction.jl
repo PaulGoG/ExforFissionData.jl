@@ -14,8 +14,8 @@
 # a non-integer mass and drops the variables it does not recognise. Masses are placed on the
 # integers without rounding: a bin is written at each of its masses, non-integer masses are
 # interpolated, and what that did is recorded per dataset. What the subentry still
-# cannot settle is whether rows sharing an abscissa value are a genuine repeat — a chain yield
-# measured through several nuclides — or one measurement under different auxiliary conditions,
+# cannot settle is whether rows sharing an abscissa value are a genuine repeat (a chain yield
+# measured through several nuclides) or one measurement under different auxiliary conditions,
 # a flight path or a flag; `combined_over` names the auxiliary columns that varied among them.
 
 """
@@ -32,7 +32,7 @@ An observable tabulated against its abscissa, reduced from one dataset.
 - `has_uncertainties::Bool`: whether any row carries an uncertainty. When false the uncertainty
   column is omitted on export. Where it is written, a row without an uncertainty holds `NaN`,
   never zero; a zero is one the archive states.
-- `diagnostics::Dict{String,Any}`: what the reduction had to do — isomer totals used, isomer
+- `diagnostics::Dict{String,Any}`: what the reduction had to do: isomer totals used, isomer
   sums taken and the nuclides summed, nuclides written from one marked isomeric state alone,
   ambiguous groups, duplicates combined, distinct incident energies retained, and for a yield
   the sum of the written values.
@@ -118,7 +118,7 @@ is absent the rows sharing one mark are repeat measurements of that state and ar
 in quadrature. A mark is a state, not a measurement: five rows marked the ground state are five
 determinations of one yield (23709002, four samples and their average), never five states.
 
-`outcome` is `:total`, `:summed`, `:single`, or `:ambiguous` — `:single` for one row, or for
+`outcome` is `:total`, `:summed`, `:single`, or `:ambiguous`: `:single` for one row, or for
 several rows of one marked state; `:ambiguous` when several rows carry no isomer marking and
 therefore cannot be told apart. Each of them is a total in its own right, so they are combined as
 repeats and the dataset is flagged; rows resolving a state are parts of those totals and are left
@@ -222,8 +222,8 @@ end
 """
 Largest distance in mass units between two tabulated masses across which a value is interpolated
 onto an integer mass. Measured tabulations sample the mass on grids of up to 2.5 u; a wider
-interval is a gap in the measurement — the unmeasured symmetric region of a two-branch curve, a
-sparse grid — and an integer mass inside it is left out and counted rather than invented.
+interval is a gap in the measurement (the unmeasured symmetric region of a two-branch curve, a
+sparse grid) and an integer mass inside it is left out and counted rather than invented.
 """
 const MASS_INTERPOLATION_SPAN = 3.0
 
@@ -378,8 +378,8 @@ end
 What a yield's unit token says of its normalisation, for the unit the file is written in.
 Written to the run record as `normalisation` for every yield, so that no consumer has to know
 that a mass yield in `PART/FIS` sums to 2 over both fragments, or that `ARB-UNITS` over a joint
-grid is a count of events. The csv rendering restates the subentry's unit — `PC/FIS` as
-`PART/FIS`, the values divided by 100 — and the written values are the rendering's; the unit
+grid is a count of events. The csv rendering restates the subentry's unit (`PC/FIS` as
+`PART/FIS`, the values divided by 100) and the written values are the rendering's; the unit
 the subentry heads the datum with is recorded beside it as `unit_subentry`.
 """
 const YIELD_NORMALISATIONS = Dict(
@@ -537,7 +537,7 @@ integers, never rounded:
 
 - integer masses are taken as they are;
 - a bin pair `MASS-MIN`, `MASS-MAX` with integer edges holds each integer mass from one edge to
-  the other, and its value is written at every one of them with its own uncertainty — for a
+  the other, and its value is written at every one of them with its own uncertainty, for a
   mean, and for bins of at most [`MAXIMUM_MASS_BIN_WIDTH`](@ref) masses; a yield over more than
   one mass is their sum and is not written (see [`EXTENSIVE_ORDINATES`](@ref)); bins with
   shared or fractional edges are not placed;
@@ -550,7 +550,7 @@ Any abscissa value still carrying several measurements is then combined by
 the written files keep.
 
 Energy abscissae are converted to megaelectronvolts from the unit of their subentry column, and
-an ordinate that is itself an energy from its unit token — see [`ENERGY_ORDINATES`](@ref). Both
+an ordinate that is itself an energy from its unit token; see [`ENERGY_ORDINATES`](@ref). Both
 are exact conversions of a value with the factor recorded. No *normalisation* is ever applied:
 that convention differs between consumers and cannot be undone, so the unit token is recorded
 instead. A multiplicity whose subentry heads it `PC/FIS` is written as the subentry tabulates
@@ -639,7 +639,7 @@ function reduce_dataset(
     #
     # Isomeric structure only exists where the product identifies a nuclide, that is where
     # `ProdZA` is charge-coded. For the bare-mass abscissae the field is a mass number alone,
-    # `ProdM` says nothing, and rows sharing a mass are repeats rather than isomers — so this
+    # `ProdM` says nothing, and rows sharing a mass are repeats rather than isomers, so this
     # stage is skipped and the combination is left to stage three.
     resolves_isomers = "charge" in query.abscissa
     per_nuclide = Dict{Any, Vector{Int}}()

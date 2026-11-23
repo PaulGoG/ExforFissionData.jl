@@ -248,7 +248,7 @@ function system_notation(query::AbstractDict)
         element, mass = parts[1], parts[end]
     end
     # The exit channel stays italic, as it is written in the literature; the entrance channel is
-    # an abbreviation — "nth" carries the word "thermal" — and is therefore upright. Spontaneous
+    # an abbreviation ("nth" carries the word "thermal") and is therefore upright. Spontaneous
     # fission has no entrance channel, so "sf" stands alone in the parentheses.
     channel = String(query["channel"])
     reaction = channel == "sf" ? "(\\mathrm{sf})" : "(\\mathrm{$(channel)},f)"

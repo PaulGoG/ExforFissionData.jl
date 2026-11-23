@@ -414,7 +414,7 @@ Read and validate a retrieval configuration.
 
 Throws an `ArgumentError` naming the offending key when a value is missing, of the wrong type,
 outside its documented range, or not among its documented choices, and when a section or a key
-is not one the loader knows — a misspelt optional key would otherwise fall back to its default
+is not one the loader knows; a misspelt optional key would otherwise fall back to its default
 without a word. The incident-energy window is additionally checked to lie inside the interval
 of its channel in [`CHANNEL_ENERGY_BOUNDS`](@ref), and the abscissa and ordinate to form an
 expressible combination whose symbols stay distinct.
@@ -668,7 +668,7 @@ function load_configuration(path::AbstractString)
     )
     # Off by default. The run record is meant to be committed by whoever consumes the data, and
     # the machine name is the one field in it that identifies a person rather than a result. The
-    # rest of the platform fingerprint — CPU model, core counts, memory, Julia version — still
+    # rest of the platform fingerprint (CPU model, core counts, memory, Julia version) still
     # attributes a run to the hardware it came from.
     record_hostname = _optional(output_section, "record_hostname", false, "output", source)
 
