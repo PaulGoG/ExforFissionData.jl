@@ -9,10 +9,10 @@ appears: Julia identifier, struct field, configuration key, directory name, file
 header, figure label, prose. `multiplicity` in a configuration is `nu` in a path; the mapping
 between the two registers is a table in `src/reaction_codes.jl`.
 
-The corollary is the rule that decides the hard cases: **a name says what the thing is, not what
-is convenient to type.** `Y_A_TKE` names three symbols and no relation between them; `Y_vs_A_TKE`
-is a statement. `Data` as a suffix carries nothing. `err` names the wrong concept for an
-uncertainty column — an error is not an uncertainty.
+It follows that a name is chosen for what the thing is, even where a shorter one would be quicker
+to type. `Y_vs_A_TKE` says that a yield is tabulated against mass and TKE, which `Y_A_TKE` does
+not; and a column of uncertainties is headed `<quantity>_uncertainty` and not `err`, because an
+error and an uncertainty are different things.
 
 The vocabulary below governs the source, the configurations, the output layout and the figures.
 Directory names, file names and column headers are written from its table, so anything reading
@@ -64,24 +64,25 @@ for instance.
 | `gamma_energy` | `E_gamma` | prompt γ energy of one fragment |
 | `gamma_mean_energy` | `eps_gamma` | mean energy of a prompt γ photon, ε_γ |
 
-A subscript is written with an underscore — `A_p`, `E_K`, `TKE_p`, `sigma_TKE`, `T_eff` — and
-never run together: `T_eff`, not `Teff`. The temperature of the fitted spectrum is `T_eff`
-because it is an effective temperature of a form, not the temperature of a nucleus.
+A subscript is set off by an underscore (`A_p`, `E_K`, `TKE_p`, `sigma_TKE`, `T_eff`) and is not
+run together with its symbol, so `T_eff` and not `Teff`. The temperature of the fitted spectrum is
+called `T_eff` because it is the effective temperature of a fitted form and not the temperature of
+a nucleus.
 
 The prompt-γ quantities follow the neutron ones: per fragment plain, per fission `_bar` for the
 multiplicity as for ν̄, and `E_gamma_tot` for the energy per fission, the field's E_γ,tot. A
 mean photon energy is `eps_gamma`, beside `eps` of the neutrons; `E_gamma_bar` would read as
 that mean and is not used.
 
-A quantity that is an abscissa in one query and an ordinate in another — the total kinetic energy
-is both — keeps one word and one symbol. [`ABSCISSA_TOKEN`](@ref) and [`ORDINATE_TOKEN`](@ref)
+A quantity that is an abscissa in one query and an ordinate in another, as the total kinetic energy
+is, keeps one word and one symbol. [`ABSCISSA_TOKEN`](@ref) and [`ORDINATE_TOKEN`](@ref)
 hold the mapping; [`ABSCISSAE`](@ref) and [`ORDINATES`](@ref) hold the vocabularies.
 
 ### Uncertainty
 
-One spelling, one position: **`<quantity>_uncertainty`**, immediately after the quantity it
-belongs to. `A nu nu_uncertainty`, never `A nu errnu`, and never a bare `uncertainty` column that
-leaves the reader to work out which quantity it belongs to.
+An uncertainty column is named **`<quantity>_uncertainty`** and stands immediately after the
+quantity it belongs to, as in `A nu nu_uncertainty`. A bare `uncertainty` column would leave the
+reader to work out which quantity it belongs to.
 
 ## Julia identifiers
 
@@ -97,31 +98,32 @@ fields.
 
 The exported API is ASCII-typeable: every public function can be called without a compose key.
 
-An action is `verb_object` — `parse_dataset`, `fetch_response`, `select_dataset`,
-`reduce_dataset`, `write_dataset`; a predicate is `is_` or `has_`; anything else is named for
-what it returns. `load_` means read and validate.
+An action is `verb_object` (`parse_dataset`, `fetch_response`, `select_dataset`, `reduce_dataset`,
+`write_dataset`), a predicate begins with `is_` or `has_`, and anything else is named for what it
+returns. `load_` means read and validate.
 
 Type names carry no `Data` suffix and no adjective standing in for a noun: a type holding one
 reduced dataset is `ReducedDataset`, and one holding an accepted dataset is `AcceptedDataset`.
 The result type of a package is `<Verb>Result`, one per package: here,
 [`RetrievalResult`](@ref).
 
-Abbreviations are permitted only where the field itself uses them (`TKE`, `EXFOR`, `sf`), and
-never as `err`, `param`, `calc`, `val`, `idx`, `num`, `cfg`, `pts`.
+Abbreviations are used only where the field itself uses them (`TKE`, `EXFOR`, `sf`); programming
+shorthand such as `err`, `param`, `idx` or `cfg` is spelled out.
 
 ## Configuration files
 
 A configuration is named `<system>_<observable>.toml`, the two tokens that name the directories
-its data is written to. Sections are `[query]`, `[retrieval]` and `[output]`, and **a key is never
-prefixed with its section's name**.
+its data is written to. Sections are `[query]`, `[retrieval]` and `[output]`, and a key is not
+prefixed with the name of its section.
 
 A key's comment states what the key is, in one short line, the enumerated choices where it is
 constrained, and the bounds and the unit; it carries no physics narrative or run rationale. The
 loader enforces exactly what the comment declares; see [Configurations](configurations.md).
 
-**A key that can only be redundant or wrong is not in the file.** The EXFOR reaction code follows
-from the entrance channel and the quantity code from the ordinate, so neither is written down; the
-target's EXFOR symbol follows from `target_Z` and `target_A`, so it is not written down either.
+A configuration holds no key whose value follows from another, since such a key could only repeat
+that value or contradict it. The EXFOR reaction code follows from the entrance channel and the
+quantity code from the ordinate, so neither is written down, and neither is the target's EXFOR
+symbol, which follows from `target_Z` and `target_A`.
 
 ## The system identifier
 
@@ -132,10 +134,9 @@ figure label key:
 <ElementSymbol><A>_<entrance channel>
 ```
 
-with the channel spelled as the field spells it and not as EXFOR codes it: `Cf252_sf`,
-`U235_nth`, `U235_nres`, and `nfast` for a fast-neutron channel. `0f` is an EXFOR reaction code,
-not a name, and the run record already carries the reaction code the archive returned for each
-dataset it accepted.
+with the channel as the field spells it: `Cf252_sf`, `U235_nth`, `U235_nres`, and `nfast` for a
+fast-neutron channel. The EXFOR spelling of the reaction, `(0,F)` or `(N,F)`, is left to the run
+record, which carries the reaction code the archive returned for each dataset it accepted.
 
 The channel distinguishes a thermal from a resonance run of one observable and gives each run a
 directory of its own under the same rule. The reaction code cannot: it is `n,f` for both, so a
@@ -159,15 +160,14 @@ the dataset's identifier: the first eight characters of an identifier are the su
 number; a ninth character marks a pointer into it. The directory carries the quantity and the file
 name the provenance, so the identifier can be recovered from a figure legend.
 
-The `vs` makes an observable name a statement, not a list of symbols. An abscissa is a
-**list** of quantities, because it is a joint index, so `["mass", "total_kinetic_energy"]` needs
-no composite token of its own and the directory follows from the same rule as every other:
-`nu_vs_A_TKE`. A quantity per fission is tabulated against nothing, its abscissa the empty list,
-and its directory is the ordinate symbol alone: `M_gamma_bar`, `E_gamma_tot`, `eps_gamma`, each
-file one row.
+The `vs` separates the ordinate from what it is tabulated against. An abscissa is a list of
+quantities, so `["mass", "total_kinetic_energy"]` needs no composite token of its own and its
+directory follows the same rule as any other: `nu_vs_A_TKE`. A quantity per fission has the empty
+list as its abscissa, and its directory is named by the ordinate symbol only: `M_gamma_bar`,
+`E_gamma_tot`, `eps_gamma`, each file holding one row.
 
-Extensions state a format and nothing else: `.dat` whitespace-separated, `.csv` comma-separated,
-`.toml` metadata. A file extension never carries a nuclide.
+An extension states the format: `.dat` for a whitespace-separated table, `.toml` for the run
+record, `.txt` for the stored subentry text.
 
 One header line, ASCII, abscissae first, then the ordinate, then its uncertainty:
 
@@ -179,8 +179,8 @@ nu P P_uncertainty
 E_gamma_tot E_gamma_tot_uncertainty
 ```
 
-**No column is named `value`.** A column named for its quantity can be read without knowing the
-file name.
+No column is named `value`: a column named for its quantity can be understood without the file
+name.
 
-Readers take columns **by position**, not by header text, so renaming a header changes nothing
-for code. Nothing downstream may depend on the header text.
+Code reading these files takes columns **by position** and not by header text, so that renaming a
+header breaks nothing downstream.

@@ -34,13 +34,13 @@ in that order, it is read from the subentry and put on the scale of the csv ordi
 `uncertainty_source` in the run record says which (`23268002` gives `ERR-S` on each of its
 30 000 cells, and the rendering on none).
 
-**One row per abscissa value.** Several things put more than one row on an abscissa value, and
-they are not handled alike:
+**One row per abscissa value.** Several causes put more than one row on an abscissa value, and
+each is treated in its own way:
 
 | Cause | Treatment |
 | :--- | :--- |
 | several incident energies | the configured window selects rows; a dataset still holding more than one energy inside it is rejected, naming them, rather than averaged |
-| another independent variable of the subentry DATA table — a kinetic-energy gate, an angle | rejected where the variable varies: a mean over gates is not the observable asked for. One held at a single value is a condition of the measurement and passes |
+| another independent variable of the subentry DATA table (a kinetic-energy gate, an angle) | rejected where the variable varies: a mean over gates is not the observable asked for. One held at a single value is a condition of the measurement and passes |
 | isomeric states | the archive's own total where it gives one, otherwise the rows of each marked state combined as repeats and the states summed with uncertainties in quadrature; a nuclide given in one marked state alone is written as that state's yield and named in the record |
 | anything left | inverse-variance weighted mean, uncertainty `1/√(Σ1/σ²)`, counted per dataset as `abscissae_combined` and named in a warning |
 
@@ -56,7 +56,7 @@ record says which of three cases applied.
 
 - **Integer masses** are written as the subentry gives them.
 - **A bin with integer edges**, `MASS-MIN` to `MASS-MAX` such as 126–127, holds each integer mass
-  from one edge to the other. The value of a mean — a kinetic energy, a multiplicity — holds for
+  from one edge to the other. A mean quantity (a kinetic energy, a multiplicity) holds for
   every mass of its bin and is written at each with its own uncertainty, which the repetition
   does not reduce; the widths are recorded as `mass_bin_widths_u`. Only bins of at most 2 u are
   placed: a wider bin averages over a part of the sawtooth where ν(A) changes by more than a
@@ -64,34 +64,35 @@ record says which of three cases applied.
   several masses is their sum and holds for none of them, so it is not written (`10865003` gives
   the yield of masses 135 and 136 together). Bins that share or split an edge mass leave open
   which bin it belongs to and are not placed.
-- **Non-integer masses** — a digitised curve, a half-integer grid — are interpolated linearly onto
+- **Non-integer masses** (a digitised curve, a half-integer grid) are interpolated linearly onto
   the integer masses within their range, separately at each value of any other abscissa quantity.
   The uncertainty is interpolated like the value, as for fully correlated neighbours, so an
   interpolated point is never more precise than the two it lies between; where either neighbour
-  has none, the interpolated uncertainty is `NaN`. Nothing is interpolated
-  across more than `mass_interpolation_span_u` = 3 u: measured tabulations sample the mass at
-  up to 2.5 u, and a wider interval is a gap in the measurement, such as the unmeasured
-  symmetric region between two branches. The integer masses in such gaps are counted as
+  has none, the interpolated uncertainty is `NaN`. Nothing is interpolated across more than
+  `mass_interpolation_span_u` = 3 u: measured tabulations sample the mass at up to 2.5 u, and a
+  wider interval is a gap in the measurement, such as the unmeasured symmetric region between two
+  branches. The integer masses in such gaps are counted as
   `mass_gaps_skipped`.
 
 Energies from a `-MIN`, `-MAX` pair contribute the midpoint of the bin, recorded as
 `abscissa_binned`.
 
-Rows that still share an abscissa value are either genuine repetition — a chain yield measured
-through several nuclides of one mass — or one measurement under different auxiliary conditions.
+Rows that still share an abscissa value are either a genuine repetition, such as a chain yield
+measured through several nuclides of one mass, or one measurement under different auxiliary
+conditions.
 They are combined, and `combined_over` in the run record names the auxiliary columns of the
 subentry, a flight path or a flag, that varied among them. The subentry stored beside the data is
 the reference.
 
 ## Selection
 
-Datasets are chosen by the codes of their EXFOR reaction code — for instance
+Datasets are chosen by the codes of their EXFOR reaction code, for instance
 `92-U-233(N,F)ELEM/MASS,CUM,FY`. The code is read into its subfields, product (SF4), branch
 (SF5), parameter (SF6), particle (SF7), modifier (SF8) and data type (SF9), each split at its
 `/` separators, and every test compares a whole code in a named subfield: `DE`, the energy
 differential of SF6, is never read inside the data type `DERIV`, nor `KE` inside `KEP`, the most
 probable value, or inside `TKE`. `AKE`, the older coding of the mean kinetic energy, is accepted
-wherever `KE` is. A combination of several reactions — a ratio, sum or difference — is never the
+wherever `KE` is. A combination of several reactions (a ratio, sum or difference) is not the
 quantity itself and is rejected, with one exception: under `spectrum_cf252_ratio`, the ratio of
 the spectrum of the system and that of 252-Cf(sf) is the quantity, and is admitted where each of
 its two reactions satisfies the rule of `spectrum` ([`spectrum_ratio`](@ref)). Which codes each
@@ -122,8 +123,8 @@ its γ-energy range, its time window and the corrections made, is read from the 
 
 The checks easiest to get wrong:
 
-- the `y:Value` column marks **bounds** with a prefix — upper limits `Max(`, lower limits `Min(`,
-  two-sided bounds `Min2Max(` — and a limit is never written as a value: such rows leave the
+- the `y:Value` column marks **bounds** with a prefix (upper limits `Max(`, lower limits `Min(`,
+  two-sided bounds `Min2Max(`), and a limit is never written as a value: such rows leave the
   table row by row, counted and listed with the bound in the record (`rows_left_out`), and a
   dataset left with no value row is refused with the count of each kind. A value the archive
   marks **approximate**, `Aprx(` (`DATA-APRX`), is written and listed per row
@@ -143,10 +144,10 @@ The checks easiest to get wrong:
   dataset frequently reports one product at several energies, and admitting all of them collapses
   an excitation function into a single number;
 - what a dataset is tabulated against is read from its **subentry DATA table** and aligned with
-  the csv rendering row by row, as described above. With the charge in the abscissa, `ELEMENT`, `MASS` or `ISOMER` held as a constant
-  of the COMMON section of the subentry or of the entry is placed beside the lines first, and the
-  constants used are recorded as `common_constants`. For the mean neutron energy the value itself
-  is compared with `DATA-CM`, to a relative 10⁻⁵;
+  the csv rendering row by row, as described above. With the charge in the abscissa, `ELEMENT`,
+  `MASS` or `ISOMER` held as a constant of the COMMON section of the subentry or of the entry is
+  placed beside the lines first, and the constants used are recorded as `common_constants`. For the
+  mean neutron energy the value itself is compared with `DATA-CM`, to a relative 10⁻⁵;
 - a heading of the subentry DATA table that the EXFOR format classes as an independent variable,
   other than the abscissa's own and the incident energy, **must not vary**. `23591005` (Straede,
   1987) is a mass yield at nine fragment kinetic energies, and projected onto mass it is nine
@@ -173,8 +174,8 @@ The checks easiest to get wrong:
 - a yield against the pre-neutron mass must carry the pre-neutron branch `PRE`, and the chain
   yield `CHN` and the provisional yield `PRV` are refused beside it. A chain yield is a
   post-neutron product mass, and a provisional mass is one derived from the two fragment energies
-  without correcting them for neutron emission; before the rule the `Y_vs_A` retrievals of the
-  four systems carried 69 chain and 5 provisional yields beside 51 pre-neutron ones. The yield
+  without correcting them for neutron emission; without the rule the `Y_vs_A` retrievals of the
+  four systems would hold more chain yields than pre-neutron ones. The yield
   against the product mass requires `SEC`, `IND` or `CHN` instead and refuses `PRE`, a chain
   yield being the post-neutron mass yield, since beta decay conserves A, up to the
   delayed-neutron transfer between neighbouring chains, below a per cent; the yield of a nuclide
@@ -192,17 +193,17 @@ The checks easiest to get wrong:
   Sb-124 five times, four samples and their average, and `33158004` (Naik 2021) the isomeric
   yield of I-136 through two decay lines. Summed, each would count one yield several times.
 
-Reaction-code qualifiers that bear on a value's scale — `MSC`, `REL`, `CHN`, `DERIV`, `FCT` — are
+Reaction-code qualifiers that bear on a value's scale (`MSC`, `REL`, `CHN`, `DERIV`, `FCT`) are
 recorded per dataset without rejecting it where the observable admits them, and so are those
 naming the inducing neutron spectrum, except that a spectrum no measurement of the channel can
 have been made in rejects the dataset; see [Entrance channels](channels.md). The record of a
 yield against the product mass states under `[conventions]` how a chain yield is read, as
 `chain_yield`, and every yield record carries `yield_sum`, the sum of the written yields.
 
-`MSC` and `DERIV` are refused on the path of the post-neutron total kinetic energy, opened in
-0.8.0. `MSC` is refused because the code then leaves the quantity to its free text: `33089003` and
-`33089004` (Choudhury 1980) are the TKE of α-accompanied ternary fission, 11 to 19 MeV below the
-binary TKE of the same experiment, `33089002`. `DERIV` is refused because it names a value formed
+`MSC` and `DERIV` are refused for the post-neutron total kinetic energy. `MSC` is refused because
+the code then leaves the quantity to its free text: `33089003` and `33089004` (Choudhury 1980) are
+the TKE of α-accompanied ternary fission, 11 to 19 MeV below the binary TKE of the same
+experiment, `33089002`. `DERIV` is refused because it names a value formed
 from other data of the experiment by a derivation the record does not hold (`416930052`). `DERIV`
 is a code of the data type, SF9 (EXFOR Dictionary 35: "data not derived from the experimental
 data by the most direct method, but are calculated from other data obtained in the analysis of
@@ -278,13 +279,13 @@ light-fragment yield. For such a dataset D = ν(A) − ν(A₀ − A), and S is 
 - **Per fragment:** |S/ν̄ − 1| ≤ 0.25, and D = 0 is rejected: D changes sign along the sawtooth,
   with a χ² per pair beyond 1 + 3√(2/n) over the n pairs that state an uncertainty. A dataset
   that states none is tested on the signs of D instead: noise about zero would order them into
-  so few runs with a probability below 0.27 %, the same three standard deviations.
+  so few runs with a probability below 0.27 %, the two-sided level of three standard deviations.
 - **Per fission:** |S/ν̄ − 2| ≤ 0.5, and D = 0 holds.
 
-Each band is a quarter of the distance between the two readings, so the reading never hinges on
-the scale. S is the pair multiplicity of each mass split and varies with it, for 252-Cf from about
-3.2 to 4.6, so only its yield-weighted mean over pairs covering the yield is ν̄. ν̄ is the total
-average neutron yield of the IAEA neutron data standards 2017
+Each band is a quarter of the value it is centred on, so the two stay a quarter of ν̄ apart and
+the reading never hinges on the scale. S is the pair multiplicity of each mass split and varies
+with it, for 252-Cf from about 3.2 to 4.6, so only its yield-weighted mean over pairs covering the
+yield is ν̄. ν̄ is the total average neutron yield of the IAEA neutron data standards 2017
 ([doi:10.1016/j.nds.2018.02.002](https://doi.org/10.1016/j.nds.2018.02.002), Table 11), or of
 ENDF/B-VIII.0 ([doi:10.1016/j.nds.2018.02.001](https://doi.org/10.1016/j.nds.2018.02.001)) at a
 fast incident energy; its delayed part, below 0.7 %, the test does not resolve.

@@ -3,7 +3,7 @@
 
 Retrieval of experimental fission observables from the IAEA EXFOR archive.
 
-A query names a fissioning system — target charge, target mass and entrance channel — and the
+A query names a fissioning system (target charge, target mass and entrance channel) and the
 observable wanted as an abscissa and an ordinate: `Y(A)`, `ν(A)`, `⟨TKE⟩(A)`, `E_K_p(A_p)`, the
 prompt fission neutron spectrum, the width σ_TKE(A), and the rest of the set in [`ABSCISSAE`](@ref) and
 [`ORDINATES`](@ref). The package selects the datasets that answer it, reduces each to one row per

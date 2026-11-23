@@ -11,8 +11,8 @@ fitted to the centre-of-mass neutron spectrum the tables `[[fit_parameter]]`. Ev
 key is validated as the file is read: a value of the wrong type, one outside its bounds, or one
 that is not among the enumerated choices stops the run with a message naming the offending key,
 so a retrieval cannot start from a configuration it cannot honour. A section or a key the loader
-does not know is refused as well — a misspelt `energy_max` would otherwise leave the window open
-to every incident energy — and so is an energy window on `sf`, which has no incident particle.
+does not know is refused as well, since a misspelt `energy_max` would otherwise leave the window
+open to every incident energy; so is an energy window on `sf`, which has no incident particle.
 
 ## Keys
 
@@ -26,9 +26,9 @@ to every incident energy — and so is an energy window on `sf`, which has no in
 | `[query]` | `energy_min` | lower edge of the incident-energy window, MeV | must lie inside the channel's interval (`nth` 0 to 1.0e-7 (0.1 eV), `nres` 1.0e-7 (0.1 eV) to 0.1, `nfast` 0.1 to 20); not allowed for `sf` | the channel's floor |
 | `[query]` | `energy_max` | upper edge of the incident-energy window, MeV | above `energy_min`; must lie inside the channel's interval (`nth` 0 to 1.0e-7 (0.1 eV), `nres` 1.0e-7 (0.1 eV) to 0.1, `nfast` 0.1 to 20); not allowed for `sf` | the channel's ceiling |
 | `[retrieval]` | `concurrency` | simultaneous requests | 1 to 16 | 4 |
-| `[retrieval]` | `timeout` | per-request timeout, seconds | positive | 60.0 |
+| `[retrieval]` | `timeout` | per-request timeout, seconds | positive, finite | 60.0 |
 | `[retrieval]` | `retries` | retry attempts after a failure | 0 to 10 | 4 |
-| `[retrieval]` | `backoff` | base of the exponential backoff, seconds | positive | 1.0 |
+| `[retrieval]` | `backoff` | base of the exponential backoff, seconds | positive, finite | 1.0 |
 | `[retrieval]` | `use_cache` | read and write the on-disk response cache | boolean | `true` |
 | `[retrieval]` | `refresh` | refetch every response and replace the cached copy; needs `use_cache` | boolean | `false` |
 | `[retrieval]` | `save_subentries` | store the original EXFOR subentry text beside the data | boolean | `true` |
@@ -36,15 +36,15 @@ to every incident energy — and so is an energy window on `sf`, which has no in
 | `[retrieval]` | `base_url` | archive endpoint every request is made relative to; a mirror may be named instead | an http or https URL ending in `/` | `"https://nds.iaea.org/exfor/"` |
 | `[retrieval]` | `offline` | serve every response from the cache and never contact the archive; needs `use_cache`, excludes `refresh` | boolean | `false` |
 | `[retrieval]` | `max_age_days` | a cached dataset response older than this is requested again, the cached copy kept as the fallback | positive number | none (never expires) |
-| `[output]` | `directory` | root for retrieved data, relative to the output root | string | `"data"` |
+| `[output]` | `directory` | root for retrieved data, relative to the output root | a relative path without `..` | `"data"` |
 | `[output]` | `significant_digits` | significant digits in tabulated output | 1 to 15 | 7 |
 | `[output]` | `record_hostname` | name the machine in the run record | boolean | `false` |
 | `[[width]]` | `subentry` | EXFOR dataset whose column holds a width | 8 characters, or 9 with its pointer; each once | required in each table |
-| `[[width]]` | `column` | DATA heading of the width | a MISC-type heading; not `DATA`, an uncertainty or a variable | required in each table |
+| `[[width]]` | `column` | DATA heading of the width | `MISC` or one of its numbered forms, `MISC1` and so on | required in each table |
 | `[[width]]` | `holds` | what the column holds | `"standard_deviation"`, `"variance"`, `"fwhm"`, `"hwhm"` | required in each table |
 | `[[width]]` | `of` | whose energy the width is of | `"total_kinetic_energy"`, `"fragment_kinetic_energy"` | required in each table |
 | `[[fit_parameter]]` | `subentry` | EXFOR dataset whose column holds the parameter | 8 characters, or 9 with its pointer; each once | required in each table |
-| `[[fit_parameter]]` | `column` | DATA heading of the parameter | a MISC-type heading; not `DATA`, an uncertainty or a variable | required in each table |
+| `[[fit_parameter]]` | `column` | DATA heading of the parameter | `MISC` or one of its numbered forms | required in each table |
 
 `[query]` and its five required keys must be present. `[retrieval]` and `[output]` may be omitted
 entirely, in which case every key they hold takes its default. `[[width]]` is required, at least
@@ -68,12 +68,16 @@ carries the retrieval date of the listing and of every dataset.
 The mass yield, the mean TKE and its width against mass, or the joint yield, are what a
 pre-neutron Y(A, TKE) is built from. Each is retrieved experiment by experiment, with the
 accession in every file name, so that a consumer can take the three marginals of one
-measurement, or its joint matrix, together. The post-neutron products — the mass yield Y(A_p),
+measurement, or its joint matrix, together. The post-neutron products (the mass yield Y(A_p),
 the independent yields Y(Z, A_p), the product kinetic energy E_K_p(A_p), the element yield Y(Z)
-and the total kinetic energy of the two products TKE_p(A_p) — are retrieved for the same four
+and the total kinetic energy of the two products TKE_p(A_p)) are retrieved for the same four
 systems under `Y_vs_A_p`, `Y_vs_Z_A_p`, `E_K_p_vs_A_p`, `Y_vs_Z` and `TKE_p_vs_A_p`. Datasets
 of one measurement name each other as `correlated_with`, with the relation of their group (see
 [Conventions and selection](conventions.md)); the lists below give the relation alone.
+
+The dataset counts on this page and on the [Observables](observables.md) page are those of the
+retrieval made for this release. The archive adds and revises entries, so a later retrieval may
+count differently, and its run record is the reference for what it considered.
 
 ### 252-Cf(sf)
 
@@ -223,7 +227,7 @@ so these configurations omit `energy_min` and `energy_max`.
 
 The companion `U235_nth_*` configurations admit thermal incident neutrons only. The GELINA
 measurements are made on a resonance-neutron beam whose spectrum-averaged energy is about 580 eV,
-so a thermal window excludes them by their own terms. The window of the configurations below is
+so a thermal window excludes them. The window of the configurations below is
 0.1 eV to 1 keV, the floor being the channel's, and admits those alone; the thermal datasets
 belong to the `nth` runs. The `nres` channel keeps the two runs apart: `U235_nres` is a system of
 its own and is written to its own directory under the ordinary rule.
@@ -453,6 +457,6 @@ The ratio to the spectrum of 252-Cf(sf), `spectrum_cf252_ratio`, is the one obse
 the ratio of two reaction codes, and is tabulated against `["neutron_energy"]` alone; the loader
 refuses any other abscissa and refuses it for 252-Cf(sf) itself. The archive gives it in both
 orientations, and each dataset is written as tabulated, its orientation in the run record. The
-ratios coded `MSC`, those outside the thermal window — `23444002` at 580 eV, `31692006` at
-100 eV, `411100091` at 2.9 to 14.7 MeV — and the ratios of 239-Pu to 235-U, `14290004` and
+ratios coded `MSC`, those outside the thermal window (`23444002` at 580 eV, `31692006` at
+100 eV, `411100091` at 2.9 to 14.7 MeV) and the ratios of 239-Pu to 235-U, `14290004` and
 `14418002`, are refused.

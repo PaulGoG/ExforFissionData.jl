@@ -41,7 +41,7 @@ up to the upper limit of the general-purpose evaluated files.
 
 ## Window rule
 
-A system is an element symbol, a mass number and an **entrance channel** — `sf` spontaneous, `nth`
+A system is an element symbol, a mass number and an **entrance channel**: `sf` spontaneous, `nth`
 thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel decides the EXFOR
 reaction code, so the configuration names the channel and never the code: the two can disagree
 only if both are written down. The window that selects datasets is `energy_min` and

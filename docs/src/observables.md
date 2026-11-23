@@ -31,10 +31,10 @@ header; the [Naming](naming.md) page gives the convention in full.
 | `gamma_energy_per_fission`, `gamma_energy` | `E_gamma_tot`, `E_gamma` | prompt γ energy, per fission and per fragment |
 | `gamma_mean_energy` | `eps_gamma` | mean energy of a prompt γ photon |
 
-An abscissa is a **list**, because it is a joint index: `["mass"]`, or
-`["mass", "total_kinetic_energy"]` for ν(A, TKE). A joint abscissa is therefore no separate
-vocabulary item, and the directory it writes to is the ordinate, `vs`, then the abscissa
-symbols — `nu_vs_A_TKE`, `Y_vs_A`, `spectrum_maxwellian_ratio_vs_E`.
+An abscissa is a **list** of quantities, since an observable may be tabulated against several at
+once: `["mass"]`, or `["mass", "total_kinetic_energy"]` for ν(A, TKE). A joint abscissa therefore
+needs no vocabulary item of its own, and the directory it writes to is named by the ordinate, `vs`,
+then the abscissa symbols: `nu_vs_A_TKE`, `Y_vs_A`, `spectrum_maxwellian_ratio_vs_E`.
 
 The eight abscissae the archive can be asked for are `["mass"]`, `["product_mass"]`, `["charge"]`,
 `["neutron_energy"]`, `["total_kinetic_energy"]`, `["charge", "product_mass"]`,
@@ -59,9 +59,9 @@ so `multiplicity_per_fission` against `["total_kinetic_energy"]` returns data wh
 mass, has no code in EXFOR. Dictionaries 34 (modifiers) and 236 (quantities) of the current
 dictionary transmission carry no quantity or modifier for a width, dispersion, variance,
 standard deviation or FWHM of a kinetic-energy distribution, and the Formats Manual leaves such a
-value to a `MISC` column explained in `MISC-COL` free text. The archive fills it inconsistently —
-a standard deviation, a variance in MeV², a FWHM, a "dispersion", of the TKE or of one fragment's
-energy — and once with no width at all.
+value to a `MISC` column explained in `MISC-COL` free text. The archive fills it inconsistently:
+with a standard deviation, a variance in MeV², a FWHM or a "dispersion", of the TKE or of one
+fragment's energy, and in one case with no width at all.
 
 The width is therefore read only from the columns a configuration names, one `[[width]]` table
 per dataset with the column, what it holds and whose energy it is (see
@@ -110,10 +110,11 @@ fragment's (`EN-SEC (E,FF)`), but its range is that of the TKE; the subentry hea
 `NO-DIM`, which the csv rendering turns into `PC/FIS/MEV`. It is read from its subentry as
 counts in arbitrary units.
 
-The archive holds slices of the joint distribution besides — yields against mass at a few fixed
-energies of one fragment or of both, and TKE distributions for a few masses. They are not the
-distribution over the fragmentation range and are not retrieved as it; the record of each
-`Y_vs_A_TKE` retrieval lists those of its system under `slices`, with their masses and energies.
+The archive also holds slices of the joint distribution: yields against mass at a few fixed
+energies of one fragment or of both, and TKE distributions for a few masses. A slice is not the
+distribution over the whole range of masses and energies and is not retrieved as one; the record of
+each `Y_vs_A_TKE` retrieval lists the slices of its system under `slices`, with their masses and
+energies.
 
 ## The mean neutron energy
 
@@ -152,7 +153,7 @@ quoted in the evidence with its DOI ([`ORDINATE_FRAMES`](@ref)). Four datasets h
 
 A dataset whose publication leaves the frame open, or for which none has been read, is recorded
 `unstated`, written, and flagged among its `qualifiers` by an entry beginning `frame unstated:`
-and in `frame_warning` under `[datasets]`; none of the shipped configurations now writes one. A
+and in `frame_warning` under `[datasets]`; none of the shipped configurations writes one. A
 value stated to be in the laboratory frame is refused, and no dataset of the shipped
 configurations is.
 
@@ -163,9 +164,9 @@ measured centre-of-mass spectrum; `fitted_spectrum`, the first moment of a form 
 `unstated`. `mean_fitted_form` gives the form where one enters, `mean_threshold_mev` and
 `mean_threshold_frame` the low-energy limit of the neutrons that enter the mean and the frame it
 is stated in, the detector threshold in the laboratory or the lower limit of the averaged
-centre-of-mass spectrum, and `mean_evidence`
-the sentence or equation, with the DOI. A threshold is recorded only from a publication read;
-what an EXFOR entry alone says of one is quoted in `mean_evidence`. Where a publication leaves open
+centre-of-mass spectrum, and `mean_evidence` the sentence or equation, with the DOI. A threshold
+is recorded only from a publication read; what an EXFOR entry alone says of one is quoted in
+`mean_evidence`. Where a publication leaves open
 whether the range below the limit enters the mean, the dataset carries a qualifier beginning
 `mean_threshold_unsettled:` and the limit is not a cut.
 
@@ -186,9 +187,9 @@ whether the range below the limit enters the mean, the dataset carries a qualifi
 The tag rule of `neutron_kinetic_energy` admits `PRE` in SF5. With `N` required in SF7 the code
 is none of the fragment energies, whose rules forbid `N`, and `PRE` beside `PR` marks the
 pre-neutron mass of the abscissa, as in `MASS,PRE/PR/FRG,NU`. `41689005` (Piksaykin 1977,
-`98-CF-252(0,F)MASS,PRE/PR,KE,N`) is coded so: a mean neutron energy of 1.08 to 1.84 MeV against
-pre-neutron masses 92 to 160 on a 4-u grid, 18 lines of which 9 carry a statistical uncertainty,
-digitised from Fig. 2 of Yad. Fiz. 25, 723 (1977).
+`98-CF-252(0,F)MASS,PRE/PR,KE,N`) is coded in this way: a mean neutron energy of 1.08 to 1.84 MeV
+against pre-neutron masses 92 to 160 on a 4-u grid, 18 lines of which 9 carry a statistical
+uncertainty, digitised from Fig. 2 of Yad. Fiz. 25, 723 (1977).
 
 No reaction-code test can tell a fragment kinetic energy coded `KE,N` from a neutron energy; its
 magnitude can. A dataset holding more than
@@ -261,8 +262,8 @@ of 252-Cf(sf), both at the same outgoing neutron energy, tabulated against `["ne
 only. Of the shape data it is the least dependent on the detector efficiency, which cancels. It
 is the one observable read from a combination of reaction codes ([`spectrum_ratio`](@ref)): the
 code must be the ratio of exactly two reactions, one the system's and one `98-CF-252(0,F)`, each
-satisfying the rule of `spectrum` — so no `MXD`, no `MSC`, no angle-differential or partial
-spectrum — with no variable headed for numerator or denominator alone (`-NM`, `-DN`). Sums,
+satisfying the rule of `spectrum` (so no `MXD`, no `MSC`, no angle-differential or partial
+spectrum), with no variable headed for numerator or denominator alone (`-NM`, `-DN`). Sums,
 differences, products, ratios of ratios and ratios between two other systems stay refused, under
 this ordinate and every other, and the ordinate is refused for 252-Cf(sf) itself.
 
@@ -279,8 +280,8 @@ author states was probably logarithmic.
 
 `multiplicity_distribution` is the probability P(ν) of emitting ν neutrons in a fission,
 tabulated against `["neutron_number"]` and written under `P_vs_nu/` as `nu P P_uncertainty`. The
-two go together and with nothing else, and the loader refuses any other pairing. The quantity
-code is `NU`, and the archive marks the distribution with the branch `NUM`: `,NUM,NU`,
+loader accepts this ordinate with this abscissa only, and refuses either with anything else. The
+quantity code is `NU`, and the archive marks the distribution with the branch `NUM`: `,NUM,NU`,
 `,PR/NUM,NU`, once `NPART,NUM,NU`. The subentry tabulates it against `PART-OUT`, the number of
 outgoing particles, which the csv rendering does not carry. The rows of the subentry and of the
 rendering are aligned by order and the probabilities compared line by line.
@@ -293,9 +294,10 @@ and flagged with a qualifier beginning `evaluation:`, with `evaluation_warning` 
 units are refused: `14064003` holds counts, and `23598004` distributions for the fragment
 charges 42 and 56.
 
-The data decide what a distribution is. The archive codes the distribution of the neutrons
-*detected* alike, and its mean is ν̄ times the detection efficiency, so a distribution whose mean
-lies further than a quarter of ν̄ from ν̄ is refused ([`MEAN_MULTIPLICITY_BAND`](@ref)):
+The archive codes the distribution of the neutrons *detected* in the same way as that of the
+neutrons emitted, so the data have to tell them apart. The mean of the former is ν̄ times the
+detection efficiency, and a distribution whose mean lies further than a quarter of ν̄ from ν̄ is
+refused ([`MEAN_MULTIPLICITY_BAND`](@ref)):
 `10300005` (Balagna 1973, mean 2.48, 0.66 ν̄), `10930004` (Halperin 1980, 1.65, 0.44 ν̄) and
 `14064002` (Hicks 1955, 1.43, 0.38 ν̄), all of 252-Cf. ν̄ is the total ν̄ of the IAEA neutron data
 standards 2017 ([doi:10.1016/j.nds.2018.02.002](https://doi.org/10.1016/j.nds.2018.02.002);
@@ -414,9 +416,10 @@ A subentry of one element may hold `ELEMENT`, and at times `MASS` or `ISOMER`, a
 its COMMON section or of the COMMON section of subentry 001 of the entry. With the charge in the
 abscissa such a constant is placed beside the lines of the DATA table before the tables are
 compared, and a rendering that then codes the product as a bare mass is accepted. The record lists
-the constants used as `common_constants`, `ELEMENT = 51.0 [NO-DIM]` for instance. Twenty-one datasets
-of 235-U, nine of 239-Pu, five of 233-U and one of 252-Cf are read so, among them `12740002`
-(Rengan 1982), `20848003` (Fujiwara 1982), `21218004` (Kaiser 1978), `21641002` (Balestrini 1979),
+the constants used as `common_constants`, `ELEMENT = 51.0 [NO-DIM]` for instance. Twenty-one
+datasets of 235-U, nine of 239-Pu, five of 233-U and one of 252-Cf are read in this way, among them
+`12740002` (Rengan 1982), `20848003` (Fujiwara 1982), `21218004` (Kaiser 1978), `21641002`
+(Balestrini 1979),
 `23709002` (Strom 1965), `30912002` (Engler 1983), `30953004` (Ehrenberg 1972), `30960002` (Shmid
 1981) and `21706004` (Zwicky 1980).
 
@@ -678,10 +681,10 @@ of entry 31729 gives the temperature of its cold beam, `KT-K` 100 K, as an incid
 
 The centre-of-mass spectrum Φ(ε) is not retrieved. The archive does not carry it as a quantity of
 its own, so a measurement in the centre of mass is compiled under the same reaction code as a
-laboratory-frame one. The subentry heads its energy column `E-CM`, and `23268009` (Göök, 2014), such a dataset, is
-rejected by `Cf252_sf_spectrum_vs_E` on that heading rather than retrieved alongside laboratory
-spectra. The refusal concerns spectra: the mean neutron energy is read from `DATA-CM` where its
-subentry heads it so.
+laboratory-frame one. The subentry of such a dataset heads its energy column `E-CM`, and `23268009`
+(Göök 2014) is rejected by `Cf252_sf_spectrum_vs_E` on that heading rather than retrieved
+alongside laboratory spectra. The refusal concerns spectra: the mean neutron energy is read from
+`DATA-CM` where its subentry heads it in that way.
 
 The prompt fission γ-ray spectrum (`0-G-0,PR,FY/DE`), the distribution of the γ multiplicity
 (`0-G-0,NUM,FY`) and the γ values of one fragment group, light or heavy, are not retrieved; the
@@ -701,8 +704,8 @@ A prompt fission neutron spectrum is conventionally measured relative and normal
 so for 235-U(n,f) most of what the archive holds is in arbitrary units: of the 125 datasets
 offered under `MFQ`, 42 answer the query in arbitrary units against 15 in absolute ones, and a
 thermal window narrows both to 11 and 6, of which `23764007` is refused for its centre-of-mass
-frame. The rest are retrieved, and **written under
-`relative/` rather than beside the absolute ones**:
+frame. The rest are retrieved, and **written under `relative/` rather than beside the
+absolute ones**:
 
 ```
 data/U235_nth/spectrum_vs_E/
@@ -715,8 +718,8 @@ data/U235_nth/spectrum_vs_E/
 A relative dataset cannot be put on a common scale with any other, relative or absolute: each has
 to be normalised on its own before it is compared, and none may be averaged with absolute data.
 Because they are kept apart, a reader that takes a whole directory cannot pick one up by
-accident. The run record marks each accepted dataset
-`relative = true` or `false` and names them all in one warning.
+accident. The run record marks each accepted dataset `relative = true` or `false` and names them
+all in one warning.
 
 This applies to the spectrum ordinates and to the joint yield Y(A, TKE) alone. A joint yield is
 recorded event by event and published as counts on a grid, and what it carries is the TKE

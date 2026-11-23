@@ -6,6 +6,57 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
+An audit with independent reviews of the selection, the curated tables and the pipeline. The
+fixes are meant to leave every table that 0.8.0 writes unchanged; the comparison of the two trees
+is made with the release.
+
+### Fixed
+
+- An incident energy on a bound of the window was decided by binary rounding: 100 keV, as
+  100000 eV times 10⁻⁶, fell short of 0.1 MeV, so a row there left the `nfast` window. The energy
+  is compared as the record states it, to fifteen significant digits.
+- The secondary energy of the rendering was held against the subentry to 10⁻⁶, and so was the
+  factor by which the rendering restates a datum, although the rendering writes six significant
+  digits. Both use the tolerance of the other comparisons, 10⁻⁵. No shipped dataset was refused on
+  it.
+- With the charge a constant of the COMMON section and the product rendered as a bare mass, a
+  bound on one isomeric state beside a value of the other aborted the retrieval; the nuclide is
+  now named with the charge of the constant.
+- Under a total-kinetic-energy abscissa, a varying `E` column beside `TKE` was not counted as a
+  variable of its own. Only the heading that carries the quantity belongs to the abscissa.
+- A ratio to the spectrum of 252-Cf(sf) whose reactions carry a scale qualifier was listed with
+  it among its `qualifiers` and left out of `scale_warning`: `416110041` and `416110021`, coded
+  `REL`.
+- A response that begins with markup, the page of a gateway answering HTTP 200 in the archive's
+  place, was parsed and cached. A listing line that is no dataset identifier was requested as a
+  dataset; it now stops the retrieval with the line quoted.
+- Two retrievals of one observable started together could be given the same directory: it is now
+  created by the step that finds it free.
+- The runs test of `scripts/complement_test.jl` multiplied binomial coefficients in 64-bit
+  integers, which overflow from 72 signs on; no reading it has made has more than 53.
+- The documentation pages named canonical addresses that do not exist; they are those of the
+  stable pages now.
+
+### Changed
+
+- `load_configuration` refuses a boolean where a number is asked for, an infinite `timeout` or
+  `backoff`, an output `directory` that is absolute or climbs out of the output root with `..`,
+  and a width or parameter column that is no `MISC` column.
+- `Query` refuses the pairings `load_configuration` refuses: a quantity against itself, the ratio
+  to 252-Cf(sf) against anything but the neutron energy or for 252-Cf(sf) itself, a prompt-γ
+  ordinate outside its abscissae, any other ordinate against nothing, and P(ν) without the number
+  of neutrons. Both go through `observable_refusal`.
+- The pipeline records as a failed retrieval only the failure of a request; an error in reading
+  what the request returned is no longer filed with them.
+- Documentation: `element_yield_method`, `ordinate_statistic` and `mass_note` are in the field
+  table of the run record, and a test holds the table to the keys of a retrieval tree; the
+  dataset counts are said to be those of the release run; the bands of the complement test are
+  described as they are, a quarter of the value each is centred on; the prose of the README and
+  of the pages is plainer.
+- The README carries the status of the Format workflow and reads the Julia version from
+  `[compat]`. CI tests the floor of `[compat]` as `min`, and JET is asserted on the current
+  stable series alone.
+
 ## [0.8.0] - 2026-11-03
 
 The element yield Y(Z) and the post-neutron total kinetic energy TKE_p(A_p), probed in 0.7.0,
@@ -1131,7 +1182,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.5.1...v0.5.2

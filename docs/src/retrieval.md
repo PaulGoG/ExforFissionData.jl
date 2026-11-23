@@ -7,7 +7,7 @@ CurrentModule = ExforFissionData
 Requests run under a bounded concurrency limit with a per-request timeout and exponential
 backoff, and responses are cached on disk: in the package's `Scratch.jl` space, under
 `~/.julia/scratchspaces/<uuid>/exfor-responses/` by default, or wherever `cache_directory` under
-`[retrieval]` points. The cache is a convenience, not a record: `Pkg.gc()` may remove a scratch
+`[retrieval]` points. The cache is only a convenience: `Pkg.gc()` may remove a scratch
 space, and a run against an empty cache fetches every response again.
 
 EXFOR revises entries, recording each alteration in the `HISTORY` of the subentry (many of those
@@ -40,8 +40,8 @@ missing from the output could not be told from one the archive does not hold.
 The record is meant to be committed beside the data and does not say who ran it: the
 configuration appears by file name, not by the path it was read from, and the machine name is
 omitted. The platform fingerprint still attributes a run to its hardware: CPU model, core counts,
-memory, Julia version. Set `record_hostname = true` under `[output]` to name
-the machine as well, which is useful when the records stay yours.
+memory, Julia version. Set `record_hostname = true` under `[output]` to name the machine as well,
+which is useful when the records stay yours.
 
 ### Fields
 
@@ -91,7 +91,7 @@ the machine as well, which is useful when the records stay yours.
 | | `uncertainty_source` | `csv`, `subentry ERR-S` and the like where the rendering carries none and the subentry does, or `none` |
 | | `uncertainty_zero_rows`, `uncertainty_absent_rows` | the lines stating a zero uncertainty, written as zero, and those stating none, written `NaN` wherever the column is written |
 | | `curation`, `archive_defects` | for a dataset read from its subentry text, the evidence, and for a multiplicity derived from fragment masses the passages of its publication; and the compilation defects whose lines were left out |
-| | `tke_grid_inference`, `mass_marginal` | further statements of a curated reading, such as the TKE grid and the mass marginal of 23268002 |
+| | `tke_grid_inference`, `mass_marginal`, `element_yield_method`, `ordinate_statistic`, `mass_note` | further statements of a curated reading: the TKE grid and the mass marginal of 23268002; how an element yield read from its publication was formed over the isotopes, fitted, summed or extrapolated; and for 33089002 that its values are most probable values and its masses provisional |
 | | `classification_basis` | for a multiplicity against mass coded without `FRG`: `data` where the complement test alone decides its reading, `data+paper` where the publication, consulted, agrees |
 | | `pair_sum_deviation`, `pair_sum_deviation_uncertainty` | for such a multiplicity tabulated on both sides of symmetry: S/(kν̄) − 1, the pair sum weighted with the light-fragment yield against ν̄ (k = 1 per fragment, 2 per fission), and its standard deviation, absent where the dataset states no uncertainty |
 | | `pair_sum_nubar` | the ν̄ the pair sum is compared with, so that S = kν̄(1 + `pair_sum_deviation`) can be formed again from the written table |
@@ -137,7 +137,7 @@ shared by several datasets, and the text stored beside it is that whole subentry
 the one the subentry codes, a digit or a letter: `30666002I` (Hsu 1981) is the independent yield
 of subentry 30666002, whose pointer `C` codes the cumulative one.
 
-Data files are space-separated with a single header line — `A nu nu_uncertainty`, or `A nu` where
+Data files are space-separated with a single header line, `A nu nu_uncertainty`, or `A nu` where
 the archive quotes no uncertainty:
 
 ```
@@ -154,9 +154,9 @@ to break anything that reads these files.
 A retrieval never writes into an existing observable directory. Where
 `<root>/<directory>/<system>/<observable>` exists (`directory` of `[output]`, `data` by default),
 it writes to `<observable>_1`, then `_2`, and so on, leaving the system directory and the root as
-they are. A consumer restaging a tree writes to a fresh
-root, or removes the old observable directory first; otherwise the new data lands beside the old
-under a suffixed name and the old directory is still the one under the plain name.
+they are. A consumer restaging a tree writes to a fresh root, or removes the old observable
+directory first; otherwise the new data lands beside the old under a suffixed name and the old
+directory is still the one under the plain name.
 
 Two retrieval trees, of two releases or of two runs, are compared file by file and record key by
 key with `scripts/compare_release_trees.jl`; `scripts/run_configurations.jl` regenerates every

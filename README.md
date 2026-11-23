@@ -1,14 +1,12 @@
 # ExforFissionData.jl
 
-[![CI](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml)
-[![Coverage](https://codecov.io/gh/PaulGoG/ExforFissionData.jl/branch/main/graph/badge.svg)](https://app.codecov.io/gh/PaulGoG/ExforFissionData.jl)
-[![Documentation (stable)](https://img.shields.io/badge/docs-stable-blue.svg)](https://PaulGoG.github.io/ExforFissionData.jl/stable/)
-[![Documentation (dev)](https://img.shields.io/badge/docs-dev-blue.svg)](https://PaulGoG.github.io/ExforFissionData.jl/dev/)
-[![Julia](https://img.shields.io/badge/Julia-1.12%2B-9558B2?logo=julia&logoColor=white)](https://julialang.org)
-[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
-[![JET](https://img.shields.io/badge/tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
-[![Code style: JuliaFormatter](https://img.shields.io/badge/code%20style-JuliaFormatter-informational)](https://github.com/domluna/JuliaFormatter.jl)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://PaulGoG.github.io/ExforFissionData.jl/stable/)
+[![CI](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/PaulGoG/ExforFissionData.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/PaulGoG/ExforFissionData.jl)
+[![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[![JET](https://img.shields.io/badge/tested%20with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
+[![Format](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/format.yml/badge.svg?branch=main)](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/format.yml?query=branch%3Amain)
+[![Julia](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FPaulGoG%2FExforFissionData.jl%2Fmain%2FProject.toml&query=%24.compat.julia&label=julia&color=9558b2)](https://julialang.org/downloads/)
 
 Retrieval of experimental fission observables from the IAEA EXFOR archive, as tabulated data
 files with a record of everything the query considered.
@@ -59,7 +57,7 @@ Documentation: <https://PaulGoG.github.io/ExforFissionData.jl/stable/>
 
 ```bash
 julia scripts/retrieve.jl config/Cf252_sf_nu_vs_A.toml             # retrieve one observable
-julia scripts/retrieve.jl config/U233_nth_Y_vs_A.toml ~/data       # elsewhere
+julia scripts/retrieve.jl config/U233_nth_Y_vs_A.toml ~/data       # into another output root
 julia scripts/run_configurations.jl ~/regen offline . --all          # every configuration, from the cache
 julia scripts/compare_release_trees.jl data ~/regen/data            # two trees, file by file, key by key
 julia scripts/complement_test.jl ~/complement                       # the complement test of ν(A)
@@ -106,12 +104,12 @@ The archive does not hold every pairing of abscissa and ordinate. Prompt multipl
 joint `Y(A, TKE)`, `23268002`; its code names no TKE and its csv rendering drops the TKE column,
 so it is read from its subentry (see
 [observables](https://PaulGoG.github.io/ExforFissionData.jl/stable/observables/#The-joint-yield-Y(A,-TKE))).
-240-Pu, the compound nucleus of 239-Pu(n_th,f), has one of spontaneous fission in raw counts,
-`22413013`.
+For 240-Pu, the compound nucleus of 239-Pu(n_th,f), the archive holds the joint yield of spontaneous
+fission in raw counts, `22413013`.
 
 ## What it is for
 
-A query names a fissioning system — target charge, target mass and entrance channel — and the
+A query names a fissioning system (target charge, target mass and entrance channel) and the
 observable wanted as an abscissa and an ordinate. The package finds the datasets that answer it,
 reduces each to one row per abscissa value, and writes them beside a run record naming every
 dataset it kept or excluded, with the reason.
@@ -186,8 +184,9 @@ products against the product mass. The post-neutron mass yield admits the chain 
 radiochemistry beside the yields of the physical methods, since beta decay conserves A, and flags
 them in the record. The independent yields are read from the `ELEMENT`, `MASS` and `ISOMER`
 headings of the subentry, or from constants of its COMMON section, and a nuclide reported in
-several isomeric states is written once, with what was done recorded per dataset. Fractional yields, yields of correlated
-fragment pairs and partial yields at one product kinetic energy are refused. The archive holds no
+several isomeric states is written once, with what was done recorded per dataset. Fractional
+yields, yields of correlated fragment pairs and partial yields at one product kinetic energy are
+refused. The archive holds no
 mass-resolved post-neutron kinetic energy for 252-Cf, so `Cf252_sf_E_K_p_vs_A_p` writes nothing.
 The element yield is the total independent yield of an element over its isotopes, summed or
 fitted; a sum over the measured isotopes alone is refused by name, and the method of the yields
@@ -201,9 +200,9 @@ photon energy per fission are written one value to a file. Against fragment mass
 holds values of one fragment and values per fission for 252-Cf and 235-U; against TKE and the
 number of neutrons, for 252-Cf alone. A prompt-γ value is defined by the γ-energy range its
 photons were counted over, the time window after fission and the corrections made, and these
-move the total energy by up to about 1 MeV between experiments. Each record states them as the
-entry or its publication does and names the datasets for which nobody states them. A set over a
-partial or a limited range is written and flagged, not cut.
+move the total energy by up to about 1 MeV between experiments. Each record quotes them from the
+entry or its publication and lists the datasets for which neither gives them. A set counted over a
+partial or limited range is written and flagged as such.
 
 A system is an element symbol, a mass number and an **entrance channel**: `sf` spontaneous, `nth`
 thermal-neutron-induced, `nres` resonance-region, `nfast` fast. The channel fixes the EXFOR
@@ -236,7 +235,7 @@ rows of the two are aligned by order and the probabilities compared line by line
 each distribution is recorded against the ν̄ of the IAEA neutron data standards 2017, and a
 distribution whose mean lies further than a quarter of ν̄ from it is refused as that of the
 neutrons detected rather than emitted. An evaluation the archive holds under the same code is
-written and flagged, not refused.
+written and flagged as one.
 
 The `spectrum_maxwellian_ratio_vs_E` configurations retrieve the spectrum as a ratio to a
 Maxwellian for 252-Cf(sf) and for thermal 235-U, 233-U and 239-Pu, coded with `MXD`, which the
@@ -245,8 +244,8 @@ record gives. The `spectrum_cf252_ratio_vs_E` configurations retrieve the ratio 
 spectrum to that of 252-Cf(sf), the one observable read from a combination of two reaction codes,
 written in whichever orientation the archive tabulates it.
 
-Spectra are the one quantity the archive lists more of for 252-Cf than for 235-U, 156 datasets
-against 125, the spontaneous-fission spectrum being a reference standard, and no incident-energy
+Spectra are the only quantity for which the archive lists more datasets for 252-Cf than for 235-U,
+156 against 125: the spontaneous-fission spectrum is a reference standard, and no incident-energy
 window narrows the 252-Cf set.
 
 Every configuration, key by key, is in [the documentation](https://PaulGoG.github.io/ExforFissionData.jl/stable/configurations/).
@@ -295,9 +294,9 @@ data/Cf252_sf/nu_vs_A/
     └── 41425014_A.S.Vorobiev_2001.txt    # the original EXFOR subentry
 ```
 
-Data files are space-separated with a single header line — `A nu nu_uncertainty`, or `A nu` where
-the archive quotes no uncertainty. Where it quotes one on some rows only, the others hold `NaN`,
-never zero:
+Data files are space-separated with a single header line, `A nu nu_uncertainty`, or `A nu` where
+the archive quotes no uncertainty. Where it quotes one on some rows only, the other rows hold `NaN`
+and not zero:
 
 ```
 A nu nu_uncertainty
@@ -410,6 +409,7 @@ ExforFissionData.jl/
 │   ├── neutron_energy_tests.jl  # the mean neutron energy of a fragment, its frame and formation
 │   ├── spectrum_tests.jl        # spectra, the two ratios, the fitted-spectrum parameters
 │   ├── curation_tests.jl        # correlation groups, preliminary and superseded datasets
+│   ├── edge_case_tests.jl       # window bounds, rendering digits, foreign responses, refused values
 │   └── quality_tests.jl         # Aqua, JET, ExplicitImports
 └── .github/
     ├── dependabot.yml           # weekly updates for the julia and github-actions ecosystems

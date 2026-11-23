@@ -7,7 +7,7 @@ CurrentModule = ExforFissionData
 Retrieval of experimental fission observables from the IAEA EXFOR archive, as tabulated data
 files with a record of everything the query considered.
 
-A query names a fissioning system — target charge, target mass and entrance channel — and the
+A query names a fissioning system (target charge, target mass and entrance channel) and the
 observable wanted as an abscissa and an ordinate. The package finds the datasets that answer it,
 reduces each to one row per abscissa value, and writes them beside a run record naming every
 dataset it kept or excluded, with the reason.

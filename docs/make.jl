@@ -15,7 +15,8 @@ makedocs(;
     authors = "Paul-Adrian Gogîță",
     sitename = "ExforFissionData.jl",
     format = Documenter.HTML(;
-        canonical = "https://PaulGoG.github.io/ExforFissionData.jl",
+        # The stable pages are the canonical ones; every version is deployed beside them.
+        canonical = "https://PaulGoG.github.io/ExforFissionData.jl/stable",
         edit_link = "main",
         assets = String[],
         # The internals page is the private docstrings in full and exceeds the default warning
