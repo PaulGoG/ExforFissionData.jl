@@ -20,6 +20,29 @@ function unused_path(path::AbstractString)
 end
 
 """
+    reserve_directory(path) -> String
+
+Create the directory `path`, or the first of [`unused_path`](@ref) that is free, and return it.
+
+The directory is created by the step that finds it free, so two retrievals started together are
+never given the same one: the second finds the name taken and moves to the next suffix.
+"""
+function reserve_directory(path::AbstractString)
+    mkpath(dirname(path))
+    while true
+        candidate = unused_path(path)
+        try
+            mkdir(candidate)
+            return candidate
+        catch exception
+            # Taken between the test and the creation: the next free name is tried. Any other
+            # failure leaves no directory behind and is not this one.
+            exception isa Base.IOError && ispath(candidate) || rethrow()
+        end
+    end
+end
+
+"""
     dataset_stem(dataset) -> String
 
 The file stem of one dataset: identifier, first author and year, e.g.
@@ -419,10 +442,19 @@ function _dataset_warnings!(
 )
     datasets = record["datasets"]
     units = datasets["units_present"]
+    # A ratio carries the qualifiers of its two reactions, as its `qualifiers` do.
+    codes(dataset) = [
+        dataset.reaction_code
+        [
+            dataset.record[key] for key in ("ratio_numerator", "ratio_denominator") if
+            haskey(dataset.record, key)
+        ]
+    ]
     flagged = [
         entry.dataset.identifier for entry in accepted if any(
-            tag -> has_code(entry.dataset.reaction_code, qualifier_tag(tag)),
-            keys(SCALE_QUALIFIERS),
+            code ->
+                any(tag -> has_code(code, qualifier_tag(tag)), keys(SCALE_QUALIFIERS)),
+            codes(entry.dataset),
         )
     ]
     off_scale = [

@@ -24,9 +24,9 @@ ordinate = "total_kinetic_energy_dispersion"
 
 [retrieval]
 concurrency = 4         # simultaneous requests, 1 to 16
-timeout = 60.0          # per-request timeout in seconds, positive
+timeout = 60.0          # per-request timeout in seconds, positive and finite
 retries = 4             # retry attempts after a failure, 0 to 10
-backoff = 1.0           # base of the exponential backoff in seconds, positive
+backoff = 1.0           # base of the exponential backoff in seconds, positive and finite
 use_cache = true        # read and write the on-disk response cache
 refresh = false         # refetch every response and replace the cached copy; needs use_cache, excludes offline
 offline = false         # serve every response from the cache; needs use_cache, excludes refresh
@@ -42,7 +42,7 @@ significant_digits = 7  # significant digits in tabulated output, 1 to 15
 
 [[width]]                # a column holding a width, one table per dataset
 subentry = "23268004"   # EXFOR dataset identifier, 8 characters, or 9 with its pointer
-column = "MISC"         # DATA heading of the width; not DATA or an uncertainty column
+column = "MISC"         # DATA heading of the width, a MISC heading
 holds = "standard_deviation" # one of: "standard_deviation" | "variance" | "fwhm" | "hwhm"
 of = "total_kinetic_energy" # one of: "total_kinetic_energy" | "fragment_kinetic_energy"
 

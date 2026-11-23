@@ -255,7 +255,7 @@ const DATUM_UNCERTAINTY_HEADINGS = ("DATA-ERR", "ERR-T", "ERR-S")
 
 The factor by which the csv rendering restates the subentry DATA values `datum` as its
 `ordinate`, line by line, when it is one factor on every line with both present and a non-zero
-datum, within a relative 1e-6; `nothing` otherwise, or when no line has both.
+datum, within [`RENDERING_TOLERANCE`](@ref); `nothing` otherwise, or when no line has both.
 """
 function rendering_scale(ordinate::AbstractVector, datum::AbstractVector)
     ratios = [
@@ -264,7 +264,7 @@ function rendering_scale(ordinate::AbstractVector, datum::AbstractVector)
     ]
     isempty(ratios) && return nothing
     scale = median(ratios)
-    all(r -> isapprox(r, scale; rtol = 1.0e-6), ratios) || return nothing
+    all(r -> isapprox(r, scale; rtol = RENDERING_TOLERANCE), ratios) || return nothing
     return scale
 end
 

@@ -120,13 +120,16 @@ response to cache: an entry is otherwise fetched at most once, so storing one si
 that dataset from every later run.
 
 The archive also answers a request for an identifier it does not know with a message beginning
-`-?-` (`-?-No such data in the database-`); that body is not usable either.
+`-?-` (`-?-No such data in the database-`); that body is not usable either. Nor is one that
+begins with markup: no response of the archive does, so it is the page of a gateway or a proxy
+answering in its place.
 """
 function is_usable_response(body::AbstractString)
     trimmed = strip(body)
     isempty(trimmed) && return false
     startswith(trimmed, "No EXFOR file") && return false
     startswith(trimmed, "-?-") && return false
+    startswith(trimmed, '<') && return false
     return true
 end
 
@@ -295,6 +298,12 @@ function fetch_response(
 end
 
 """
+A dataset identifier as a listing gives it: the eight characters of a subentry, or nine with a
+pointer, digits and capital letters (`23268002`, `400170021`, `30666002I`, `V0045011`).
+"""
+const IDENTIFIER_PATTERN = r"^[0-9A-Z]{8,9}$"
+
+"""
     dataset_identifiers(target, reaction, quantity, options) -> Listing
 
 Identifiers of every EXFOR dataset matching a target, reaction and quantity, as a
@@ -304,6 +313,10 @@ Identifiers of every EXFOR dataset matching a target, reaction and quantity, as 
 `quantity` is an EXFOR quantity code such as `"FY"` or `"NU"`. The identifiers are returned
 sorted, so that everything downstream is independent of the order the service happens to use.
 The listing is requested on every run that is not offline; see [`fetch_response`](@ref).
+
+An empty listing is an answer, the archive holding nothing under the query. A line that is no
+identifier (see [`IDENTIFIER_PATTERN`](@ref)) is not: the archive, or something in front of it,
+answered with a message, and an error is thrown that quotes the line.
 
 # Example
 
@@ -325,6 +338,12 @@ function dataset_identifiers(
     for line in eachline(IOBuffer(response.body))
         token = strip(line)
         isempty(token) && continue
+        # Requested as a dataset, a message would come back as one more rejection and hide that
+        # the listing itself failed.
+        occursin(IDENTIFIER_PATTERN, token) || error(
+            "the archive answered the listing $(query) with a line that is no dataset \
+             identifier: $(repr(first(token, 80)))",
+        )
         push!(identifiers, String(token))
     end
     return Listing(sort!(identifiers), response.retrieved, response.from_cache)

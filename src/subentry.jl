@@ -534,17 +534,28 @@ function abscissa_columns(data::SubentryColumns, quantity::AbstractString)
 end
 
 """
-    covered_headings(abscissa) -> Set{String}
+    covered_headings(abscissa, headings) -> Set{String}
 
-Every heading of [`ABSCISSA_HEADINGS`](@ref) for the quantities of `abscissa`, the value
-heading and both bin headings, together with `ISOMER` when the charge is among them: the isomer
-is part of the product identification the charge abscissa resolves.
+The headings among `headings`, those of a DATA table, that carry the quantities of `abscissa`:
+for each quantity the first of its value headings in [`ABSCISSA_HEADINGS`](@ref) that the table
+holds, and both bin headings, together with `ISOMER` when the charge is among the quantities,
+the isomer being part of the product identification the charge abscissa resolves.
+
+A second value heading beside the one that carries the quantity is not covered: with `TKE`
+present, `E` is the energy of one fragment and a variable of its own. Where the table holds
+none of the value headings, all of them are covered.
 """
-function covered_headings(abscissa::AbstractVector{<:AbstractString})
+function covered_headings(
+    abscissa::AbstractVector{<:AbstractString},
+    headings::AbstractVector{<:AbstractString},
+)
     covered = Set{String}()
     for quantity in abscissa
         value_headings, bin_headings = ABSCISSA_HEADINGS[quantity]
-        union!(covered, value_headings, bin_headings)
+        union!(covered, bin_headings)
+        carrying = findfirst(in(headings), value_headings)
+        carrying === nothing ? union!(covered, value_headings) :
+        push!(covered, value_headings[carrying])
     end
     "charge" in abscissa && push!(covered, "ISOMER")
     return covered
@@ -575,7 +586,7 @@ julia> varying_columns(data, ["mass"])
 ```
 """
 function varying_columns(data::SubentryColumns, abscissa::AbstractVector{<:AbstractString})
-    covered = covered_headings(abscissa)
+    covered = covered_headings(abscissa, data.headings)
     varying = String[]
     for (heading, unit, values) in zip(data.headings, data.units, data.values)
         heading in covered && continue

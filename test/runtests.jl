@@ -71,5 +71,6 @@ include("fixtures.jl")
     include("neutron_energy_tests.jl")
     include("spectrum_tests.jl")
     include("curation_tests.jl")
+    include("edge_case_tests.jl")
     include("quality_tests.jl")
 end

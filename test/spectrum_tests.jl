@@ -459,6 +459,9 @@
         @test entries["10000002"]["ratio_orientation"] == "reference_over_system"
         @test "MXW: Maxwellian-averaged" in entries["10000002"]["qualifiers"]
         @test any(startswith("REL:"), entries["10000003"]["qualifiers"])
+        # A qualifier of either reaction that bears on the scale names the dataset.
+        @test occursin("10000003", record["datasets"]["scale_warning"])
+        @test !occursin("10000002", record["datasets"]["scale_warning"])
         @test haskey(record["datasets"], "orientation_warning")
         @test haskey(record["conventions"], "ratio")
 

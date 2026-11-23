@@ -421,7 +421,7 @@ of = "$(of)"
         # The message of the refusal of the configuration `text`.
         refusal(text) = error_message(() -> load_configuration_text(text))
         # A mean is never read as a width, nor an uncertainty or a variable.
-        for column in ("DATA", "DATA-ERR", "ERR-S", "MASS", "TKE")
+        for column in ("DATA", "DATA-ERR", "ERR-S", "MASS", "TKE", "MONIT", "FLAG")
             @test occursin("width", refusal(base * entry(; column = column)))
         end
         @test occursin("one of", refusal(base * entry(; holds = "rms")))

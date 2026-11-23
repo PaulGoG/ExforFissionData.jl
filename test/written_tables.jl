@@ -14,6 +14,9 @@
 # `PRELIMINARY_SUBENTRIES`, and none else. A `DEP` code naming a dataset written in the same
 # directory puts the two in one correlation group of relation `dependent`.
 #
+# Every key the records of the tree hold is named in the field table of docs/src/retrieval.md,
+# so that a key added to the record and not to the table shows here.
+#
 # The tree is the directory named by EXFORFISSIONDATA_TREE, else the repository's own data/.
 # Without one, as in continuous integration, the check is skipped.
 
@@ -162,6 +165,25 @@ if isdir(TREE)
         @test isempty(subentries)
         @test isempty(dependent)
         @info "flags checked against the STATUS codes of the stored subentries" tree = TREE checked
+    end
+    @testset "record keys of $(TREE) named in the documentation" begin
+        documentation = joinpath(dirname(@__DIR__), "docs", "src", "retrieval.md")
+        if isfile(documentation)
+            text = read(documentation, String)
+            unnamed = Set{String}()
+            for (directory, _, files) in walkdir(TREE)
+                "retrieval.toml" in files || continue
+                record = TOML.parsefile(joinpath(directory, "retrieval.toml"))
+                for (section, content) in record
+                    tables = content isa AbstractDict ? [content] : content
+                    for table in tables, key in keys(table)
+                        occursin("`$(key)`", text) || push!(unnamed, "$(section).$(key)")
+                    end
+                end
+            end
+            @test isempty(unnamed)
+            isempty(unnamed) || @info "record keys the documentation does not name" unnamed
+        end
     end
 else
     @info "no retrieval tree at $(TREE); the written tables are not checked"

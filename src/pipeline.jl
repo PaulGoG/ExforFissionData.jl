@@ -176,13 +176,14 @@ function _explain_empty_renderings!(
     # (NODATA), or it holds a DATA table and the rendering alone is empty.
     isempty(empties) && return rejected
     explanations = map_bounded([rejected[i].identifier for i in empties], options) do id
-        outcome =
-            _attempt(() -> empty_rendering_reason(id, subentry_text(id, options).body))
-        outcome isa Exception ?
+        # The request alone is attempted: a failure in reading the text it returns is a defect
+        # of this package and is not to be recorded as a failed retrieval.
+        response = _attempt(() -> subentry_text(id, options))
+        response isa Exception ?
         _failure_reason(
             "$(EMPTY_RENDERING); the subentry could not be retrieved to say why: ",
-            outcome,
-        ) : outcome
+            response,
+        ) : empty_rendering_reason(id, response.body)
     end
     for (i, reason) in zip(empties, explanations)
         rejected[i] = Rejection(rejected[i].identifier, rejected[i].reaction_code, reason)
@@ -304,11 +305,10 @@ function _note_unadmitted!(
     # Values stated outside the DATA column without an uncertainty: kept in the reasons.
     values = unadmitted_values(query)
     notes = map_bounded(values, options) do value
-        outcome = _attempt(
-            () -> unadmitted_note(value, subentry_text(value.identifier, options).body),
-        )
-        outcome isa Exception ?
-        _failure_reason("retrieval of the subentry failed: ", outcome) : outcome
+        response = _attempt(() -> subentry_text(value.identifier, options))
+        response isa Exception ?
+        _failure_reason("retrieval of the subentry failed: ", response) :
+        unadmitted_note(value, response.body)
     end
     # Merged in the order of the values, so that two notes on one dataset keep their order.
     for (value, note) in zip(values, notes)
@@ -355,7 +355,7 @@ function _write_retrieval(
     # One directory per system, one subdirectory per observable, the measurements directly
     # inside it. The absolute data needs no directory of its own: naming a path segment `data`
     # inside a `data` root says nothing the path does not already say.
-    directory = unused_path(
+    directory = reserve_directory(
         joinpath(
             root,
             configuration.output_directory,
@@ -363,7 +363,6 @@ function _write_retrieval(
             observable_label(query),
         ),
     )
-    mkpath(directory)
     # Datasets in arbitrary units are kept apart from absolute ones, and the directory is created
     # only if any arrive. A relative measurement cannot be put on a common scale with anything —
     # not even another relative measurement — so a consumer that reads a directory wholesale must

@@ -487,8 +487,9 @@ function screen_dataset(
         energies = table[!, COL_INCIDENT_ENERGY]
         keep = BitVector(map(energies) do value
             ismissing(value) && return false
-            energy = Float64(value) * EV_TO_MEV
-            query.energy_min ≤ energy ≤ query.energy_max
+            # Rounded as the record states it: in binary, 100000 eV times 1e-6 falls just short
+            # of 0.1 MeV, and a row on a bound of the window would leave it.
+            query.energy_min ≤ energy_mev_from_ev(value) ≤ query.energy_max
         end)
         if !any(keep)
             present = collect(skipmissing(energies))
@@ -584,9 +585,13 @@ function _misalignment(table::DataFrame, data::SubentryColumns; bare_charge::Boo
     for i in 1:nrow(table)
         value = data.values[e][i]
         (ismissing(secondary[i]) || ismissing(value)) && continue
-        isapprox(secondary[i] * EV_TO_MEV, value * factor; rtol = 1.0e-6, atol = 1.0e-12) ||
-            return "row $(i): csv x3(eV) $(secondary[i]) against subentry \
-                    $(data.headings[e]) $(value)"
+        isapprox(
+            secondary[i] * EV_TO_MEV,
+            value * factor;
+            rtol = RENDERING_TOLERANCE,
+            atol = 1.0e-12,
+        ) || return "row $(i): csv x3(eV) $(secondary[i]) against subentry \
+                     $(data.headings[e]) $(value)"
     end
     return nothing
 end
@@ -798,6 +803,8 @@ function select_dataset(
     # is a column of the DATA table in all but layout, and is placed beside the lines before the
     # two tables are compared. The rendering may or may not have coded the charge into ProdZA.
     constants = String[]
+    # The charge the COMMON section gives, where it gives one.
+    common_charge = nothing
     if "charge" in query.abscissa
         for heading in ("ELEMENT", "MASS", "ISOMER")
             column(data, heading) === nothing || continue
@@ -805,9 +812,10 @@ function select_dataset(
             constant === nothing && continue
             data = with_constant(data, heading, constant[2], constant[1])
             push!(constants, "$(heading) = $(constant[1]) [$(constant[2])]")
+            heading == "ELEMENT" && (common_charge = round(Int, constant[1]))
         end
     end
-    charge_constant = any(startswith("ELEMENT"), constants)
+    charge_constant = common_charge !== nothing
     # A column holding an abscissa quantity under another heading than the standard one is read
     # as that quantity where its entry has been read for it.
     heading_reading = get(ABSCISSA_HEADING_READINGS, identifier, nothing)
@@ -933,9 +941,12 @@ function select_dataset(
     # the single state written and the bound left out name each other.
     if "charge" in query.abscissa && !isempty(screened.left_out_marked)
         written = Set(round(Int, p) for p in skipmissing(table[!, COL_PRODUCT_ZA]))
+        # A product the rendering codes as a bare mass takes its charge from the COMMON section;
+        # without one it names no nuclide, and the product test below refuses the dataset.
+        charge_of(za) = za ≥ CHARGE_CODED_MINIMUM ? za ÷ ZA_CHARGE_FACTOR : common_charge
         states = unique([
-            nuclide_label(za ÷ ZA_CHARGE_FACTOR, za % ZA_CHARGE_FACTOR) for
-            za in screened.left_out_marked if za in written
+            nuclide_label(charge_of(za), za % ZA_CHARGE_FACTOR) for
+            za in screened.left_out_marked if za in written && charge_of(za) !== nothing
         ])
         isempty(states) || (record["isomer_states_left_out"] = states)
     end

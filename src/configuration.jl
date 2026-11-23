@@ -5,6 +5,75 @@
 # offending key.
 
 """
+    observable_refusal(target_Z, target_A, channel, abscissa, ordinate;
+        abscissa_key = "abscissa", ordinate_key = "ordinate") -> Union{String,Nothing}
+
+Why `ordinate` cannot be tabulated against `abscissa` for the system, or `nothing` when it can.
+`abscissa` is one of [`ABSCISSAE`](@ref) and `ordinate` one of [`ORDINATES`](@ref).
+
+The tags can express each of these pairings, and none is an observable:
+
+- a quantity against itself, ⟨TKE⟩ against TKE, which would write two columns of one name;
+- the ratio to the spectrum of 252-Cf(sf) against anything but the outgoing neutron energy, or
+  for 252-Cf(sf) itself;
+- a prompt-γ ordinate against an abscissa outside [`GAMMA_OBSERVABLES`](@ref), and any other
+  ordinate against nothing;
+- the distribution P(ν) against anything but the number of neutrons, and that number under any
+  ordinate but the distribution and the total prompt-γ energy.
+
+`abscissa_key` and `ordinate_key` name the two in the reason, as `[query].abscissa` and
+`[query].ordinate` for a configuration file. [`Query`](@ref) and [`load_configuration`](@ref)
+both refuse on this function, so a query built by hand and one read from a file obey one rule.
+"""
+function observable_refusal(
+    target_Z::Integer,
+    target_A::Integer,
+    channel::AbstractString,
+    abscissa::AbstractVector{<:AbstractString},
+    ordinate::AbstractString;
+    abscissa_key::AbstractString = "abscissa",
+    ordinate_key::AbstractString = "ordinate",
+)
+    # One symbol names one column, so an ordinate may not repeat a quantity it is tabulated
+    # against.
+    ORDINATE_TOKEN[ordinate] in [ABSCISSA_TOKEN[quantity] for quantity in abscissa] && return "$(ordinate_key) \"$(ordinate)\" is already among $(abscissa_key) \
+                $(abscissa); a quantity cannot be tabulated against itself"
+
+    # A ratio to the spectrum of 252-Cf(sf) is tabulated against the outgoing neutron energy,
+    # and is of another system than the reference.
+    if ordinate == REFERENCE_RATIO_ORDINATE
+        abscissa == ["neutron_energy"] ||
+            return "$(ordinate_key) \"$(ordinate)\" is tabulated against \
+                    [\"neutron_energy\"] alone, not $(abscissa)"
+        (target_Z, target_A, channel) == (98, 252, "sf") &&
+            return "$(ordinate_key) \"$(ordinate)\" is the ratio to the spectrum of \
+                    252-Cf(sf), which cannot be the system itself"
+    end
+
+    # A prompt-γ ordinate is retrieved against the abscissae of GAMMA_OBSERVABLES alone, and
+    # only a quantity per fission is tabulated against nothing.
+    if ordinate in GAMMA_ORDINATES
+        abscissa in GAMMA_OBSERVABLES[ordinate] ||
+            return "$(ordinate_key) \"$(ordinate)\" is retrieved against \
+                    $(join(map(repr, GAMMA_OBSERVABLES[ordinate]), ", ")), not $(abscissa)"
+    elseif isempty(abscissa)
+        return "$(abscissa_key) must name at least one quantity for ordinate \
+                \"$(ordinate)\"; only the prompt-γ quantities per fission take none"
+    end
+
+    # A distribution over the number of neutrons is tabulated against that number, and nothing
+    # else is but the total prompt-γ energy, which a fission emitting that many neutrons
+    # releases.
+    if ordinate != "gamma_energy_per_fission" &&
+       (ordinate == DISTRIBUTION_ORDINATE) != (abscissa == ["neutron_number"])
+        return "$(ordinate_key) \"$(DISTRIBUTION_ORDINATE)\" and $(abscissa_key) \
+                [\"neutron_number\"] go together and with nothing else, got \
+                \"$(ordinate)\" against $(abscissa)"
+    end
+    return nothing
+end
+
+"""
     Query(target_Z, target_A, channel, abscissa, ordinate, energy_min, energy_max)
     Query(target_Z, target_A, channel, reaction, quantity, abscissa, ordinate, energy_min,
           energy_max, spontaneous)
@@ -39,6 +108,8 @@ takes them as given and checks that they agree with `channel` and `ordinate`. Ei
   `0 ≤ energy_min ≤ energy_max`.
 - `ArgumentError` from [`tag_rule`](@ref) when the abscissa and the ordinate both impose
   alternative tags, a combination no selection can express.
+- `ArgumentError` with the reason of [`observable_refusal`](@ref) when the ordinate cannot be
+  tabulated against the abscissa.
 """
 struct Query
     target_Z::Int
@@ -122,6 +193,8 @@ struct Query
         )
         # Rejects an abscissa and ordinate that cannot both impose alternative tags.
         tag_rule(abscissa, ordinate)
+        refusal = observable_refusal(target_Z, target_A, channel, abscissa, ordinate)
+        refusal === nothing || throw(ArgumentError("Query: $(refusal)"))
         return new(
             target_Z,
             target_A,
@@ -265,7 +338,8 @@ function _require(
     haskey(section, key) ||
         throw(ArgumentError("$(source): [$(path)] is missing the required key `$(key)`"))
     value = section[key]
-    value isa T || throw(
+    # Julia counts `Bool` among the integers; a configuration does not.
+    (value isa T && (T === Bool || !(value isa Bool))) || throw(
         ArgumentError(
             "$(source): [$(path)].$(key) must be $(T), got $(typeof(value)) ($(repr(value)))",
         ),
@@ -303,7 +377,7 @@ function _optional(
 ) where {T}
     haskey(section, key) || return default
     value = section[key]
-    if T === Float64 && value isa Integer
+    if T === Float64 && value isa Integer && !(value isa Bool)
         return Float64(value)
     end
     value isa T || throw(
@@ -428,65 +502,18 @@ function load_configuration(path::AbstractString)
     # this as well; it is kept here so that the faults of a file are reported in this order.
     tag_rule(abscissa, ordinate)
 
-    # One symbol names one column, so an ordinate may not repeat a quantity it is tabulated
-    # against. ⟨TKE⟩ against TKE is the pairing this catches; it is expressible by tags and
-    # would write two columns called TKE.
-    ordinate_token = ORDINATE_TOKEN[ordinate]
-    ordinate_token in [ABSCISSA_TOKEN[quantity] for quantity in abscissa] && throw(
-        ArgumentError(
-            "$(source): [query].ordinate \"$(ordinate)\" is already among [query].abscissa \
-             $(abscissa); a quantity cannot be tabulated against itself",
-        ),
+    # The pairings no observable answers to; `Query` refuses them as well, and they are named
+    # here by the keys of the file.
+    refusal = observable_refusal(
+        target_Z,
+        target_A,
+        channel,
+        abscissa,
+        ordinate;
+        abscissa_key = "[query].abscissa",
+        ordinate_key = "[query].ordinate",
     )
-
-    # A ratio to the spectrum of 252-Cf(sf) is tabulated against the outgoing neutron energy,
-    # and is of another system than the reference.
-    if ordinate == REFERENCE_RATIO_ORDINATE
-        abscissa == ["neutron_energy"] || throw(
-            ArgumentError(
-                "$(source): [query].ordinate \"$(ordinate)\" is tabulated against \
-                 [\"neutron_energy\"] alone, not $(abscissa)",
-            ),
-        )
-        (target_Z, target_A, channel) == (98, 252, "sf") && throw(
-            ArgumentError(
-                "$(source): [query].ordinate \"$(ordinate)\" is the ratio to the spectrum of \
-                 252-Cf(sf), which cannot be the system itself",
-            ),
-        )
-    end
-
-    # A prompt-γ ordinate is retrieved against the abscissae of GAMMA_OBSERVABLES alone, and
-    # only a quantity per fission is tabulated against nothing.
-    if ordinate in GAMMA_ORDINATES
-        abscissa in GAMMA_OBSERVABLES[ordinate] || throw(
-            ArgumentError(
-                "$(source): [query].ordinate \"$(ordinate)\" is retrieved against \
-                 $(join(map(repr, GAMMA_OBSERVABLES[ordinate]), ", ")), not $(abscissa)",
-            ),
-        )
-    elseif isempty(abscissa)
-        throw(
-            ArgumentError(
-                "$(source): [query].abscissa must name at least one quantity for ordinate \
-                 \"$(ordinate)\"; only the prompt-γ quantities per fission take none",
-            ),
-        )
-    end
-
-    # A distribution over the number of neutrons is tabulated against that number, and nothing
-    # else is but the total prompt-γ energy, which a fission emitting that many neutrons
-    # releases.
-    if ordinate != "gamma_energy_per_fission" &&
-       (ordinate == DISTRIBUTION_ORDINATE) != (abscissa == ["neutron_number"])
-        throw(
-            ArgumentError(
-                "$(source): [query].ordinate \"$(DISTRIBUTION_ORDINATE)\" and \
-                 [query].abscissa [\"neutron_number\"] go together and with nothing else, \
-                 got \"$(ordinate)\" against $(abscissa)",
-            ),
-        )
-    end
+    refusal === nothing || throw(ArgumentError("$(source): $(refusal)"))
 
     retrieval_section = get(table, "retrieval", Dict{String, Any}())
     retrieval_section isa AbstractDict ||
@@ -507,8 +534,10 @@ function load_configuration(path::AbstractString)
         "retrieval",
         source,
     )
-    timeout > 0 || throw(
-        ArgumentError("$(source): [retrieval].timeout must be positive, got $(timeout)"),
+    (timeout > 0 && isfinite(timeout)) || throw(
+        ArgumentError(
+            "$(source): [retrieval].timeout must be positive and finite, got $(timeout)",
+        ),
     )
     retries = _optional(
         retrieval_section,
@@ -525,8 +554,10 @@ function load_configuration(path::AbstractString)
         "retrieval",
         source,
     )
-    backoff > 0 || throw(
-        ArgumentError("$(source): [retrieval].backoff must be positive, got $(backoff)"),
+    (backoff > 0 && isfinite(backoff)) || throw(
+        ArgumentError(
+            "$(source): [retrieval].backoff must be positive and finite, got $(backoff)",
+        ),
     )
     use_cache = _optional(
         retrieval_section,
@@ -613,6 +644,14 @@ function load_configuration(path::AbstractString)
         throw(ArgumentError("$(source): [output] must be a table of keys"))
     _reject_unknown(output_section, OUTPUT_KEYS, "[output]", source)
     directory = _optional(output_section, "directory", "data", "output", source)
+    # `joinpath` drops everything before an absolute component, and `..` climbs out of the root
+    # the caller named.
+    (isabspath(directory) || ".." in splitpath(directory)) && throw(
+        ArgumentError(
+            "$(source): [output].directory must be a path under the output root, relative \
+             and without `..`, got $(repr(directory))",
+        ),
+    )
     significant_digits = _optional(
         output_section,
         "significant_digits",

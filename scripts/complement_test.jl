@@ -9,11 +9,12 @@
 #   internal  sets with both halves, i.e. pairs (A, A₀ − A) spanning at least COVERAGE_MIN of the
 #             light-fragment yield. S = ν(A_L) + ν(A_H) averaged with the light-fragment yield:
 #             per fragment ⇔ |S/ν̄ − 1| ≤ FRAGMENT_BAND and D = ν(A_L) − ν(A_H) ≡ 0 rejected
-#                            (D changes sign, χ²_D/n beyond 1 + 3√(2/n); without σ, a runs test
-#                            on the signs of D at the same 3σ level);
+#                            (D changes sign, χ²_D/n beyond 1 + 3√(2/n), three standard
+#                            deviations of the reduced χ² above its mean; without σ, a runs
+#                            test on the signs of D at 0.27 %, the two-sided 3σ level);
 #             per fission  ⇔ |S/ν̄ − 2| ≤ FISSION_BAND and D ≡ 0 holds.
-#             The bands are a quarter of the gap between the readings, so the classification
-#             never hinges on the scale. S itself is ν_pair(A), which varies with the mass split;
+#             Each band is a quarter of the value it is centred on, so the two stay 0.25
+#             apart and the classification never hinges on the scale. S itself is ν_pair(A), which varies with the mass split;
 #             only its yield-weighted mean is ν̄.
 #   sibling   one-sided and joint sets, against a per-fragment dataset (FRG) of the same entry or,
 #             for joint sets, a 1-D ν(A) at ⟨TKE⟩(A) or another experiment's joint ν(A, TKE):
@@ -247,11 +248,13 @@ end
 # Exact P(R ≤ r) of the Wald–Wolfowitz runs test for n₁ and n₂ signs in random order.
 function runs_probability(r, n₁, n₂)
     (n₁ == 0 || n₂ == 0) && return 1.0
+    # In big integers throughout: the product of two binomials leaves Int64 from 72 signs on.
+    a, b = big(n₁ - 1), big(n₂ - 1)
     ways(R) =
-        iseven(R) ? 2 * binomial(n₁ - 1, R ÷ 2 - 1) * binomial(n₂ - 1, R ÷ 2 - 1) :
-        binomial(n₁ - 1, R ÷ 2) * binomial(n₂ - 1, R ÷ 2 - 1) +
-        binomial(n₁ - 1, R ÷ 2 - 1) * binomial(n₂ - 1, R ÷ 2)
-    return sum(big(ways(R)) for R in 2:r) / binomial(big(n₁ + n₂), n₁) |> Float64
+        iseven(R) ? 2 * binomial(a, R ÷ 2 - 1) * binomial(b, R ÷ 2 - 1) :
+        binomial(a, R ÷ 2) * binomial(b, R ÷ 2 - 1) +
+        binomial(a, R ÷ 2 - 1) * binomial(b, R ÷ 2)
+    return sum(ways(R) for R in 2:r) / binomial(big(n₁ + n₂), n₁) |> Float64
 end
 
 function internal(pts, A₀, Y)

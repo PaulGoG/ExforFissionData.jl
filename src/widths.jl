@@ -66,8 +66,10 @@ const VARIANCE_UNIT_FACTORS = Dict("MEV-SQ" => 1.0, "KEV-SQ" => 1.0e-6, "EV-SQ" 
     width_column_refusal(column; role = "a width") -> Union{String,Nothing}
 
 Why a DATA heading cannot be a width column, or `nothing`. The datum, its uncertainties and
-every independent variable are refused: a mean is never read as a width. `role` names what
-the column was to hold in the reason, `"a parameter"` for a column of `[[fit_parameter]]`.
+every independent variable are refused: a mean is never read as a width. So is every heading
+but `MISC` and its numbered forms, the columns the EXFOR format leaves to quantities it has no
+code for. `role` names what the column was to hold in the reason, `"a parameter"` for a column
+of `[[fit_parameter]]`.
 """
 function width_column_refusal(column::AbstractString; role::AbstractString = "a width")
     heading = strip(column)
@@ -75,6 +77,8 @@ function width_column_refusal(column::AbstractString; role::AbstractString = "a 
         return "$(heading) holds the datum or an uncertainty, not $(role)"
     heading_class(heading) == :auxiliary ||
         return "$(heading) is an independent variable, not $(role)"
+    startswith(heading, "MISC") ||
+        return "$(heading) is no MISC column, the one kind that holds $(role)"
     return nothing
 end
 
