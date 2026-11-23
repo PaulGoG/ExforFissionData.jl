@@ -19,8 +19,10 @@ updates:
     schedule:
       interval: "weekly"
     # Dependabot reads no version for the standard libraries and rewrites their compat entries
-    # to "1, < 0.0.1"; those entries are kept by hand.
+    # to "1, < 0.0.1"; those entries are kept by hand. So is the formatter, pinned by an
+    # equality bound that a proposed range would undo: it moves together with a reformat.
     ignore:
+      - dependency-name: "JuliaFormatter"
       - dependency-name: "Dates"
       - dependency-name: "Statistics"
       - dependency-name: "TOML"
