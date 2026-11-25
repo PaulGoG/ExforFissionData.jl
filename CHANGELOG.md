@@ -29,12 +29,15 @@ accepted, hence the minor version.
   Ag-118, Ag-120, In-120, In-122, In-124, In-126, In-128, In-130, Sb-132, I-134), their
   uncertainties larger by up to 1.8 times and their values within 0.6 %. The two records gain
   `authors_average`, the observable `authors_average_warning`; `abscissae_combined`,
-  `combined_over` and `yield_sum` of the two datasets change with the tables.
+  `combined_over`, `rows_retrieved` (10 → 2 and 156 → 117, the lines left out not counted, as
+  for a compilation defect) and `yield_sum` of the two datasets change with the tables, and
+  `combined_warning` no longer names them.
 - **A value the archive marks approximate as the only datum.** A subentry whose only datum
   column is `DATA-APRX` was refused as having none. It is read from that column and listed in
   `approximate_rows`: `14735003` (Deutsch 1944, about 1.0 MeV per photon) is written to
-  `U235_nth/eps_gamma` (10 → 11 datasets), and its refusal under `U235_nth/E_gamma_tot` now
-  says that it holds the mean photon energy. The multiplicity read under a miscoded `PC/FIS` and
+  `U235_nth/eps_gamma` (10 → 11 datasets), named in its `approximate_warning`,
+  `quantity_reading_warning` and `gamma_definition_warning` (no γ-energy range stated); its
+  refusal under `U235_nth/E_gamma_tot` now says that it holds the mean photon energy. The multiplicity read under a miscoded `PC/FIS` and
   the subentry unit of a yield look the datum up under the same heading.
 - **Gjestvang 2021 is no measurement of the scale.** Its 252-Cf multiplicity and total energy
   (`237830031`, `237830041`) are scaled by construction to the uncertainty-weighted average of
