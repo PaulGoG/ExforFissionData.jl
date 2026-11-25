@@ -370,8 +370,9 @@ Twenty-two configurations retrieve the prompt-γ quantities of the four systems;
 - `Cf252_sf_M_gamma_bar` — the multiplicity per fission, 15 datasets: 23174004 (Skarsvåg 1970, above
   100 keV), admitted by name from the archive's listing under `MLT`, 14214009 (Pleasonton,
   ORNL-4844, 1972), the six detectors of 23197 (Oberstedt 2015, 0.1 MeV to 6.0 to 7.7 MeV, coded
-  `PAR`) and their average 231970091, 237830031 (Gjestvang 2021, corrected by a factor 1.30 the
-  entry gives), 23814003 (Krupa 2004), 415800031 (Sokol 1991, 0.32 to 5.12 MeV within 4 µs),
+  `PAR`) and their average 231970091, 237830031 (Gjestvang 2021, scaled by a factor 1.30 to the
+  weighted average of Billnert 2013 and three detectors of 23197, and grouped with them),
+  23814003 (Krupa 2004), 415800031 (Sokol 1991, 0.32 to 5.12 MeV within 4 µs),
   14320003 and 14320004 (Smith 1956, the first over 0.5 to 2.3 MeV) and 143870061 (Bowman 1958).
   Refused: 234170041 (Qi 2018), two detectors in one table; the light and heavy groups of 14214; the
   K X-rays of 33071; the uncorrected 237830032 and 415800021. The totals Smith 1956 (8.2 MeV) and
@@ -379,7 +380,8 @@ Twenty-two configurations retrieve the prompt-γ quantities of the four systems;
   rejections of `Cf252_sf_E_gamma_tot`, and the mean photon energy of Krupa 2004 (0.83 MeV) among
   those of `Cf252_sf_eps_gamma`.
 - `Cf252_sf_E_gamma_tot` — the total energy per fission, 12 datasets: 14214008, the six detectors of
-  23197 and their average, 237830041, 23814004 and 143870062, the last two read on their magnitude
+  23197 and their average, 237830041 (scaled to them as the multiplicity is), 23814004 and
+  143870062, the last two read on their magnitude
   alone, and 232130061 (Mehta 1973), read from its subentry.
 - `Cf252_sf_eps_gamma` — the mean photon energy, 9 datasets: 14214029, the six detectors of 23197
   and their average, and 415800032 (Sokol 1991).
@@ -408,7 +410,8 @@ Twenty-two configurations retrieve the prompt-γ quantities of the four systems;
 - `U235_nth_E_gamma_tot` — 5 datasets: 14214004, 14735002 (Deutsch 1944, within 2 µs), 232830023,
   and the values stated outside the DATA tables by 31729001 (6.92 ± 0.09 MeV) and 23541005 (4.07 ±
   0.07 MeV over 1 to 6 MeV).
-- `U235_nth_eps_gamma` — 10 datasets: 14214027, the five detectors of 31729 and their average,
+- `U235_nth_eps_gamma` — 11 datasets: 14214027, 14735003 (Deutsch 1944, about 1 MeV, a value the
+  archive marks approximate and its only datum), the five detectors of 31729 and their average,
   232830022, 23541005 and 23659003.
 - `U235_nth_M_gamma_vs_A` — the multiplicity of one fragment against its pre-neutron mass:
   14197005 (Pleasonton 1972), whose row at A = 82, −0.36 ± 1.36, is written as given and noted.

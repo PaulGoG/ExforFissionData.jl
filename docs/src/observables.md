@@ -678,7 +678,7 @@ of entry 31729 gives the temperature of its cold beam, `KT-K` 100 K, as an incid
 | :--- | ---: | ---: | ---: | ---: |
 | `M_gamma_bar` | 15 | 11 | 5 | 1 |
 | `E_gamma_tot` | 12 | 5 | 5 | 1 |
-| `eps_gamma` | 9 | 10 | 5 | 1 |
+| `eps_gamma` | 9 | 11 | 5 | 1 |
 | `M_gamma_vs_A` | 1 | 1 | | |
 | `M_gamma_bar_vs_A` | 2 | 1 | | |
 | `eps_gamma_vs_A` | | 1 | | |
