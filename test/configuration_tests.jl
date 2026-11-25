@@ -447,3 +447,27 @@ of = "$(of)"
         )
     end
 end
+
+@testset "figure labels cover the vocabulary" begin
+    # The figure helpers stand in an environment of their own and cannot load this package, so
+    # their tables are read as text: every ordinate needs a label and a symbol, every abscissa
+    # a label.
+    style = read(joinpath(pkgdir(ExforFissionData), "plotting", "style.jl"), String)
+    table(name) = begin
+        start = findfirst("const $(name) = ", style)
+        @test start !== nothing
+        stop = findnext("\n)\n", style, last(start))
+        style[first(start):first(stop)]
+    end
+    labels = table("QUANTITY_LABELS")
+    symbols = table("QUANTITY_SYMBOLS")
+    for quantity in ExforFissionData.ORDINATES
+        @test occursin("\"$(quantity)\" =>", labels)
+        @test occursin("\"$(quantity)\" =>", symbols)
+    end
+    # ABSCISSAE lists the combinations of abscissa quantities, the empty one included.
+    for quantity in unique(reduce(vcat, ExforFissionData.ABSCISSAE))
+        @test occursin("\"$(quantity)\" =>", labels)
+    end
+    @test occursin("T_{\\mathrm{eff}}", labels)
+end
