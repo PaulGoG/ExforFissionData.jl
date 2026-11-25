@@ -159,8 +159,9 @@ function _revision()
 end
 
 # What src/curation.jl records of one dataset, for its entry in the run record: the curated
-# reading with its basis and scale, the passages on a multiplicity derived from masses, the compilation defects left out, and the runs of the same
-# experiment. Empty for a dataset it records nothing of.
+# reading with its basis and scale, the passages on a multiplicity derived from masses, the
+# compilation defects left out, the authors' averages written in place of the results they
+# average, and the runs of the same experiment. Empty for a dataset it records nothing of.
 function _curation_record(identifier::AbstractString)
     record = Dict{String, Any}()
     curation =
@@ -175,6 +176,8 @@ function _curation_record(identifier::AbstractString)
     masses === nothing || (record["curation"] = masses)
     defects = get(ARCHIVE_DEFECTS, identifier, nothing)
     defects === nothing || (record["archive_defects"] = [d.description for d in defects])
+    averages = get(AUTHORS_AVERAGES, identifier, nothing)
+    averages === nothing || (record["authors_average"] = averages.description)
     notes = get(ROW_NOTES, identifier, nothing)
     notes === nothing || (record["row_notes"] = notes)
     group = correlation_group(identifier)
@@ -289,8 +292,9 @@ function _conventions(query::Query)
                  recorded below",
         "absent_uncertainty" => "the uncertainty column is omitted when no row of a \
                  dataset carries one. Where it is written, a row without one is NaN, never 0, \
-                 and so is a row interpolated next to such a row or combined only from such \
-                 rows; a 0 is written only where EXFOR states it. Per dataset, \
+                 and so is a row interpolated next to such a row, or combined from rows of \
+                 which one states none or a 0 beside others stating more; a 0 is written only \
+                 where EXFOR states it. Per dataset, \
                  `uncertainty_zero_rows` counts the subentry lines stating a zero uncertainty \
                  and `uncertainty_absent_rows` those stating none",
         "duplicate_abscissa" => "isomers resolved first (archive total preferred; else the \
@@ -603,6 +607,21 @@ function _dataset_warnings!(
          out of the written tables, never corrected, and each dataset's \
          `archive_defects` gives the line, the evidence and the reason: ",
         defective,
+    )
+    averaged = String[]
+    for entry in accepted
+        reading = get(AUTHORS_AVERAGES, entry.dataset.identifier, nothing)
+        reading === nothing && continue
+        push!(averaged, "$(entry.dataset.identifier) ($(reading.lines) lines)")
+    end
+    _warn!(
+        datasets,
+        "authors_average_warning",
+        "these datasets give the authors' average of some states beside the results it \
+         averages; the average is written for its state and the results are left out, so \
+         that none is counted twice, and each dataset's `authors_average` gives the flags, \
+         the evidence and the lines: ",
+        averaged,
     )
     counted(key) = [
         "$(entry.dataset.identifier) ($(length(rows)) $(length(rows) == 1 ? "row" : "rows"))"

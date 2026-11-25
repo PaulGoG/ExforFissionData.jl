@@ -676,6 +676,43 @@ function _column_table(data::SubentryColumns)
     return (DataFrame(pairs...; makeunique = true), units)
 end
 
+# The isomeric states of a subentry of several pointers that this dataset does not give but
+# another pointer does: lines naming a state of a nuclide the dataset gives, with no value in any
+# DATA column of this pointer. 22161.002 gives the independent yields of the two isomers of
+# In-130 and its ground state only as a cumulative yield, so the independent yield written for
+# In-130 is a sum without its ground state. As "In-130: ISOMER 0" entries.
+function _states_under_other_pointers(subentry::Subentry, present::AbstractVector{Bool})
+    data = subentry.data
+    subentry.pointer === nothing && return String[]
+    own = [
+        i for i in eachindex(data.headings) if
+        startswith(data.headings[i], "DATA") && data.pointers[i] == subentry.pointer
+    ]
+    isomer, mass = column(data, "ISOMER"), column(data, "MASS")
+    (isempty(own) || isomer === nothing || mass === nothing) && return String[]
+    element = column(data, "ELEMENT")
+    constant = common_constant(subentry, "ELEMENT")
+    element === nothing && constant === nothing && return String[]
+    charge(line) = element === nothing ? constant[1] : data.values[element][line]
+    nuclide(line) = (charge(line), data.values[mass][line])
+    lines = 1:line_count(data)
+    given =
+        Set((nuclide(line), data.values[isomer][line]) for line in lines if present[line])
+    nuclides = Set(first(state) for state in given)
+    found = String[]
+    for line in lines
+        present[line] && continue
+        all(i -> ismissing(data.values[i][line]), own) || continue
+        key = nuclide(line)
+        state = data.values[isomer][line]
+        (any(ismissing, key) || ismissing(state)) && continue
+        (key in nuclides && !((key, state) in given)) || continue
+        entry = "$(nuclide_label(round(Int, key[1]), key[2])): ISOMER $(round(Int, state))"
+        entry in found || push!(found, entry)
+    end
+    return found
+end
+
 """
     select_dataset(screened, subentry_text, query; widths = WidthColumn[],
         parameters = ParameterColumn[]) -> Union{Dataset,Rejection}
@@ -788,15 +825,19 @@ function select_dataset(
     datum === nothing && return Rejection(
         identifier,
         code,
-        "the subentry DATA table has no DATA column; its values are limits or derived \
-         quantities the rendering does not present as measurements",
+        "the subentry DATA table has no column holding the datum (DATA, or DATA-APRX for a \
+         value the archive marks approximate); its values are limits or derived quantities \
+         the rendering does not present as measurements",
     )
     present = BitVector(map(!ismissing, subentry.data.values[datum]))
     # A value the archive marks approximate stands in a column of its own, DATA-APRX, the DATA
     # field of its line blank; the rendering carries it as a row (Aprx), so the line is kept.
-    approximate = column(subentry.data, "DATA-APRX")
+    approximate = column(subentry.data, APPROXIMATE_DATUM)
     approximate === nothing ||
         (present .|= BitVector(map(!ismissing, subentry.data.values[approximate])))
+    other_pointer_states =
+        "charge" in query.abscissa ? _states_under_other_pointers(subentry, present) :
+        String[]
     data = restrict(subentry.data, present)
     # A nuclide identification the subentry holds as a constant of its COMMON section, or of
     # the entry's (one element, its isotopes tabulated by mass; one isomeric state throughout)
@@ -929,6 +970,12 @@ function select_dataset(
         marked isa String && return Rejection(identifier, code, marked)
         keep .&= .!marked
     end
+    averages = get(AUTHORS_AVERAGES, identifier, nothing)
+    if averages !== nothing
+        marked = average_lines(averages, subentry_text, data, data.headings[datum])
+        marked isa String && return Rejection(identifier, code, marked)
+        keep .&= .!marked
+    end
     table = screened.table[keep, :]
     data = restrict(data, keep)
 
@@ -937,6 +984,8 @@ function select_dataset(
     isempty(constants) || (record["common_constants"] = constants)
     isempty(screened.left_out) || (record["rows_left_out"] = screened.left_out)
     isempty(screened.approximate) || (record["approximate_rows"] = screened.approximate)
+    isempty(other_pointer_states) ||
+        (record["isomer_states_other_pointer"] = other_pointer_states)
     # A bound on one isomeric state beside a value of the other: the nuclides concerned, so that
     # the single state written and the bound left out name each other.
     if "charge" in query.abscissa && !isempty(screened.left_out_marked)
@@ -1064,7 +1113,7 @@ function select_dataset(
     # A multiplicity headed PC/FIS is written on its subentry's scale, which needs the csv
     # rendering to restate every line by one factor.
     if query.ordinate in MULTIPLICITY_ORDINATES && subentry_unit == PERCENT_PER_FISSION
-        rendering_scale(table[!, COL_Y], data.values[column(data, "DATA")]) === nothing &&
+        rendering_scale(table[!, COL_Y], data.values[datum]) === nothing &&
             return Rejection(
                 identifier,
                 code,
@@ -1155,7 +1204,10 @@ function select_dataset(
                 )
                 gamma_energy_reading(
                     reaction_text(subentry_text, identifier),
-                    Float64[v * factor for v in skipmissing(table[!, COL_Y])],
+                    Float64[v * factor for v in skipmissing(table[!, COL_Y])];
+                    low = get(record, "gamma_energy_min_mev", NaN),
+                    high = get(record, "gamma_energy_max_mev", NaN),
+                    partial = get(record, "gamma_range_partial", false),
                 )
             else
                 QuantityReading(wanted, "curation", curated.reason)

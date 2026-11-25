@@ -111,8 +111,15 @@ gamma_window(low, high, kind, evidence; publication = "") = GammaStatement(
 )
 gamma_resolution(value, evidence) =
     GammaStatement(:resolution, NaN, value, "", "subentry text", evidence, "")
-gamma_correction(evidence) =
-    GammaStatement(:correction, NaN, NaN, "", "subentry text", evidence, "")
+gamma_correction(evidence; publication = "") = GammaStatement(
+    :correction,
+    NaN,
+    NaN,
+    "",
+    isempty(publication) ? "subentry text" : "publication",
+    evidence,
+    publication,
+)
 
 const _PLEASONTON_1972 = "Pleasonton, Ferguson and Schmitt 1972, doi:10.1103/PhysRevC.6.1023, \
     p. 1023 (abstract)"
@@ -188,6 +195,13 @@ const _WRIGHT_2024 = "Wright et al. 2024, doi:10.1140/epja/s10050-024-01277-8, p
     threshold for γ-ray detection of E min = 0.8 MeV and an upper neutron energy cut of 8 meV \
     were adopted. These thresholds are both due to the response of the NaI detectors to the \
     γ-flash.\""
+
+const _GJESTVANG_2021 = "Gjestvang et al. 2021, doi:10.1103/PhysRevC.103.034609, p. 034609-4 \
+    (Sec. II A); its Table I, p. 034609-3, whose uncertainty is the propagated statistical one"
+
+const _GJESTVANG_SCALING = "The scaling parameters are taken as the constant ratio between, \
+    e.g., the multiplicity found in this work and the uncertainty-weighted average M̄γ \
+    reported by the previous studies."
 
 const _WRIGHT_RANGE = gamma_range(
     0.8,
@@ -279,11 +293,27 @@ const GAMMA_STATEMENTS = Dict{String, Vector{GammaStatement}}(
              measurement.",
         ),
     ],
-    "237830031" =>
-        [gamma_correction("Data before applying correction factor of 1.30.")],
+    # The words of the entry stand under pointer 2, the uncorrected (RAW) dataset; the
+    # publication says what was applied to pointer 1, which is written.
+    "237830031" => [
+        gamma_correction("Data before applying correction factor of 1.30."),
+        gamma_correction(
+            _GJESTVANG_SCALING,
+            publication = _GJESTVANG_2021 * ", gives the multiplicity 6.37 ± 0.03 \
+                uncorrected and 8.28 ± 0.04 corrected by the scaling factor 1.30; this \
+                dataset holds the corrected value",
+        ),
+    ],
     "237830041" => [
         gamma_correction(
             "Average total gamma-ray energy before applying correction factor of 1.07.",
+        ),
+        gamma_correction(
+            _GJESTVANG_SCALING,
+            publication = _GJESTVANG_2021 *
+                          ", gives the total energy 6.18 ± 0.05 MeV \
+                uncorrected and 6.61 ± 0.05 MeV corrected by the scaling factor 1.07; this \
+                dataset holds the corrected value",
         ),
     ],
     "31729" => [
@@ -422,13 +452,16 @@ end
     locate_statement(text, evidence) -> Union{String,Nothing}
 
 Where in the subentry text `text` the words `evidence` stand, as `"subentry 41580001,
-DETECTOR"`; `nothing` when they stand nowhere. Line breaks and indentation are ignored.
+DETECTOR"`, with the pointer where they stand under one (`"subentry 23783003, REACTION,
+pointer 2"`): words under the pointer of another dataset of the subentry describe that dataset.
+`nothing` when they stand nowhere. Line breaks and indentation are ignored.
 """
 function locate_statement(text::AbstractString, evidence::AbstractString)
     wanted = _collapse(evidence)
     for block in bib_blocks(text)
         occursin(wanted, block.text) || continue
-        return "subentry $(block.subentry), $(block.keyword)"
+        place = "subentry $(block.subentry), $(block.keyword)"
+        return block.pointer == ' ' ? place : "$(place), pointer $(block.pointer)"
     end
     return nothing
 end
@@ -529,7 +562,20 @@ const _MEAN_WORDS =
     r"(?i)\b(per|of one|of single|of a single) (gamma|photon)\b|\bsingle gamma\b|\baverage (gamma|photon)(-ray)?s? energy\b"
 
 """
-    gamma_energy_reading(text, values) -> Union{QuantityReading,String}
+The γ-energy range, in MeV, over which the magnitude of a value tells a total energy per fission
+from a mean photon energy: a range starting at or below 1.5 MeV and ending at or above 4.0 MeV.
+Over a partial range the two trade places. For an exponential spectrum through the values of
+Makii 2019 (4.07 MeV and 1.78 MeV per photon above 1 MeV, a slope of 0.78 MeV), the total
+above a threshold E_min falls below 3 MeV from E_min ≈ 1.4 MeV and below 2.5 MeV, into
+[`MEAN_PHOTON_ENERGY_INTERVAL`](@ref), from about 1.6 MeV, while the mean photon energy,
+E_min + 0.78 MeV, approaches [`TOTAL_GAMMA_ENERGY_INTERVAL`](@ref); a range ending at 1 MeV
+leaves a total of about 2.5 MeV. The bounds keep a margin from both.
+"""
+const MAGNITUDE_READING_RANGE = (1.5, 4.0)
+
+"""
+    gamma_energy_reading(text, values; low = NaN, high = NaN, partial = false)
+        -> Union{QuantityReading,String}
 
 Whether the prompt-γ energies `values`, in MeV, coded `KE`, are the total energy per fission or
 the mean photon energy, or the reason they cannot be told.
@@ -538,9 +584,18 @@ The magnitude decides, the two intervals [`TOTAL_GAMMA_ENERGY_INTERVAL`](@ref) a
 [`MEAN_PHOTON_ENERGY_INTERVAL`](@ref) being disjoint. The REACTION text `text` is the basis
 where it names the quantity ("total", or an energy per gamma, per photon or of one gamma) and
 agrees with the magnitude; a text that names the other quantity refuses the dataset, and a
-reading on magnitude alone is recorded as such.
+reading on magnitude alone is recorded as such. A reading on magnitude alone needs the
+γ-energy range of the values, `low` to `high` in MeV (`NaN` where unstated), to lie within the
+bounds of [`MAGNITUDE_READING_RANGE`](@ref); a partial range (`partial`, the code `PAR`) that
+states no lower bound cannot be read on magnitude.
 """
-function gamma_energy_reading(text::AbstractString, values::AbstractVector{<:Real})
+function gamma_energy_reading(
+    text::AbstractString,
+    values::AbstractVector{<:Real};
+    low::Real = NaN,
+    high::Real = NaN,
+    partial::Bool = false,
+)
     isempty(values) && return "no value to read"
     within(interval) = all(v -> interval[1] ≤ v ≤ interval[2], values)
     magnitude = if within(TOTAL_GAMMA_ENERGY_INTERVAL)
@@ -558,6 +613,19 @@ function gamma_energy_reading(text::AbstractString, values::AbstractVector{<:Rea
     stated =
         total == mean ? nothing : total ? "total_energy_per_fission" : "mean_photon_energy"
     if stated === nothing
+        neither =
+            isempty(text) ? "the REACTION carries no text" :
+            "the REACTION text \"$(text)\" names neither"
+        partial && isnan(low) && return "the values are a partial γ energy (PAR) whose \
+            range states no lower bound, and $(neither): the magnitude cannot tell a total \
+            energy per fission from a mean photon energy"
+        if low > MAGNITUDE_READING_RANGE[1] || high < MAGNITUDE_READING_RANGE[2]
+            return "the values are a γ energy over $(isnan(low) ? "an unstated bound" : low) \
+                to $(isnan(high) ? "an unstated bound" : high) MeV, and $(neither): over a \
+                range starting above $(MAGNITUDE_READING_RANGE[1]) MeV or ending below \
+                $(MAGNITUDE_READING_RANGE[2]) MeV the magnitude cannot tell a total energy \
+                per fission from a mean photon energy"
+        end
         interval =
             magnitude == "total_energy_per_fission" ? TOTAL_GAMMA_ENERGY_INTERVAL :
             MEAN_PHOTON_ENERGY_INTERVAL
@@ -566,10 +634,7 @@ function gamma_energy_reading(text::AbstractString, values::AbstractVector{<:Rea
             "magnitude",
             "the values, $(round(minimum(values); sigdigits = 3)) to \
              $(round(maximum(values); sigdigits = 3)) MeV, lie in $(interval[1]) to \
-             $(interval[2]) MeV" * (
-                isempty(text) ? "; the REACTION carries no text" :
-                "; the REACTION text \"$(text)\" names neither"
-            ),
+             $(interval[2]) MeV; " * neither,
         )
     end
     stated == magnitude || return "the REACTION text \"$(text)\" names the \

@@ -68,7 +68,10 @@ without being favoured. Where no point quotes a positive uncertainty the result 
 the unweighted mean, with an uncertainty of zero if every point states zero and `NaN` otherwise:
 an unknown uncertainty is never written as zero.
 
-The combined uncertainty is `1/sqrt(Σ w)`, the uncertainty of the weighted mean.
+The combined uncertainty is `1/sqrt(Σ w)`, the uncertainty of the weighted mean, where every
+weight is known. A weight imputed to a point that states no uncertainty would enter that sum as
+if it were information, and give a result more precise than the points that state one, so the
+uncertainty is then `NaN`: `combine_measurements([1, 2], [0.1, NaN])` is `(1.5, NaN, 1)`.
 """
 function combine_measurements(
     values::AbstractVector{<:Real},
@@ -92,7 +95,7 @@ function combine_measurements(
         end
     end
     total = sum(weights)
-    return (sum(weights .* values) / total, 1 / sqrt(total), imputed)
+    return (sum(weights .* values) / total, imputed == 0 ? 1 / sqrt(total) : NaN, imputed)
 end
 
 # Sum resolved isomeric states, combining uncertainties in quadrature. This is a marginalisation
@@ -115,8 +118,10 @@ EXFOR may give the ground state, its isomers, and their total. The total is the 
 field is absent; where it is present it is preferred, since it is the archive's own sum. Where it
 is absent the rows sharing one mark are repeat measurements of that state and are combined by
 [`combine_measurements`](@ref), and the states so resolved are summed with their uncertainties
-in quadrature. A mark is a state, not a measurement: five rows marked the ground state are five
-determinations of one yield (23709002, four samples and their average), never five states.
+in quadrature. A mark is a state, not a measurement: four rows marked the ground state are four
+determinations of one yield, never four states. Where the subentry also gives the authors'
+average of such rows, selection has already kept the average alone
+([`AUTHORS_AVERAGES`](@ref)).
 
 `outcome` is `:total`, `:summed`, `:single`, or `:ambiguous`: `:single` for one row, or for
 several rows of one marked state; `:ambiguous` when several rows carry no isomer marking and
@@ -570,6 +575,9 @@ function reduce_dataset(
     raw_values = table[!, COL_Y]
     raw_uncertainties = table[!, COL_DY]
     uncertainty_source = "csv"
+    # The subentry column of the datum: DATA, DATA-CM in the centre-of-mass frame, or DATA-APRX
+    # for a value the archive marks approximate.
+    datum = something(datum_heading(query.ordinate, names(dataset.columns)), "DATA")
     # A width is read from the column the configuration names, never from the datum, and so is
     # a parameter of the fitted spectrum.
     width = nothing
@@ -598,10 +606,7 @@ function reduce_dataset(
         raw_values, raw_uncertainties, uncertainty_source =
             _parameter_values(dataset, parameter)
     elseif all(ismissing, raw_uncertainties)
-        fallback = _subentry_uncertainties(
-            dataset,
-            something(datum_heading(query.ordinate, names(dataset.columns)), "DATA"),
-        )
+        fallback = _subentry_uncertainties(dataset, datum)
         if fallback === nothing
             uncertainty_source = "none"
         else
@@ -615,8 +620,8 @@ function reduce_dataset(
     unit_reported = dataset.unit
     miscoded = nothing
     if query.ordinate in MULTIPLICITY_ORDINATES &&
-       get(dataset.units, "DATA", nothing) == PERCENT_PER_FISSION
-        scale = something(rendering_scale(table[!, COL_Y], dataset.columns[!, "DATA"]))
+       get(dataset.units, datum, nothing) == PERCENT_PER_FISSION
+        scale = something(rendering_scale(table[!, COL_Y], dataset.columns[!, datum]))
         raw_values = raw_values ./ scale
         raw_uncertainties = raw_uncertainties ./ scale
         unit_reported = PERCENT_PER_FISSION
@@ -930,7 +935,7 @@ function reduce_dataset(
         # The statement follows the unit the file is written in: the csv rendering restates
         # the subentry's unit, PC/FIS as PART/FIS with the values divided by 100, and the
         # written values are the rendering's. The subentry's own unit is recorded beside it.
-        diagnostics["unit_subentry"] = get(dataset.units, "DATA", dataset.unit)
+        diagnostics["unit_subentry"] = get(dataset.units, datum, dataset.unit)
         diagnostics["normalisation"] =
             get(YIELD_NORMALISATIONS, unit_written, "as the unit $(unit_written) states")
         # The sum of the written yields, in the written unit: 2 over both fragments and about 1

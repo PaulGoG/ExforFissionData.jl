@@ -151,7 +151,7 @@
             tke,
         )
         @test refused isa Rejection
-        @test occursin("has no DATA column", refused.reason)
+        @test occursin("has no column holding the datum", refused.reason)
 
         # Where the rendering drops the uncertainty, ERR-S is carried over on the scale of
         # DATA-CM.

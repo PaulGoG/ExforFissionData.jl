@@ -26,7 +26,9 @@ are written unchanged, with their uncertainties.
 as a column of zeros. **A missing uncertainty is `NaN`, never zero.** Where some rows of a
 dataset carry an uncertainty and others leave it blank (`41397004`, Apalin 1965, has it on 22 of
 its 52 lines), a row without one is written `NaN`, and so is a row interpolated next to such a
-row or combined only from such rows. A zero is written only where EXFOR states one, as the empty
+row or combined from rows of which one states none, or a zero beside others stating more: such a
+row is kept at the median weight of the others, which is no information about its precision, so
+the combination has no known uncertainty. A zero is written only where EXFOR states one, as the empty
 cells of `23268002` do. The run record counts, per dataset, the lines stating a zero uncertainty
 as `uncertainty_zero_rows` and those stating none as `uncertainty_absent_rows`. Where the csv
 rendering carries no uncertainty at all but the subentry does, in `DATA-ERR`, `ERR-T` or `ERR-S`
@@ -117,9 +119,11 @@ ones ([`base_forbid`](@ref)). Under those, K X-rays, discrete lines of individua
 delayed γ rays and the γ field of a source measured without fission coincidence are refused by
 curation, since the archive codes them alike ([`GAMMA_REFUSALS`](@ref)). An energy coded
 `0-G-0,PR,KE` is the total per fission or the mean photon energy, which its magnitude decides and
-its REACTION text confirms ([`gamma_energy_reading`](@ref)); and what defines a prompt-γ value,
-its γ-energy range, its time window and the corrections made, is read from the entry and recorded
-([`gamma_definition`](@ref)), never applied as a cut.
+its REACTION text confirms ([`gamma_energy_reading`](@ref)); the magnitude alone decides only over
+a γ-energy range starting at or below 1.5 MeV and ending at or above 4.0 MeV, and not for a set
+coded partial (`PAR`) that states no lower bound ([`MAGNITUDE_READING_RANGE`](@ref)). What
+defines a prompt-γ value, its γ-energy range, its time window and the corrections made, is read
+from the entry and recorded ([`gamma_definition`](@ref)), never applied as a cut.
 
 The checks easiest to get wrong:
 
@@ -128,7 +132,8 @@ The checks easiest to get wrong:
   table row by row, counted and listed with the bound in the record (`rows_left_out`), and a
   dataset left with no value row is refused with the count of each kind. A value the archive
   marks **approximate**, `Aprx(` (`DATA-APRX`), is written and listed per row
-  (`approximate_rows`). A bound on one isomeric state beside a value of the other leaves the
+  (`approximate_rows`), also where `DATA-APRX` is the only datum column of the subentry
+  ([`datum_heading`](@ref)). A bound on one isomeric state beside a value of the other leaves the
   value written as a single state, and `isomer_states_left_out` and
   `isomer_single_state_nuclides` name each other;
 - it also marks **arbitrary units** as `ARB-UNITS`, which carry no scale and cannot be combined
@@ -189,9 +194,10 @@ The checks easiest to get wrong:
   yields refuse `PAR` (Dictionary 31), the partial yields at one product kinetic energy:
   `21689014` to `21689018` (Lang 1980), whose entry gives the independent yield as `21689019`;
 - isomeric rows that share one mark are **repeats** of that state, not states, and are combined
-  before distinct states are summed: `23709002` (Strom 1965) gives the ground-state yield of
-  Sb-124 five times, four samples and their average, and `33158004` (Naik 2021) the isomeric
-  yield of I-136 through two decay lines. Summed, each would count one yield several times.
+  before distinct states are summed: `33158004` (Naik 2021) gives the isomeric yield of I-136
+  through two decay lines, and summed it would count one yield twice. Where the subentry gives
+  the authors' average beside the results it averages, the average is written for its state and
+  the results are left out (see [Authors' averages](@ref authors-averages) below).
 
 Reaction-code qualifiers that bear on a value's scale (`MSC`, `REL`, `CHN`, `DERIV`, `FCT`) are
 recorded per dataset without rejecting it where the observable admits them, and so are those
@@ -422,3 +428,21 @@ record stands ready for a binned observable. A defect record names the values th
 lines, the datum included where the datum is what is wrong, and the number of lines carrying
 them: an entry the archive has corrected no longer matches, and the dataset is refused until the
 record is reviewed.
+
+### [Authors' averages](@id authors-averages)
+
+Two datasets give, for some states, the authors' average beside the results it averages, each line
+marked by a `FLAG` whose definition the subentry states. The average is written for its state and
+the other lines of that state are left out: combined with them it would count them twice, and an
+average the authors restrict to some results would bring back those they left out. The record
+quotes the reading under `authors_average` and names the dataset in `authors_average_warning`
+([`AUTHORS_AVERAGES`](@ref)). `23709002` (Strom 1965) gives the ground-state yields of Sb-124
+and Sb-126 for four samples and their average (`FLAG` 5, 'Average. for Sb-124 - only for samples
+3 and 4.'), the uncertainty stated on the average alone; samples 1 and 2 of Sb-124 lie an order
+of magnitude above samples 3 and 4. `221610021` (Rudstam 1990) gives the averages of its
+experiments 'A', 'B' and 'C' for 14 states (`FLAG` 4 and 5), and a line flagged 8, the yield an
+experiment was normalised to, which for Ag-118m and Ag-120m repeats the result 'B' and for In-122m2
+and In-128m the average of 'B' and 'C', value and uncertainty; such a repeat is no measurement of
+its own and is left out too. The `FLAG` definitions are looked for in the subentry at each
+retrieval and the number of lines left out is recorded: a changed entry refuses the dataset until
+the reading is reviewed.

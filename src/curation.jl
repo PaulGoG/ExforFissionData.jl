@@ -1015,6 +1015,145 @@ function defect_lines(defects::AbstractVector{RowDefect}, data::SubentryColumns)
 end
 
 """
+    AuthorsAverage(average_flags, average_definitions, copy_flags, copy_definitions, lines,
+                   description)
+
+A dataset whose subentry gives, for some states, the authors' average beside the results it
+averages, each line marked by a FLAG whose definition says which it is. The average is written
+for its state and the other lines of that state are left out: combined with them it would count
+them twice, and an average the authors restrict to some results would bring back those they
+left out. A line flagged as an input of the authors' normalisation that repeats another line of
+its state, value and uncertainty, is no measurement of its own and is left out as well.
+
+# Fields
+- `average_flags::Vector{Float64}`: the FLAG values that mark an authors' average.
+- `average_definitions::Vector{String}`: their definitions in the subentry, verbatim, flag
+  number included; looked for in its text at every retrieval.
+- `copy_flags::Vector{Float64}`: the FLAG values that mark a normalisation input; empty where the
+  dataset has none.
+- `copy_definitions::Vector{String}`: their definitions, verbatim.
+- `lines::Int`: how many lines the reading leaves out, against a changed archive.
+- `description::String`: the reading and its evidence, written to the run record as
+  `authors_average`.
+
+A line carries a flag where any of its FLAG columns holds it: the flag numbers of a subentry are
+defined once, whichever column holds them.
+"""
+struct AuthorsAverage
+    average_flags::Vector{Float64}
+    average_definitions::Vector{String}
+    copy_flags::Vector{Float64}
+    copy_definitions::Vector{String}
+    lines::Int
+    description::String
+end
+
+"""
+Datasets that give the authors' average beside the results it averages, keyed by dataset
+identifier; see [`AuthorsAverage`](@ref). The lines the reading leaves out are dropped before
+the dataset is reduced, and its description is written to the run record.
+"""
+const AUTHORS_AVERAGES = Dict{String, AuthorsAverage}(
+    "23709002" => AuthorsAverage(
+        [5.0],
+        ["(5.) Average. for Sb-124 - only for samples 3 and 4."],
+        Float64[],
+        String[],
+        8,
+        "EXFOR 23709.002 (Strom 1965) gives the independent yields of Sb-124 and Sb-126 for \
+         four samples (FLAG 1 to 4) and the authors' average (FLAG 5, 'Average. for Sb-124 - \
+         only for samples 3 and 4.'), the uncertainty stated on the average alone; the csv \
+         rendering gives the samples the systematic uncertainties ERR-1 and ERR-2 of the \
+         entry. The average is written for each nuclide and the four samples are left out: \
+         combined with them it would count them twice, and for Sb-124 it would bring back \
+         samples 1 and 2, an order of magnitude above samples 3 and 4, which the authors \
+         left out",
+    ),
+    "221610021" => AuthorsAverage(
+        [4.0, 5.0],
+        ["(4.) Average of the other results.", "(5.) Average of results 'B' and 'C' only."],
+        [8.0],
+        ["(8.) Independent yield used in the normalization procedure to determine the \
+             delay properties."],
+        39,
+        "EXFOR 22161.002 (Rudstam 1990) gives the independent yield of a state from up to \
+         three experiments, 'A', 'B' and 'C' (FLAG 1 to 3), and for some states the authors' \
+         average (FLAG 4, 'Average of the other results.'; FLAG 5, 'Average of results 'B' \
+         and 'C' only.'): the average is written for its state and the results it stands \
+         for are left out. A line flagged 8 ('Independent yield used in the normalization \
+         procedure to determine the delay properties.') holds the yield an experiment was \
+         normalised to; where it repeats another line of its state, value and uncertainty \
+         (Ag-118m and Ag-120m, the result 'B'; In-122m2 and In-128m, the average of 'B' and \
+         'C'), it is no measurement of its own and is left out",
+    ),
+)
+
+"""
+    average_lines(reading, text, data, datum) -> Union{BitVector,String}
+
+The lines of the DATA table `data` that the [`AuthorsAverage`](@ref) `reading` leaves out, or the
+reason it no longer matches the subentry text `text`: a FLAG definition the text no longer
+holds, two averages of one state, or another number of lines left out than recorded. A state is
+told by the `ELEMENT`, `MASS` and `ISOMER` columns `data` carries; `datum` is the heading of the
+datum, whose value and uncertainty (`DATA-ERR`) tell a repeated normalisation input.
+"""
+function average_lines(
+    reading::AuthorsAverage,
+    text::AbstractString,
+    data::SubentryColumns,
+    datum::AbstractString,
+)
+    for definition in vcat(reading.average_definitions, reading.copy_definitions)
+        locate_statement(text, definition) === nothing &&
+            return "the curated reading of the authors' averages expects the FLAG definition \
+                    \"$(definition)\", which the subentry no longer holds; the reading must \
+                    be reviewed"
+    end
+    flags = [data.values[i] for i in eachindex(data.headings) if data.headings[i] == "FLAG"]
+    carries(line, values) = any(f -> !ismissing(f[line]) && f[line] in values, flags)
+    identifying = [
+        i for i in eachindex(data.headings) if
+        data.headings[i] in ("ELEMENT", "MASS", "ISOMER")
+    ]
+    state(line) = Tuple(data.values[i][line] for i in identifying)
+    groups = Dict{Any, Vector{Int}}()
+    for line in 1:line_count(data)
+        push!(get!(groups, state(line), Int[]), line)
+    end
+    value = data.values[column(data, datum)]
+    error_index = column(data, "DATA-ERR")
+    uncertainty =
+        error_index === nothing ? fill(missing, line_count(data)) : data.values[error_index]
+    marked = falses(line_count(data))
+    for lines in values(groups)
+        averages = filter(line -> carries(line, reading.average_flags), lines)
+        length(averages) > 1 &&
+            return "the subentry gives $(length(averages)) lines flagged \
+            as the authors' average for one state, where the curated reading expects one; \
+            the reading must be reviewed"
+        if length(averages) == 1
+            marked[setdiff(lines, averages)] .= true
+            continue
+        end
+        for line in lines
+            carries(line, reading.copy_flags) || continue
+            any(
+                other ->
+                    other != line &&
+                    !marked[other] &&
+                    isequal(value[other], value[line]) &&
+                    isequal(uncertainty[other], uncertainty[line]),
+                lines,
+            ) && (marked[line] = true)
+        end
+    end
+    count(marked) == reading.lines || return "the curated reading of the authors' averages \
+        leaves out $(count(marked)) lines where it expects $(reading.lines); the archive may \
+        have changed, and the reading must be reviewed"
+    return marked
+end
+
+"""
 How the members of a [`CorrelationGroup`](@ref) are related, which is what a consumer needs to
 know to use them as the one measurement they are:
 
@@ -1362,12 +1501,20 @@ const CORRELATION_GROUPS = [
             "231970071",
             "231970081",
             "231970091",
+            "237830031",
         ],
         "dependent",
-        "the prompt γ multiplicity of 252-Cf(sf) measured with six detectors in one experiment \
-         (Oberstedt 2015, doi:10.1103/PhysRevC.92.014618), 23197002 to 23197008, and their \
-         weighted average 23197009, which its STATUS forms from them (DEP). The average or the \
-         detectors as one measurement, never both",
+        "the prompt γ multiplicity of 252-Cf(sf) of six detectors as Oberstedt 2015 \
+         (doi:10.1103/PhysRevC.92.014618) tabulates it, the two measurements of Billnert 2013 \
+         that it reprints (23197002, 23197003) and its own four (23197005 to 23197008), with \
+         their weighted average 23197009, which its STATUS forms from them (DEP). Gjestvang \
+         2021 (237830031) is scaled by construction to the uncertainty-weighted average of \
+         Billnert 2013 and three of these detectors (23197005 to 23197007): 'The scaling \
+         parameters are taken as the constant ratio between, e.g., the multiplicity found in \
+         this work and the uncertainty-weighted average M̄γ reported by the previous studies' \
+         (doi:10.1103/PhysRevC.103.034609, p. 034609-4; Table I, p. 034609-3, whose \
+         uncertainty is statistical alone), so it carries no scale of its own. The average or \
+         the detectors as one measurement, never both, and 237830031 beside neither",
     ),
     CorrelationGroup(
         [
@@ -1380,9 +1527,9 @@ const CORRELATION_GROUPS = [
             "231970092",
         ],
         "dependent",
-        "the mean photon energy of the same six detectors and their average (Oberstedt 2015), \
-         23197009 formed from the others (DEP). The average or the detectors as one \
-         measurement, never both",
+        "the mean photon energy of the same six detectors and their average as Oberstedt 2015 \
+         tabulates them, 23197009 formed from the others (DEP). The average or the detectors \
+         as one measurement, never both",
     ),
     CorrelationGroup(
         [
@@ -1393,11 +1540,17 @@ const CORRELATION_GROUPS = [
             "231970073",
             "231970083",
             "231970093",
+            "237830041",
         ],
         "dependent",
-        "the total prompt γ energy of the same six detectors and their average (Oberstedt \
-         2015), 23197009 formed from the others (DEP). The average or the detectors as one \
-         measurement, never both",
+        "the total prompt γ energy of the same six detectors and their average as Oberstedt \
+         2015 tabulates them, 23197009 formed from the others (DEP). Gjestvang 2021 \
+         (237830041) is scaled by construction to the uncertainty-weighted average of \
+         Billnert 2013 and three of these detectors (23197005 to 23197007), as its \
+         multiplicity is (doi:10.1103/PhysRevC.103.034609, p. 034609-4; Table I, p. \
+         034609-3, whose uncertainty is statistical alone), so it carries no scale of its \
+         own. The average or the detectors as one measurement, never both, and 237830041 \
+         beside neither",
     ),
     CorrelationGroup(
         ["317290071", "317290072", "317290073", "317290074", "317290075", "31729008"],

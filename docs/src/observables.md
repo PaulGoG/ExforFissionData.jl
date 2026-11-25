@@ -427,10 +427,15 @@ A nuclide reported in several isomeric rows is written once. Where the archive g
 total, the row without an isomer mark, that row is written; otherwise the rows sharing one mark
 are repeat measurements of that state and are combined as repeats, by the inverse-variance
 weighted mean, and the states so resolved are summed with their uncertainties in quadrature.
-`23709002` (Strom 1965) gives the ground-state yield of Sb-124 five times, four samples and their
-average under `FLAG`, and `33158004` (Naik 2021) the isomeric yield of I-136 through two decay
-lines; both are combined, not summed. Such combinations count in `abscissae_combined`, and
-`combined_over` names the auxiliary columns that varied, `FLAG` and `DECAY-FLAG` there.
+`33158004` (Naik 2021) gives the isomeric yield of I-136 through two decay lines, combined, not
+summed. Such combinations count in `abscissae_combined`, and `combined_over` names the auxiliary
+columns that varied, `DECAY-FLAG` there. Where the subentry gives the authors' average beside the
+results it averages, as `23709002` (Strom 1965) does for Sb-124 and Sb-126 and `221610021`
+(Rudstam 1990) for 14 states, the average is written for its state and the results are left out
+(`authors_average`; see [Conventions and selection](conventions.md)). A subentry of several
+pointers may give a state of a nuclide under another pointer only: Rudstam gives the ground state
+of In-130 as a cumulative yield alone, so the independent yield written for In-130 is the sum of
+its two isomers, and `isomer_states_other_pointer` names such states.
 
 A nuclide given in one marked state alone is written as it stands and is the yield of that state,
 not of the nuclide. Several rows without a mark are totals that cannot be told apart, and are
@@ -642,7 +647,9 @@ code, and `MSC` marks the total in one entry and the mean in another. The magnit
 total lying between 3 and 15 MeV and the mean between 0.3 and 2.5 MeV, and the REACTION text is the
 basis where it names the same quantity ("Total gammas energy.", "Average gamma energy per gamma");
 a text naming the other refuses the dataset, and a reading on magnitude alone is named in
-`quantity_reading_warning`. Mehta 1973 (entry 23213), whose codes leave the branch blank, and the
+`quantity_reading_warning`. The magnitude alone is no basis over a partial range, where the two
+trade places: a set whose stated γ-energy range starts above 1.5 MeV or ends below 4.0 MeV, or a
+set coded `PAR` that states no lower bound, is refused unless its words name the quantity. Mehta 1973 (entry 23213), whose codes leave the branch blank, and the
 energy of one fragment of Krupa 2004 are read from their subentry text. Entry 23213 is the 252-Cf
 α-emission experiment of Mehta, Poitou, Ribrag and Signarbieux, "Detailed study of alpha emission
 in Cf-252 fission" (doi:10.1103/PhysRevC.7.373), which compares binary with α-accompanied fission;

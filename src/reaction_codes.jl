@@ -858,18 +858,27 @@ const MAXWELLIAN_RATIO_ORDINATE = "spectrum_maxwellian_ratio"
 const CENTRE_OF_MASS_DATUM = "DATA-CM"
 
 """
+The heading of a datum the archive marks approximate (EXFOR Dictionary 24); its values are
+rendered as `Aprx` rows.
+"""
+const APPROXIMATE_DATUM = "DATA-APRX"
+
+"""
     datum_heading(ordinate, headings) -> Union{String,Nothing}
 
 The heading of the column of a DATA table that holds the datum of `ordinate`:
 [`CENTRE_OF_MASS_DATUM`](@ref) where the ordinate is one of
-[`CENTRE_OF_MASS_ORDINATES`](@ref) and the table carries it, else `DATA`; `nothing` when the
-table carries neither.
+[`CENTRE_OF_MASS_ORDINATES`](@ref) and the table carries it, else `DATA`, else
+[`APPROXIMATE_DATUM`](@ref) where the table carries neither `DATA` nor `DATA-CM`; `nothing`
+when it carries none of them.
 """
 function datum_heading(ordinate::AbstractString, headings::AbstractVector{<:AbstractString})
     ordinate in CENTRE_OF_MASS_ORDINATES &&
         CENTRE_OF_MASS_DATUM in headings &&
         return CENTRE_OF_MASS_DATUM
-    return "DATA" in headings ? "DATA" : nothing
+    "DATA" in headings && return "DATA"
+    CENTRE_OF_MASS_DATUM in headings && return nothing
+    return APPROXIMATE_DATUM in headings ? APPROXIMATE_DATUM : nothing
 end
 
 """
