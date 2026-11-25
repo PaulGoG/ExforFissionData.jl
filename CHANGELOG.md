@@ -94,9 +94,10 @@ that 0.8.0 accepted, hence the minor version.
   shipped record, so no table changes; the `absent_uncertainty` convention of every record
   says so.
 - A prompt-γ energy is read on its magnitude only over a γ-energy range starting at or below
-  1.5 MeV and ending at or above 4.0 MeV, and not for a set coded `PAR` that states no lower
-  bound (`MAGNITUDE_READING_RANGE`): over a partial range the total and the mean photon energy
-  trade places, so there the words of the REACTION decide and a set without them is refused.
+  1.5 MeV and ending at or above 4.0 MeV, a bound the entry does not state restricting nothing,
+  and not for a set coded `PAR` that states no lower bound (`MAGNITUDE_READING_RANGE`): over a
+  partial range the total and the mean photon energy trade places, so there the words of the
+  REACTION decide and a set without them is refused.
   No shipped dataset is read over such a range; the `quantity_reading` convention of the
   prompt-γ energy records says so.
 - The refusal of a subentry with no datum column names the headings it looks for.

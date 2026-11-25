@@ -374,11 +374,12 @@ function _conventions(query::Query)
                  $(MEAN_PHOTON_ENERGY_INTERVAL[1]) to $(MEAN_PHOTON_ENERGY_INTERVAL[2]) MeV \
                  for the mean, over a γ-energy range starting at or below \
                  $(MAGNITUDE_READING_RANGE[1]) MeV and ending at or above \
-                 $(MAGNITUDE_READING_RANGE[2]) MeV; over a partial range, or for a set coded \
-                 PAR that states no lower bound, the words of the reaction decide and a set \
-                 without them is refused; `quantity_reading_basis` is REACTION text where \
-                 the words of the reaction name the same quantity, a dataset whose words name \
-                 the other \
+                 $(MAGNITUDE_READING_RANGE[2]) MeV, a bound the entry does not state \
+                 restricting nothing; over a partial range, or for a set coded PAR that \
+                 states no lower bound, the words of the reaction decide without the \
+                 magnitude and a set without them is refused; `quantity_reading_basis` is \
+                 REACTION text where the words of the reaction name the quantity, agreeing \
+                 with the magnitude where it decides, a dataset whose words name the other \
                  being refused, curation or subentry text where the entry has been read, and \
                  magnitude where nothing else says it"
         end

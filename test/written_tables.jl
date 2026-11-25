@@ -225,7 +225,17 @@ if isdir(TREE)
             @test haskey(accepted(record, "23709002"), "authors_average")
             rudstam_entry = accepted(record, "221610021")
             @test haskey(rudstam_entry, "authors_average")
-            @test "In-130: ISOMER 0" in rudstam_entry["isomer_states_other_pointer"]
+            # The partial sum of In-130 and the six nuclides whose other state the subentry
+            # gives only under another pointer.
+            @test sort(rudstam_entry["isomer_states_other_pointer"]) == [
+                "Ag-115: ISOMER 0",
+                "Ag-117: ISOMER 0",
+                "Cd-119: ISOMER 1",
+                "In-125: ISOMER 1",
+                "In-130: ISOMER 0",
+                "Sb-130: ISOMER 0",
+                "Sn-127: ISOMER 0",
+            ]
         end
         # A value stated approximately, kept as the single row of its table.
         gamma = joinpath(TREE, "U235_nth", "eps_gamma")

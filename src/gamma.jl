@@ -563,8 +563,8 @@ const _MEAN_WORDS =
 
 """
 The γ-energy range, in MeV, over which the magnitude of a value tells a total energy per fission
-from a mean photon energy: a range starting at or below 1.5 MeV and ending at or above 4.0 MeV.
-Over a partial range the two trade places. For an exponential spectrum through the values of
+from a mean photon energy: a range starting at or below 1.5 MeV and ending at or above 4.0 MeV,
+a bound the entry does not state restricting nothing. Over a partial range the two trade places. For an exponential spectrum through the values of
 Makii 2019 (4.07 MeV and 1.78 MeV per photon above 1 MeV, a slope of 0.78 MeV), the total
 above a threshold E_min falls below 3 MeV from E_min ≈ 1.4 MeV and below 2.5 MeV, into
 [`MEAN_PHOTON_ENERGY_INTERVAL`](@ref), from about 1.6 MeV, while the mean photon energy,
@@ -585,10 +585,11 @@ The magnitude decides, the two intervals [`TOTAL_GAMMA_ENERGY_INTERVAL`](@ref) a
 where it names the quantity ("total", or an energy per gamma, per photon or of one gamma) and
 agrees with the magnitude; a text that names the other quantity refuses the dataset, and a
 reading on magnitude alone is recorded as such. The magnitude decides only where the γ-energy
-range of the values, `low` to `high` in MeV (`NaN` where unstated), starts at or below the
-first bound of [`MAGNITUDE_READING_RANGE`](@ref) and ends at or above the second, and where a
-partial range (`partial`, the code `PAR`) states its lower bound; otherwise the words of the
-REACTION decide, and a dataset whose words name neither quantity is refused.
+range of the values, `low` to `high` in MeV (`NaN` where unstated, an unstated bound
+restricting nothing), starts at or below the first bound of
+[`MAGNITUDE_READING_RANGE`](@ref) and ends at or above the second, and where a partial range
+(`partial`, the code `PAR`) states its lower bound; otherwise the words of the REACTION decide
+without the magnitude, and a dataset whose words name neither quantity is refused.
 """
 function gamma_energy_reading(
     text::AbstractString,
