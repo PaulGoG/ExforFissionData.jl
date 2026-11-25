@@ -206,8 +206,19 @@
         @test isnan(combine_measurements([1.0, 3.0], [NaN, NaN])[2])
         @test isnan(combine_measurements([1.0, 3.0], [NaN, 0.0])[2])
 
-        # A point quoting none is kept, at the median of the positive weights.
-        _, _, imputed = combine_measurements([1.0, 2.0, 3.0], [0.1, 0.0, 0.2])
+        # A point quoting none, or a zero beside points quoting more, is kept at the median of
+        # the positive weights; that weight is no information, so the combined uncertainty is
+        # unknown.
+        _, uncertainty, imputed = combine_measurements([1.0, 2.0, 3.0], [0.1, 0.0, 0.2])
+        @test imputed == 1
+        @test isnan(uncertainty)
+        value, uncertainty, imputed = combine_measurements([1.0, 2.0], [0.1, NaN])
+        @test isapprox(value, 1.5; rtol = 1.0e-12)
+        @test isnan(uncertainty)
+        @test imputed == 1
+        value, uncertainty, imputed = combine_measurements([1.0, 2.0], [0.1, 0.0])
+        @test isapprox(value, 1.5; rtol = 1.0e-12)
+        @test isnan(uncertainty)
         @test imputed == 1
 
         @test combine_measurements([2.5], [0.3]) == (2.5, 0.3, 0)

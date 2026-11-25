@@ -89,6 +89,21 @@ end
     # Words naming one quantity over values of the other refuse the dataset.
     @test occursin("names the total", reading("Total gamma energy", [0.85]))
     @test occursin("lie in neither", reading("", [2.9]))
+    # The magnitude alone is no basis over a partial range: a total above 2 MeV lies
+    # among mean photon energies, and a range ending at 1.5 MeV leaves a total of the
+    # order of one.
+    @test occursin("cannot tell", reading("", [2.0]; low = 2.0))
+    @test occursin("cannot tell", reading("", [1.8]; low = 0.1, high = 1.5))
+    # A set coded PAR that states no lower bound cannot be read on its magnitude.
+    @test occursin("PAR", reading("", [4.07]; partial = true))
+    # Over 1 to 6 MeV it can (Makii 2019: 4.07 MeV and 1.78 MeV per photon).
+    @test reading("", [4.07]; low = 1.0, high = 6.0, partial = true).reading ==
+          "total_energy_per_fission"
+    @test reading("", [1.78]; low = 1.0, high = 6.0, partial = true).reading ==
+          "mean_photon_energy"
+    @test reading("", [6.7]; low = 0.1).basis == "magnitude"
+    # Words that name the quantity decide over any range.
+    @test reading("Total gamma energy", [3.5]; low = 2.0).basis == "REACTION text"
 
     # The words of the reaction of a pointer.
     text = exfor_subentry(;
@@ -537,6 +552,32 @@ end
         entry_text,
         "by setting the area of prompt gamma-ray peak ( from -10 to 12.5 ns) to unity",
     ) == "subentry 23174004, ANALYSIS"
+    # Words under the pointer of another dataset describe that dataset.
+    pointed = exfor_subentry(;
+        subentry = "10000003",
+        bib = [
+            "REACTION  1(98-CF-252(0,F)0-G-0,PR,FY)",
+            "          2(98-CF-252(0,F)0-G-0,PR,FY,,RAW)",
+            "           Data before applying correction factor of 1.30.",
+        ],
+        headings = ["DATA", "DATA"],
+        units = ["PRT/FIS", "PRT/FIS"],
+        pointers = ['1', '2'],
+        rows = [[8.28, 6.37]],
+    )
+    @test ExforFissionData.locate_statement(
+        pointed,
+        "Data before applying correction factor of 1.30.",
+    ) == "subentry 10000003, REACTION, pointer 2"
+    # The correction of 237830031 is stated by the publication as well.
+    gjestvang = ExforFissionData.gamma_statements("237830031")
+    @test any(
+        s ->
+            s.basis == "publication" &&
+            occursin("doi:10.1103/PhysRevC.103.034609", s.location) &&
+            occursin("uncertainty-weighted average", s.evidence),
+        gjestvang,
+    )
 
     # Skarsvag 1970 is cited by DOI.
     @test occursin(

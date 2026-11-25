@@ -1,7 +1,8 @@
 # Edge cases of selection and retrieval: an incident energy on a channel bound, the six digits of
 # the rendering, a nuclide whose charge is a COMMON constant, a second energy heading beside the
 # one that carries the abscissa, responses that are no EXFOR text, the directory of a retrieval,
-# and values a configuration may not hold.
+# values a configuration may not hold, the datum of an approximate value, the authors'
+# average beside the results it averages, and the isomeric states another pointer gives.
 
 @testset "edge cases" begin
     @testset "an incident energy on a channel bound" begin
@@ -245,5 +246,117 @@
             0,
             Inf,
         ) isa Query
+    end
+
+    @testset "the datum of an approximate value" begin
+        datum_heading = ExforFissionData.datum_heading
+        @test datum_heading("gamma_mean_energy", ["EN-DUMMY", "DATA-APRX"]) == "DATA-APRX"
+        @test datum_heading("yield", ["MASS", "DATA", "DATA-APRX"]) == "DATA"
+        @test datum_heading("yield", ["MASS", "DATA-CM", "DATA-APRX"]) === nothing
+        @test datum_heading("neutron_kinetic_energy", ["MASS", "DATA-CM", "DATA-APRX"]) ==
+              "DATA-CM"
+        @test datum_heading("yield", ["MASS", "DATA-MAX"]) === nothing
+    end
+
+    @testset "the authors' average beside the results it averages" begin
+        bib = [
+            "REACTION   (92-U-235(N,F)ELEM/MASS,IND,FY)",
+            "FLAG       (1.) Sample 1",
+            "           (2.) Sample 2",
+            "           (5.) Average of samples 1 and 2.",
+            "           (8.) Yield used in the normalization.",
+        ]
+        headings = ["ELEMENT", "MASS", "ISOMER", "DATA", "DATA-ERR", "FLAG", "FLAG"]
+        units = ["NO-DIM", "NO-DIM", "NO-DIM", "PC/FIS", "PC/FIS", "NO-DIM", "NO-DIM"]
+        rows = [
+            [51.0, 124.0, 0.0, 1.0e-4, missing, 1.0, missing],
+            [51.0, 124.0, 0.0, 1.2e-4, missing, 2.0, missing],
+            [51.0, 124.0, 0.0, 1.1e-4, 0.1e-4, 5.0, missing],
+            [51.0, 126.0, 0.0, 3.0e-3, 0.3e-3, 2.0, missing],
+            [51.0, 126.0, 0.0, 3.0e-3, 0.3e-3, 1.0, 8.0],
+            [51.0, 128.0, 0.0, 4.0e-3, 0.4e-3, 1.0, 8.0],
+            [51.0, 130.0, 0.0, 5.0e-3, 0.5e-3, 1.0, missing],
+            [51.0, 130.0, 0.0, 5.1e-3, 0.5e-3, 2.0, missing],
+        ]
+        text = exfor_subentry(; bib, headings, units, rows)
+        data = ExforFissionData.parse_subentry(text, "10000002").data
+        reading(lines; definition = "(5.) Average of samples 1 and 2.") =
+            ExforFissionData.AuthorsAverage(
+                [5.0],
+                [definition],
+                [8.0],
+                ["(8.) Yield used in the normalization."],
+                lines,
+                "synthetic",
+            )
+        # The average stands for Sb-124; the line flagged 8 that repeats line 4 is left
+        # out; the one flagged 8 that stands alone (line 6) and the two results without
+        # an average (lines 7, 8) are kept.
+        @test ExforFissionData.average_lines(reading(3), text, data, "DATA") ==
+              Bool[1, 1, 0, 0, 1, 0, 0, 0]
+        # A count of lines left out other than the recorded one sends the reading to review.
+        changed = ExforFissionData.average_lines(reading(4), text, data, "DATA")
+        @test changed isa String
+        @test occursin("expects 4", changed)
+        # A definition the text no longer holds sends the reading to review.
+        gone = ExforFissionData.average_lines(
+            reading(3; definition = "(5.) Average of all samples."),
+            text,
+            data,
+            "DATA",
+        )
+        @test gone isa String
+        @test occursin("no longer holds", gone)
+        # Two averages of one state are no reading.
+        doubled_text = exfor_subentry(;
+            bib,
+            headings,
+            units,
+            rows = [rows; [[51.0, 124.0, 0.0, 1.15e-4, 0.1e-4, 5.0, missing]]],
+        )
+        doubled_data = ExforFissionData.parse_subentry(doubled_text, "10000002").data
+        doubled =
+            ExforFissionData.average_lines(reading(3), doubled_text, doubled_data, "DATA")
+        @test doubled isa String
+        @test occursin("flagged as the authors' average", doubled)
+        # The curated table holds the two datasets with the line counts of the archive.
+        @test ExforFissionData.AUTHORS_AVERAGES["23709002"].lines == 8
+        @test ExforFissionData.AUTHORS_AVERAGES["221610021"].lines == 39
+    end
+
+    @testset "isomeric states another pointer gives" begin
+        text = exfor_subentry(;
+            bib = [
+                "REACTION  1(92-U-235(N,F)ELEM/MASS,IND,FY)",
+                "          2(92-U-235(N,F)ELEM/MASS,CUM,FY)",
+            ],
+            headings = [
+                "ELEMENT",
+                "MASS",
+                "ISOMER",
+                "DATA",
+                "DATA-ERR",
+                "DATA",
+                "DATA-ERR",
+            ],
+            units = ["NO-DIM", "NO-DIM", "NO-DIM", "PC/FIS", "PC/FIS", "PC/FIS", "PC/FIS"],
+            pointers = [' ', ' ', ' ', '1', '1', '2', '2'],
+            rows = [
+                [49.0, 130.0, 0.0, missing, missing, 0.0039, 0.001],
+                [49.0, 130.0, 1.0, 0.0056, 0.001, missing, missing],
+                [49.0, 130.0, 2.0, 0.0032, 0.0005, missing, missing],
+                [49.0, 131.0, 0.0, 0.01, 0.001, missing, missing],
+            ],
+        )
+        function other_states(identifier)
+            subentry = ExforFissionData.parse_subentry(text, identifier)
+            datum = ExforFissionData.column(subentry.data, "DATA")
+            present = BitVector(map(!ismissing, subentry.data.values[datum]))
+            return ExforFissionData._states_under_other_pointers(subentry, present)
+        end
+        # The ground state of In-130 is given as a cumulative yield alone.
+        @test other_states("100000021") == ["In-130: ISOMER 0"]
+        # In-131, which pointer 2 does not give, is not named.
+        @test other_states("100000022") == ["In-130: ISOMER 1", "In-130: ISOMER 2"]
     end
 end

@@ -185,6 +185,73 @@ if isdir(TREE)
             isempty(unnamed) || @info "record keys the documentation does not name" unnamed
         end
     end
+    @testset "authors' averages and pointers in $(TREE)" begin
+        # A table of the form Z A_p Y Y_uncertainty, keyed by (Z, A_p).
+        function charge_mass_table(path)
+            table = Dict{Tuple{Int, Int}, Tuple{Float64, Float64}}()
+            for line in Iterators.drop(eachline(path), 1)
+                fields = split(line)
+                isempty(fields) && continue
+                key = (parse(Int, fields[1]), parse(Int, fields[2]))
+                table[key] = (parse(Float64, fields[3]), parse(Float64, fields[4]))
+            end
+            return table
+        end
+        accepted(path, identifier) = only(
+            entry for entry in TOML.parsefile(path)["accepted"] if
+            entry["identifier"] == identifier
+        )
+
+        yields = joinpath(TREE, "U235_nth", "Y_vs_Z_A_p")
+        # The FLAG 5 lines of 23709.002, PC/FIS divided by 100.
+        strom = joinpath(yields, "23709002_P.O.Strom_1965.dat")
+        if isfile(strom)
+            table = charge_mass_table(strom)
+            @test collect(table[(51, 124)]) ≈ [9.5e-8, 1.4e-8] rtol = 1.0e-6
+            @test collect(table[(51, 126)]) ≈ [1.04e-5, 1.8e-6] rtol = 1.0e-6
+        end
+        # The FLAG 4 averages of the two isomers of In-130, summed in quadrature; of Ag-118
+        # the ground state and the isomer once, the repeat of the isomer flagged 8 left out.
+        rudstam = joinpath(yields, "221610021_G.Rudstam_1990.dat")
+        if isfile(rudstam)
+            table = charge_mass_table(rudstam)
+            indium = [8.8e-5, sqrt(1.0e-5^2 + 0.5e-5^2)]
+            silver = [6.8e-5, sqrt(1.0e-5^2 + 0.9e-5^2)]
+            @test collect(table[(49, 130)]) ≈ indium rtol = 1.0e-6
+            @test collect(table[(47, 118)]) ≈ silver rtol = 1.0e-6
+        end
+        record = joinpath(yields, "retrieval.toml")
+        if isfile(record)
+            @test haskey(accepted(record, "23709002"), "authors_average")
+            rudstam_entry = accepted(record, "221610021")
+            @test haskey(rudstam_entry, "authors_average")
+            @test "In-130: ISOMER 0" in rudstam_entry["isomer_states_other_pointer"]
+        end
+        # A value stated approximately, kept as the single row of its table.
+        gamma = joinpath(TREE, "U235_nth", "eps_gamma")
+        deutsch = joinpath(gamma, "14735003_M.Deutsch_1944.dat")
+        if isfile(deutsch)
+            lines = collect(Iterators.drop(eachline(deutsch), 1))
+            rows = filter(line -> !isempty(strip(line)), lines)
+            @test length(rows) == 1
+            @test parse(Float64, first(split(only(rows)))) ≈ 1.0 rtol = 1.0e-6
+        end
+        record = joinpath(gamma, "retrieval.toml")
+        if isfile(record)
+            @test haskey(accepted(record, "14735003"), "approximate_rows")
+        end
+        # 237830031 and its correction, stated under the pointer of the uncorrected dataset.
+        record = joinpath(TREE, "Cf252_sf", "M_gamma_bar", "retrieval.toml")
+        if isfile(record)
+            entry = accepted(record, "237830031")
+            @test "231970091" in entry["correlated_with"]
+            @test entry["correlation_relation"] == "dependent"
+            @test any(
+                occursin("REACTION, pointer 2", statement) for
+                statement in entry["corrections_stated"]
+            )
+        end
+    end
 else
     @info "no retrieval tree at $(TREE); the written tables are not checked"
 end
