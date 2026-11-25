@@ -115,6 +115,12 @@ end
     unbounded_mean = reading("Average gamma energy per gamma", [0.9]; partial = true)
     @test (unbounded_mean.reading, unbounded_mean.basis) ==
           ("mean_photon_energy", "REACTION text")
+    # A PAR set without a lower bound, and a range ending below 4 MeV, are read from their
+    # words though the magnitude would say the other quantity.
+    @test reading("Total gamma energy", [1.76]; partial = true).reading ==
+          "total_energy_per_fission"
+    @test reading("Total gamma energy", [1.8]; low = 0.1, high = 1.5).basis ==
+          "REACTION text"
 
     # The words of the reaction of a pointer.
     text = exfor_subentry(;

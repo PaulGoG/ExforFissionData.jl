@@ -1032,7 +1032,10 @@ its state, value and uncertainty, is no measurement of its own and is left out a
 - `copy_flags::Vector{Float64}`: the FLAG values that mark a normalisation input; empty where the
   dataset has none.
 - `copy_definitions::Vector{String}`: their definitions, verbatim.
-- `lines::Int`: how many lines the reading leaves out, against a changed archive.
+- `lines::Int`: how many lines the reading leaves out, against a changed archive. The count is
+  over the lines a query keeps: both datasets give one incident energy and carry no compilation
+  defect, so every query that reaches them keeps all their lines; a dataset over several
+  energies would need its count per window.
 - `description::String`: the reading and its evidence, written to the run record as
   `authors_average`.
 

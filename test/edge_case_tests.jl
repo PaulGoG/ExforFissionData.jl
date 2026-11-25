@@ -354,6 +354,43 @@
         aprx_data = ExforFissionData.parse_subentry(aprx_text, "10000002").data
         @test ExforFissionData.average_lines(reading(0), aprx_text, aprx_data, "DATA") ==
               Bool[0, 0]
+        # An average at each of two incident energies stands for its own state.
+        energies_text = exfor_subentry(;
+            bib,
+            headings = [
+                "ELEMENT",
+                "MASS",
+                "ISOMER",
+                "EN",
+                "DATA",
+                "DATA-ERR",
+                "FLAG",
+                "FLAG",
+            ],
+            units = [
+                "NO-DIM",
+                "NO-DIM",
+                "NO-DIM",
+                "EV",
+                "PC/FIS",
+                "PC/FIS",
+                "NO-DIM",
+                "NO-DIM",
+            ],
+            rows = [
+                [51.0, 124.0, 0.0, 0.0253, 1.0e-4, missing, 1.0, missing],
+                [51.0, 124.0, 0.0, 0.0253, 1.1e-4, 0.1e-4, 5.0, missing],
+                [51.0, 124.0, 0.0, 1.4e7, 2.0e-4, missing, 1.0, missing],
+                [51.0, 124.0, 0.0, 1.4e7, 2.1e-4, 0.2e-4, 5.0, missing],
+            ],
+        )
+        energies_data = ExforFissionData.parse_subentry(energies_text, "10000002").data
+        @test ExforFissionData.average_lines(
+            reading(2),
+            energies_text,
+            energies_data,
+            "DATA",
+        ) == Bool[1, 0, 1, 0]
         # The curated table holds the two datasets with the line counts of the archive.
         @test ExforFissionData.AUTHORS_AVERAGES["23709002"].lines == 8
         @test ExforFissionData.AUTHORS_AVERAGES["221610021"].lines == 39
@@ -449,5 +486,46 @@
         unwritten = ExforFissionData.parse_subentry(text, "100000021")
         @test ExforFissionData._states_under_other_pointers(unwritten, falses(4)) ==
               String[]
+        # A state another pointer gives at another incident energy is not missing from the
+        # yield at this one.
+        energy_text = exfor_subentry(;
+            bib = [
+                "REACTION  1(92-U-235(N,F)ELEM/MASS,IND,FY)",
+                "          2(92-U-235(N,F)ELEM/MASS,CUM,FY)",
+            ],
+            headings = [
+                "ELEMENT",
+                "MASS",
+                "ISOMER",
+                "EN",
+                "DATA",
+                "DATA-ERR",
+                "DATA",
+                "DATA-ERR",
+            ],
+            units = [
+                "NO-DIM",
+                "NO-DIM",
+                "NO-DIM",
+                "EV",
+                "PC/FIS",
+                "PC/FIS",
+                "PC/FIS",
+                "PC/FIS",
+            ],
+            pointers = [' ', ' ', ' ', ' ', '1', '1', '2', '2'],
+            rows = [
+                [49.0, 130.0, 1.0, 0.0253, 0.0056, 0.001, missing, missing],
+                [49.0, 130.0, 0.0, 1.4e7, missing, missing, 0.0039, 0.001],
+            ],
+        )
+        energy_subentry = ExforFissionData.parse_subentry(energy_text, "100000021")
+        energy_datum = ExforFissionData.column(energy_subentry.data, "DATA")
+        energy_present =
+            BitVector(map(!ismissing, energy_subentry.data.values[energy_datum]))
+        @test ExforFissionData._states_under_other_pointers(
+            energy_subentry,
+            energy_present,
+        ) == String[]
     end
 end

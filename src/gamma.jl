@@ -585,10 +585,10 @@ The magnitude decides, the two intervals [`TOTAL_GAMMA_ENERGY_INTERVAL`](@ref) a
 where it names the quantity ("total", or an energy per gamma, per photon or of one gamma) and
 agrees with the magnitude; a text that names the other quantity refuses the dataset, and a
 reading on magnitude alone is recorded as such. The magnitude decides only where the γ-energy
-range of the values, `low` to `high` in MeV (`NaN` where unstated), lies within the bounds of
-[`MAGNITUDE_READING_RANGE`](@ref), and a partial range (`partial`, the code `PAR`) states a
-lower bound; otherwise the words of the REACTION decide, and a dataset whose words name
-neither quantity is refused.
+range of the values, `low` to `high` in MeV (`NaN` where unstated), starts at or below the
+first bound of [`MAGNITUDE_READING_RANGE`](@ref) and ends at or above the second, and where a
+partial range (`partial`, the code `PAR`) states its lower bound; otherwise the words of the
+REACTION decide, and a dataset whose words name neither quantity is refused.
 """
 function gamma_energy_reading(
     text::AbstractString,
