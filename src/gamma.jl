@@ -584,10 +584,11 @@ The magnitude decides, the two intervals [`TOTAL_GAMMA_ENERGY_INTERVAL`](@ref) a
 [`MEAN_PHOTON_ENERGY_INTERVAL`](@ref) being disjoint. The REACTION text `text` is the basis
 where it names the quantity ("total", or an energy per gamma, per photon or of one gamma) and
 agrees with the magnitude; a text that names the other quantity refuses the dataset, and a
-reading on magnitude alone is recorded as such. A reading on magnitude alone needs the
-γ-energy range of the values, `low` to `high` in MeV (`NaN` where unstated), to lie within the
-bounds of [`MAGNITUDE_READING_RANGE`](@ref); a partial range (`partial`, the code `PAR`) that
-states no lower bound cannot be read on magnitude.
+reading on magnitude alone is recorded as such. The magnitude decides only where the γ-energy
+range of the values, `low` to `high` in MeV (`NaN` where unstated), lies within the bounds of
+[`MAGNITUDE_READING_RANGE`](@ref), and a partial range (`partial`, the code `PAR`) states a
+lower bound; otherwise the words of the REACTION decide, and a dataset whose words name
+neither quantity is refused.
 """
 function gamma_energy_reading(
     text::AbstractString,
@@ -597,6 +598,29 @@ function gamma_energy_reading(
     partial::Bool = false,
 )
     isempty(values) && return "no value to read"
+    total, mean = occursin(_TOTAL_WORDS, text), occursin(_MEAN_WORDS, text)
+    stated =
+        total == mean ? nothing : total ? "total_energy_per_fission" : "mean_photon_energy"
+    neither =
+        isempty(text) ? "the REACTION carries no text" :
+        "the REACTION text \"$(text)\" names neither"
+    # Over a partial range the two quantities leave the intervals of a full one, so the
+    # magnitude neither decides nor contradicts: the words decide, and without them the dataset
+    # is refused.
+    if partial && isnan(low)
+        stated === nothing || return QuantityReading(stated, "REACTION text", text)
+        return "the values are a partial γ energy (PAR) whose range states no lower bound, \
+            and $(neither): the magnitude cannot tell a total energy per fission from a mean \
+            photon energy"
+    end
+    if low > MAGNITUDE_READING_RANGE[1] || high < MAGNITUDE_READING_RANGE[2]
+        stated === nothing || return QuantityReading(stated, "REACTION text", text)
+        return "the values are a γ energy over $(isnan(low) ? "an unstated bound" : low) to \
+            $(isnan(high) ? "an unstated bound" : high) MeV, and $(neither): over a range \
+            starting above $(MAGNITUDE_READING_RANGE[1]) MeV or ending below \
+            $(MAGNITUDE_READING_RANGE[2]) MeV the magnitude cannot tell a total energy per \
+            fission from a mean photon energy"
+    end
     within(interval) = all(v -> interval[1] ≤ v ≤ interval[2], values)
     magnitude = if within(TOTAL_GAMMA_ENERGY_INTERVAL)
         "total_energy_per_fission"
@@ -609,23 +633,7 @@ function gamma_energy_reading(
                 $(TOTAL_GAMMA_ENERGY_INTERVAL[2]) MeV, nor that of a mean photon energy, \
                 $(MEAN_PHOTON_ENERGY_INTERVAL[1]) to $(MEAN_PHOTON_ENERGY_INTERVAL[2]) MeV"
     end
-    total, mean = occursin(_TOTAL_WORDS, text), occursin(_MEAN_WORDS, text)
-    stated =
-        total == mean ? nothing : total ? "total_energy_per_fission" : "mean_photon_energy"
     if stated === nothing
-        neither =
-            isempty(text) ? "the REACTION carries no text" :
-            "the REACTION text \"$(text)\" names neither"
-        partial && isnan(low) && return "the values are a partial γ energy (PAR) whose \
-            range states no lower bound, and $(neither): the magnitude cannot tell a total \
-            energy per fission from a mean photon energy"
-        if low > MAGNITUDE_READING_RANGE[1] || high < MAGNITUDE_READING_RANGE[2]
-            return "the values are a γ energy over $(isnan(low) ? "an unstated bound" : low) \
-                to $(isnan(high) ? "an unstated bound" : high) MeV, and $(neither): over a \
-                range starting above $(MAGNITUDE_READING_RANGE[1]) MeV or ending below \
-                $(MAGNITUDE_READING_RANGE[2]) MeV the magnitude cannot tell a total energy \
-                per fission from a mean photon energy"
-        end
         interval =
             magnitude == "total_energy_per_fission" ? TOTAL_GAMMA_ENERGY_INTERVAL :
             MEAN_PHOTON_ENERGY_INTERVAL

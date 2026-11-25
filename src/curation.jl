@@ -1089,19 +1089,24 @@ const AUTHORS_AVERAGES = Dict{String, AuthorsAverage}(
 )
 
 """
-    average_lines(reading, text, data, datum) -> Union{BitVector,String}
+    average_lines(reading, text, data, datum, keep = trues(line_count(data)))
+        -> Union{BitVector,String}
 
 The lines of the DATA table `data` that the [`AuthorsAverage`](@ref) `reading` leaves out, or the
 reason it no longer matches the subentry text `text`: a FLAG definition the text no longer
-holds, two averages of one state, or another number of lines left out than recorded. A state is
-told by the `ELEMENT`, `MASS` and `ISOMER` columns `data` carries; `datum` is the heading of the
-datum, whose value and uncertainty (`DATA-ERR`) tell a repeated normalisation input.
+holds, two averages of one state, or another number of lines left out than recorded. Only the
+lines `keep` retains are read, those of the incident-energy window and not left out as a
+compilation defect. A state is told by the `ELEMENT`, `MASS`, `ISOMER` and `EN` columns `data`
+carries; `datum` is the heading of the datum, whose value and uncertainties (the headings of
+[`DATUM_UNCERTAINTY_HEADINGS`](@ref)) tell a repeated normalisation input, a line without a
+value in it repeating none.
 """
 function average_lines(
     reading::AuthorsAverage,
     text::AbstractString,
     data::SubentryColumns,
     datum::AbstractString,
+    keep::AbstractVector{Bool} = trues(line_count(data)),
 )
     for definition in vcat(reading.average_definitions, reading.copy_definitions)
         locate_statement(text, definition) === nothing &&
@@ -1113,17 +1118,23 @@ function average_lines(
     carries(line, values) = any(f -> !ismissing(f[line]) && f[line] in values, flags)
     identifying = [
         i for i in eachindex(data.headings) if
-        data.headings[i] in ("ELEMENT", "MASS", "ISOMER")
+        data.headings[i] in ("ELEMENT", "MASS", "ISOMER", "EN")
     ]
     state(line) = Tuple(data.values[i][line] for i in identifying)
     groups = Dict{Any, Vector{Int}}()
     for line in 1:line_count(data)
+        keep[line] || continue
         push!(get!(groups, state(line), Int[]), line)
     end
     value = data.values[column(data, datum)]
-    error_index = column(data, "DATA-ERR")
-    uncertainty =
-        error_index === nothing ? fill(missing, line_count(data)) : data.values[error_index]
+    errors = [
+        data.values[i] for
+        i in eachindex(data.headings) if data.headings[i] in DATUM_UNCERTAINTY_HEADINGS
+    ]
+    repeats(other, line) =
+        !ismissing(value[line]) &&
+        isequal(value[other], value[line]) &&
+        all(e -> isequal(e[other], e[line]), errors)
     marked = falses(line_count(data))
     for lines in values(groups)
         averages = filter(line -> carries(line, reading.average_flags), lines)
@@ -1137,14 +1148,8 @@ function average_lines(
         end
         for line in lines
             carries(line, reading.copy_flags) || continue
-            any(
-                other ->
-                    other != line &&
-                    !marked[other] &&
-                    isequal(value[other], value[line]) &&
-                    isequal(uncertainty[other], uncertainty[line]),
-                lines,
-            ) && (marked[line] = true)
+            any(other -> other != line && !marked[other] && repeats(other, line), lines) &&
+                (marked[line] = true)
         end
     end
     count(marked) == reading.lines || return "the curated reading of the authors' averages \
@@ -1179,14 +1184,14 @@ const CORRELATION_RELATIONS = (
 """
     CorrelationGroup(members, relation, reason)
 
-Datasets of one experiment: accepted separately, each on its own file, and one measurement for
-any combination of them.
+Datasets of one experiment, or a dataset formed from others: accepted separately, each on its
+own file, and one measurement for any combination of them.
 
 # Fields
 - `members::Vector{String}`: the dataset identifiers; of a `republication`, the superseded one
   first.
 - `relation::String`: how they are related, one of [`CORRELATION_RELATIONS`](@ref).
-- `reason::String`: why they are one experiment.
+- `reason::String`: why they are one measurement.
 """
 struct CorrelationGroup
     members::Vector{String}
@@ -1204,7 +1209,8 @@ struct CorrelationGroup
 end
 
 """
-Groups of datasets that repeat one experiment, give it in parts, or publish it twice; see
+Groups of datasets that repeat one experiment, give it in parts, publish it twice, or are formed
+one from another; see
 [`CorrelationGroup`](@ref). Each accepted
 member carries the others as `correlated_with` in the run record, with the relation of the group
 as `correlation_relation`, so that no weighting downstream counts one experiment once per member.

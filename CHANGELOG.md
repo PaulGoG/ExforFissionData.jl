@@ -11,8 +11,9 @@ Notable changes to ExforFissionData.jl. The format follows
 An audit with independent reviews of the selection, the curated tables and the pipeline, and the
 rulings on what it found. Two tables of 0.8.0 change, both in `U235_nth/Y_vs_Z_A_p`, and one
 dataset is added to `U235_nth/eps_gamma`; every other data file is written as 0.8.0 wrote it.
-The records change as listed below. `load_configuration` and `Query` refuse inputs that 0.8.0
-accepted, hence the minor version.
+The records change as listed below; besides, every record states the Julia version it was
+written with, 1.13.4 where 0.8.0 states 1.13.3. `load_configuration` and `Query` refuse inputs
+that 0.8.0 accepted, hence the minor version.
 
 ### Fixed
 
@@ -46,14 +47,19 @@ accepted, hence the minor version.
   23197 now, which changes `correlated_with` of every member and the `correlation` text of the
   three groups (the two measurements of Billnert 2013 that Oberstedt 2015 reprints are named as
   such). Their `corrections_stated` place the words of the entry under pointer 2, the
-  uncorrected dataset, and quote the publication on the factor applied.
+  uncorrected dataset, and quote the publication on the factor applied. The `correlated_warning`
+  of every record that carries one describes the groups as counting as one measurement, one
+  experiment or a dataset formed from the others; those of `Cf252_sf/M_gamma_bar` and
+  `Cf252_sf/E_gamma_tot` name the two Gjestvang datasets.
 - A statement of a subentry found under a pointer is located with it, `subentry 23783003,
   REACTION, pointer 2`; the γ records of entry 31729 that quote words under pointers 4 and 5
   change accordingly.
 - An independent yield summed over the isomeric states the dataset gives lacked, without notice,
   a state that the subentry gives under another pointer only: In-130 of `221610021`, whose
   ground state is given as a cumulative yield alone. Such states are named in
-  `isomer_states_other_pointer`.
+  `isomer_states_other_pointer`, also for a nuclide written as a single state: the record of
+  `221610021` names In-130 and six single-state nuclides (Ag-115, Ag-117, Cd-119, In-125,
+  Sn-127, Sb-130), each without a state the subentry gives as a cumulative yield.
 
 - An incident energy on a bound of the window was decided by binary rounding: 100 keV, as
   100000 eV times 10⁻⁶, fell short of 0.1 MeV, so a row there left the `nfast` window. The energy
@@ -87,10 +93,12 @@ accepted, hence the minor version.
   the uncertainty it gave was smaller than the one stated. `weights_imputed` is 0 in every
   shipped record, so no table changes; the `absent_uncertainty` convention of every record
   says so.
-- A prompt-γ energy is read on its magnitude alone only over a γ-energy range starting at or
-  below 1.5 MeV and ending at or above 4.0 MeV, and not for a set coded `PAR` that states no
-  lower bound (`MAGNITUDE_READING_RANGE`); over a partial range the total and the mean photon
-  energy trade places. No shipped dataset is read over such a range.
+- A prompt-γ energy is read on its magnitude only over a γ-energy range starting at or below
+  1.5 MeV and ending at or above 4.0 MeV, and not for a set coded `PAR` that states no lower
+  bound (`MAGNITUDE_READING_RANGE`): over a partial range the total and the mean photon energy
+  trade places, so there the words of the REACTION decide and a set without them is refused.
+  No shipped dataset is read over such a range; the `quantity_reading` convention of the
+  prompt-γ energy records says so.
 - The refusal of a subentry with no datum column names the headings it looks for.
 - The figure helpers label σ_TKE and write the temperature of the fitted spectrum T_eff.
 - `load_configuration` refuses a boolean where a number is asked for, an infinite `timeout` or

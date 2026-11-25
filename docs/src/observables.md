@@ -435,7 +435,8 @@ results it averages, as `23709002` (Strom 1965) does for Sb-124 and Sb-126 and `
 (`authors_average`; see [Conventions and selection](conventions.md)). A subentry of several
 pointers may give a state of a nuclide under another pointer only: Rudstam gives the ground state
 of In-130 as a cumulative yield alone, so the independent yield written for In-130 is the sum of
-its two isomers, and `isomer_states_other_pointer` names such states.
+its two isomers, and `isomer_states_other_pointer` names such states, for a nuclide written as a
+single state as well.
 
 A nuclide given in one marked state alone is written as it stands and is the yield of that state,
 not of the nuclide. Several rows without a mark are totals that cannot be told apart, and are

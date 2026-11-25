@@ -372,8 +372,13 @@ function _conventions(query::Query)
                  magnitude decides, $(TOTAL_GAMMA_ENERGY_INTERVAL[1]) to \
                  $(TOTAL_GAMMA_ENERGY_INTERVAL[2]) MeV for the total and \
                  $(MEAN_PHOTON_ENERGY_INTERVAL[1]) to $(MEAN_PHOTON_ENERGY_INTERVAL[2]) MeV \
-                 for the mean; `quantity_reading_basis` is REACTION text where the words of \
-                 the reaction name the same quantity, a dataset whose words name the other \
+                 for the mean, over a γ-energy range starting at or below \
+                 $(MAGNITUDE_READING_RANGE[1]) MeV and ending at or above \
+                 $(MAGNITUDE_READING_RANGE[2]) MeV; over a partial range, or for a set coded \
+                 PAR that states no lower bound, the words of the reaction decide and a set \
+                 without them is refused; `quantity_reading_basis` is REACTION text where \
+                 the words of the reaction name the same quantity, a dataset whose words name \
+                 the other \
                  being refused, curation or subentry text where the entry has been read, and \
                  magnitude where nothing else says it"
         end
@@ -716,7 +721,8 @@ function _dataset_warnings!(
     _warn!(
         datasets,
         "correlated_warning",
-        "these datasets stand in groups that are one experiment, each naming the others \
+        "these datasets stand in groups that count as one measurement, one experiment or a \
+         dataset formed from the others, each naming the others \
          as `correlated_with` and how its group is related as `correlation_relation`: of \
          a republication take one, by default the one not flagged `superseded:`; of an \
          alternative_analysis, one measurement reduced more than once, take one or \

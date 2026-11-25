@@ -121,7 +121,8 @@ curation, since the archive codes them alike ([`GAMMA_REFUSALS`](@ref)). An ener
 `0-G-0,PR,KE` is the total per fission or the mean photon energy, which its magnitude decides and
 its REACTION text confirms ([`gamma_energy_reading`](@ref)); the magnitude alone decides only over
 a γ-energy range starting at or below 1.5 MeV and ending at or above 4.0 MeV, and not for a set
-coded partial (`PAR`) that states no lower bound ([`MAGNITUDE_READING_RANGE`](@ref)). What
+coded partial (`PAR`) that states no lower bound ([`MAGNITUDE_READING_RANGE`](@ref)); there the
+words of the REACTION decide, and a set without them is refused. What
 defines a prompt-γ value, its γ-energy range, its time window and the corrections made, is read
 from the entry and recorded ([`gamma_definition`](@ref)), never applied as a cut.
 

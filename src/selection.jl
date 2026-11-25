@@ -677,36 +677,48 @@ function _column_table(data::SubentryColumns)
 end
 
 # The isomeric states of a subentry of several pointers that this dataset does not give but
-# another pointer does: lines naming a state of a nuclide the dataset gives, with no value in any
-# DATA column of this pointer. 22161.002 gives the independent yields of the two isomers of
-# In-130 and its ground state only as a cumulative yield, so the independent yield written for
-# In-130 is a sum without its ground state. As "In-130: ISOMER 0" entries.
-function _states_under_other_pointers(subentry::Subentry, present::AbstractVector{Bool})
+# another pointer does, as a value or a bound: lines naming a state of a nuclide the dataset
+# gives, at one of its incident energies, with no value in any DATA column of this pointer.
+# `given` marks the lines of the DATA table the dataset is written from. A nuclide the dataset
+# gives as an unmarked total lacks no state. 22161.002 gives the independent yields of the two
+# isomers of In-130 and its ground state only as a cumulative yield, so the independent yield
+# written for In-130 is a sum without its ground state. As "In-130: ISOMER 0" entries.
+function _states_under_other_pointers(subentry::Subentry, given::AbstractVector{Bool})
     data = subentry.data
     subentry.pointer === nothing && return String[]
     own = [
         i for i in eachindex(data.headings) if
         startswith(data.headings[i], "DATA") && data.pointers[i] == subentry.pointer
     ]
-    isomer, mass = column(data, "ISOMER"), column(data, "MASS")
-    (isempty(own) || isomer === nothing || mass === nothing) && return String[]
-    element = column(data, "ELEMENT")
-    constant = common_constant(subentry, "ELEMENT")
-    element === nothing && constant === nothing && return String[]
-    charge(line) = element === nothing ? constant[1] : data.values[element][line]
-    nuclide(line) = (charge(line), data.values[mass][line])
+    isomer = column(data, "ISOMER")
+    (isempty(own) || isomer === nothing) && return String[]
+    # Charge and mass from the DATA table, else from a COMMON constant; the incident energy
+    # from an EN column where the table has one.
+    function reader(heading)
+        index = column(data, heading)
+        index === nothing || return line -> data.values[index][line]
+        constant = common_constant(subentry, heading)
+        constant === nothing && return nothing
+        return line -> constant[1]
+    end
+    charge, mass = reader("ELEMENT"), reader("MASS")
+    (charge === nothing || mass === nothing) && return String[]
+    energy_index = column(data, "EN")
+    energy(line) = energy_index === nothing ? nothing : data.values[energy_index][line]
+    nuclide(line) = (charge(line), mass(line), energy(line))
     lines = 1:line_count(data)
-    given =
-        Set((nuclide(line), data.values[isomer][line]) for line in lines if present[line])
-    nuclides = Set(first(state) for state in given)
+    states =
+        Set((nuclide(line), data.values[isomer][line]) for line in lines if given[line])
+    nuclides = Set(first(state) for state in states)
+    totals = Set(first(state) for state in states if ismissing(last(state)))
     found = String[]
     for line in lines
-        present[line] && continue
+        given[line] && continue
         all(i -> ismissing(data.values[i][line]), own) || continue
         key = nuclide(line)
         state = data.values[isomer][line]
-        (any(ismissing, key) || ismissing(state)) && continue
-        (key in nuclides && !((key, state) in given)) || continue
+        (any(ismissing, key[1:2]) || ismissing(state)) && continue
+        (key in nuclides && !(key in totals) && !((key, state) in states)) || continue
         entry = "$(nuclide_label(round(Int, key[1]), key[2])): ISOMER $(round(Int, state))"
         entry in found || push!(found, entry)
     end
@@ -835,9 +847,6 @@ function select_dataset(
     approximate = column(subentry.data, APPROXIMATE_DATUM)
     approximate === nothing ||
         (present .|= BitVector(map(!ismissing, subentry.data.values[approximate])))
-    other_pointer_states =
-        "charge" in query.abscissa ? _states_under_other_pointers(subentry, present) :
-        String[]
     data = restrict(subentry.data, present)
     # A nuclide identification the subentry holds as a constant of its COMMON section, or of
     # the entry's (one element, its isotopes tabulated by mass; one isomeric state throughout)
@@ -972,9 +981,18 @@ function select_dataset(
     end
     averages = get(AUTHORS_AVERAGES, identifier, nothing)
     if averages !== nothing
-        marked = average_lines(averages, subentry_text, data, data.headings[datum])
+        marked = average_lines(averages, subentry_text, data, data.headings[datum], keep)
         marked isa String && return Rejection(identifier, code, marked)
         keep .&= .!marked
+    end
+    # The states another pointer gives, against the lines the dataset is written from: those
+    # with a datum that the window, the value kinds and the curated readings retain.
+    other_pointer_states = if "charge" in query.abscissa
+        written_lines = falses(length(present))
+        written_lines[findall(present)] .= keep
+        _states_under_other_pointers(subentry, written_lines)
+    else
+        String[]
     end
     table = screened.table[keep, :]
     data = restrict(data, keep)
