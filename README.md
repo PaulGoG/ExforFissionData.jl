@@ -4,9 +4,9 @@
 [![CI](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/PaulGoG/ExforFissionData.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/PaulGoG/ExforFissionData.jl)
 [![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
-[![JET](https://img.shields.io/badge/tested%20with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
-[![Format](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/format.yml/badge.svg?branch=main)](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/format.yml?query=branch%3Amain)
-[![Julia](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FPaulGoG%2FExforFissionData.jl%2Fmain%2FProject.toml&query=%24.compat.julia&label=julia&color=9558b2)](https://julialang.org/downloads/)
+[![JET](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
+[![Format](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/Format.yml/badge.svg?branch=main)](https://github.com/PaulGoG/ExforFissionData.jl/actions/workflows/Format.yml?query=branch%3Amain)
+[![Julia](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FPaulGoG%2FExforFissionData.jl%2Fmain%2FProject.toml&query=%24.compat.julia&label=julia&logo=julia&color=9558b2)](https://julialang.org/downloads/)
 
 Retrieval of experimental fission observables from the IAEA EXFOR archive, as tabulated data
 files with a record of everything the query considered.
@@ -415,7 +415,7 @@ ExforFissionData.jl/
     ├── dependabot.yml           # weekly updates for the julia and github-actions ecosystems
     └── workflows/
         ├── CI.yml               # tests, plotting suite, coverage to Codecov, documentation
-        └── format.yml           # formatting check against the pinned JuliaFormatter
+        └── Format.yml           # formatting check against the pinned JuliaFormatter
 ```
 
 </details>
