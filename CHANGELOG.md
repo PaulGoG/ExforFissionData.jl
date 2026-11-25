@@ -6,11 +6,51 @@ Notable changes to ExforFissionData.jl. The format follows
 
 ## [Unreleased]
 
-An audit with independent reviews of the selection, the curated tables and the pipeline. The
-fixes are meant to leave every table that 0.8.0 writes unchanged; the comparison of the two trees
-is made with the release.
+## [0.9.0] - 2026-11-25
+
+An audit with independent reviews of the selection, the curated tables and the pipeline, and the
+rulings on what it found. Two tables of 0.8.0 change, both in `U235_nth/Y_vs_Z_A_p`, and one
+dataset is added to `U235_nth/eps_gamma`; every other data file is written as 0.8.0 wrote it.
+The records change as listed below. `load_configuration` and `Query` refuse inputs that 0.8.0
+accepted, hence the minor version.
 
 ### Fixed
+
+- **Authors' averages counted beside the results they average.** `23709002` (Strom 1965) gives
+  the ground-state yields of Sb-124 and Sb-126 for four samples and the authors' average (`FLAG`
+  5, for Sb-124 of samples 3 and 4 alone), and the five lines of each were combined as repeats:
+  Sb-124 was written 1.012724e-7 ± 7.78e-9 and Sb-126 1.000513e-5 ± 6.60e-7, the samples
+  counted twice and, for Sb-124, samples 1 and 2 brought back. The average is now written for
+  its state and the samples are left out: 9.5e-8 ± 1.4e-8 and 1.04e-5 ± 1.8e-6. `221610021`
+  (Rudstam 1990) gives the averages of its experiments for 14 states (`FLAG` 4 and 5), and a
+  line flagged 8, the yield an experiment was normalised to, that repeats another line of its
+  state for Ag-118m, Ag-120m, In-122m2 and In-128m; the averages are written alone and the
+  repeats left out. Twelve rows of `221610021_G.Rudstam_1990.dat` change (Br-84, Ag-116,
+  Ag-118, Ag-120, In-120, In-122, In-124, In-126, In-128, In-130, Sb-132, I-134), their
+  uncertainties larger by up to 1.8 times and their values within 0.6 %. The two records gain
+  `authors_average`, the observable `authors_average_warning`; `abscissae_combined`,
+  `combined_over` and `yield_sum` of the two datasets change with the tables.
+- **A value the archive marks approximate as the only datum.** A subentry whose only datum
+  column is `DATA-APRX` was refused as having none. It is read from that column and listed in
+  `approximate_rows`: `14735003` (Deutsch 1944, about 1.0 MeV per photon) is written to
+  `U235_nth/eps_gamma` (10 → 11 datasets), and its refusal under `U235_nth/E_gamma_tot` now
+  says that it holds the mean photon energy. The multiplicity read under a miscoded `PC/FIS` and
+  the subentry unit of a yield look the datum up under the same heading.
+- **Gjestvang 2021 is no measurement of the scale.** Its 252-Cf multiplicity and total energy
+  (`237830031`, `237830041`) are scaled by construction to the uncertainty-weighted average of
+  Billnert 2013 and three detectors of entry 23197 (doi:10.1103/PhysRevC.103.034609, Sec. II A
+  and Table I), with a statistical uncertainty alone. Both stand in the dependent groups of
+  23197 now, which changes `correlated_with` of every member and the `correlation` text of the
+  three groups (the two measurements of Billnert 2013 that Oberstedt 2015 reprints are named as
+  such). Their `corrections_stated` place the words of the entry under pointer 2, the
+  uncorrected dataset, and quote the publication on the factor applied.
+- A statement of a subentry found under a pointer is located with it, `subentry 23783003,
+  REACTION, pointer 2`; the γ records of entry 31729 that quote words under pointers 4 and 5
+  change accordingly.
+- An independent yield summed over the isomeric states the dataset gives lacked, without notice,
+  a state that the subentry gives under another pointer only: In-130 of `221610021`, whose
+  ground state is given as a cumulative yield alone. Such states are named in
+  `isomer_states_other_pointer`.
 
 - An incident energy on a bound of the window was decided by binary rounding: 100 keV, as
   100000 eV times 10⁻⁶, fell short of 0.1 MeV, so a row there left the `nfast` window. The energy
@@ -39,6 +79,17 @@ is made with the release.
 
 ### Changed
 
+- `combine_measurements` returns a `NaN` uncertainty where a weight was imputed, to a row stating
+  no uncertainty or a zero beside rows stating more: the imputed weight is no information, and
+  the uncertainty it gave was smaller than the one stated. `weights_imputed` is 0 in every
+  shipped record, so no table changes; the `absent_uncertainty` convention of every record
+  says so.
+- A prompt-γ energy is read on its magnitude alone only over a γ-energy range starting at or
+  below 1.5 MeV and ending at or above 4.0 MeV, and not for a set coded `PAR` that states no
+  lower bound (`MAGNITUDE_READING_RANGE`); over a partial range the total and the mean photon
+  energy trade places. No shipped dataset is read over such a range.
+- The refusal of a subentry with no datum column names the headings it looks for.
+- The figure helpers label σ_TKE and write the temperature of the fitted spectrum T_eff.
 - `load_configuration` refuses a boolean where a number is asked for, an infinite `timeout` or
   `backoff`, an output `directory` that is absolute or climbs out of the output root with `..`,
   and a width or parameter column that is no `MISC` column.
@@ -55,7 +106,8 @@ is made with the release.
   of the pages is plainer.
 - The README carries the status of the Format workflow and reads the Julia version from
   `[compat]`. CI tests the floor of `[compat]` as `min`, and JET is asserted on the current
-  stable series alone.
+  stable series alone. Every action of the workflows is pinned to the commit of its release, and
+  the format workflow is `Format.yml`.
 
 ## [0.8.0] - 2026-11-03
 
@@ -1182,7 +1234,8 @@ The changes below name every dataset whose status changed.
 - Output order followed thread scheduling, so no two runs agreed.
 - A cache temporary named from the process id alone could be chosen by two tasks at once.
 
-[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/PaulGoG/ExforFissionData.jl/compare/v0.5.2...v0.6.0
