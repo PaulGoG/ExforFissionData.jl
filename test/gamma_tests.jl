@@ -104,6 +104,17 @@ end
     @test reading("", [6.7]; low = 0.1).basis == "magnitude"
     # Words that name the quantity decide over any range.
     @test reading("Total gamma energy", [3.5]; low = 2.0).basis == "REACTION text"
+    # Over a partial range a total and a mean photon energy leave the intervals of a full
+    # one, and the words decide.
+    partial_total = reading("Total gamma energy", [1.76]; low = 2.0)
+    @test (partial_total.reading, partial_total.basis) ==
+          ("total_energy_per_fission", "REACTION text")
+    partial_mean = reading("Average gamma energy per gamma", [3.3]; low = 2.5)
+    @test (partial_mean.reading, partial_mean.basis) ==
+          ("mean_photon_energy", "REACTION text")
+    unbounded_mean = reading("Average gamma energy per gamma", [0.9]; partial = true)
+    @test (unbounded_mean.reading, unbounded_mean.basis) ==
+          ("mean_photon_energy", "REACTION text")
 
     # The words of the reaction of a pointer.
     text = exfor_subentry(;

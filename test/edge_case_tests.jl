@@ -319,6 +319,41 @@
             ExforFissionData.average_lines(reading(3), doubled_text, doubled_data, "DATA")
         @test doubled isa String
         @test occursin("flagged as the authors' average", doubled)
+        # A line the selection does not keep is no average for its state; the repeat
+        # flagged 8 is still left out.
+        kept = trues(8)
+        kept[3] = false
+        @test ExforFissionData.average_lines(reading(1), text, data, "DATA", kept) ==
+              Bool[0, 0, 0, 0, 1, 0, 0, 0]
+        # The uncertainty under ERR-T tells a repeat (line 4) from a line of the same value
+        # with another uncertainty (line 2).
+        errt_text = exfor_subentry(;
+            bib,
+            headings = ["ELEMENT", "MASS", "ISOMER", "DATA", "ERR-T", "FLAG", "FLAG"],
+            units = ["NO-DIM", "NO-DIM", "NO-DIM", "PC/FIS", "PC/FIS", "NO-DIM", "NO-DIM"],
+            rows = [
+                [51.0, 126.0, 0.0, 3.0e-3, 0.3e-3, 2.0, missing],
+                [51.0, 126.0, 0.0, 3.0e-3, 0.4e-3, 1.0, 8.0],
+                [51.0, 128.0, 0.0, 4.0e-3, 0.4e-3, 2.0, missing],
+                [51.0, 128.0, 0.0, 4.0e-3, 0.4e-3, 1.0, 8.0],
+            ],
+        )
+        errt_data = ExforFissionData.parse_subentry(errt_text, "10000002").data
+        @test ExforFissionData.average_lines(reading(1), errt_text, errt_data, "DATA") ==
+              Bool[0, 0, 0, 1]
+        # A line with no value under the datum heading repeats nothing.
+        aprx_text = exfor_subentry(;
+            bib,
+            headings = ["ELEMENT", "MASS", "ISOMER", "DATA", "DATA-APRX", "FLAG", "FLAG"],
+            units = ["NO-DIM", "NO-DIM", "NO-DIM", "PC/FIS", "PC/FIS", "NO-DIM", "NO-DIM"],
+            rows = [
+                [47.0, 118.0, 1.0, missing, 0.02, 2.0, missing],
+                [47.0, 118.0, 1.0, missing, 0.01, 1.0, 8.0],
+            ],
+        )
+        aprx_data = ExforFissionData.parse_subentry(aprx_text, "10000002").data
+        @test ExforFissionData.average_lines(reading(0), aprx_text, aprx_data, "DATA") ==
+              Bool[0, 0]
         # The curated table holds the two datasets with the line counts of the archive.
         @test ExforFissionData.AUTHORS_AVERAGES["23709002"].lines == 8
         @test ExforFissionData.AUTHORS_AVERAGES["221610021"].lines == 39
@@ -358,5 +393,61 @@
         @test other_states("100000021") == ["In-130: ISOMER 0"]
         # In-131, which pointer 2 does not give, is not named.
         @test other_states("100000022") == ["In-130: ISOMER 1", "In-130: ISOMER 2"]
+        # A nuclide given as the archive's total lacks no state.
+        total_text = exfor_subentry(;
+            bib = [
+                "REACTION  1(92-U-235(N,F)ELEM/MASS,IND,FY)",
+                "          2(92-U-235(N,F)ELEM/MASS,CUM,FY)",
+            ],
+            headings = [
+                "ELEMENT",
+                "MASS",
+                "ISOMER",
+                "DATA",
+                "DATA-ERR",
+                "DATA",
+                "DATA-ERR",
+            ],
+            units = ["NO-DIM", "NO-DIM", "NO-DIM", "PC/FIS", "PC/FIS", "PC/FIS", "PC/FIS"],
+            pointers = [' ', ' ', ' ', '1', '1', '2', '2'],
+            rows = [
+                [49.0, 132.0, missing, 0.01, 0.001, missing, missing],
+                [49.0, 132.0, 1.0, missing, missing, 0.02, 0.002],
+            ],
+        )
+        total_subentry = ExforFissionData.parse_subentry(total_text, "100000021")
+        total_datum = ExforFissionData.column(total_subentry.data, "DATA")
+        total_present = BitVector(map(!ismissing, total_subentry.data.values[total_datum]))
+        @test ExforFissionData._states_under_other_pointers(
+            total_subentry,
+            total_present,
+        ) == String[]
+        # The mass may be a constant of the COMMON section.
+        common_text = exfor_subentry(;
+            bib = [
+                "REACTION  1(92-U-235(N,F)ELEM/MASS,IND,FY)",
+                "          2(92-U-235(N,F)ELEM/MASS,CUM,FY)",
+            ],
+            common = (headings = ["MASS"], units = ["NO-DIM"], values = [130.0]),
+            headings = ["ELEMENT", "ISOMER", "DATA", "DATA-ERR", "DATA", "DATA-ERR"],
+            units = ["NO-DIM", "NO-DIM", "PC/FIS", "PC/FIS", "PC/FIS", "PC/FIS"],
+            pointers = [' ', ' ', '1', '1', '2', '2'],
+            rows = [
+                [49.0, 1.0, 0.0056, 0.001, missing, missing],
+                [49.0, 0.0, missing, missing, 0.0039, 0.001],
+            ],
+        )
+        common_subentry = ExforFissionData.parse_subentry(common_text, "100000021")
+        common_datum = ExforFissionData.column(common_subentry.data, "DATA")
+        common_present =
+            BitVector(map(!ismissing, common_subentry.data.values[common_datum]))
+        @test ExforFissionData._states_under_other_pointers(
+            common_subentry,
+            common_present,
+        ) == ["In-130: ISOMER 0"]
+        # A nuclide none of whose lines is written is not named.
+        unwritten = ExforFissionData.parse_subentry(text, "100000021")
+        @test ExforFissionData._states_under_other_pointers(unwritten, falses(4)) ==
+              String[]
     end
 end
